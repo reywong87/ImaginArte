@@ -122,4 +122,54 @@ public sealed class RoomUseCaseTests
 
         Assert.Equal("MISSING", exception.RoomCode);
     }
+
+    [Fact]
+    public async Task StartGame_WithThreePlayers_MovesRoomToInProgress()
+    {
+        var repository = new InMemoryRoomRepository();
+        var createRoom = new CreateRoomHandler(repository);
+        var joinRoom = new JoinRoomHandler(repository);
+        var startGame = new StartGameHandler(repository);
+
+        await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+
+        var result = await startGame.HandleAsync(new StartGameCommand("abc123"));
+
+        Assert.Equal("ABC123", result.Room.RoomCode);
+        Assert.Equal(GamePhase.InProgress, result.Room.Phase);
+        Assert.Equal(3, result.Room.Players.Count);
+    }
+
+    [Fact]
+    public async Task StartGame_WithFewerThanThreePlayers_PropagatesDomainException()
+    {
+        var repository = new InMemoryRoomRepository();
+        var createRoom = new CreateRoomHandler(repository);
+        var joinRoom = new JoinRoomHandler(repository);
+        var startGame = new StartGameHandler(repository);
+
+        await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+
+        var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
+            () => startGame.HandleAsync(new StartGameCommand("ABC123")));
+
+        Assert.Equal(DomainErrorCode.NotEnoughPlayers, exception.Code);
+    }
+
+    [Fact]
+    public async Task StartGame_WhenRoomDoesNotExist_Throws()
+    {
+        var repository = new InMemoryRoomRepository();
+        var handler = new StartGameHandler(repository);
+
+        var exception = await Assert.ThrowsAsync<RoomNotFoundException>(
+            () => handler.HandleAsync(new StartGameCommand("missing")));
+
+        Assert.Equal("MISSING", exception.RoomCode);
+    }
 }
