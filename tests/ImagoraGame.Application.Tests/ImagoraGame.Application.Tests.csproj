@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ImagoraGame.Application\ImagoraGame.Application.csproj" />
     <ProjectReference Include="..\..\src\ImagoraGame.Domain\ImagoraGame.Domain.csproj" />
+    <ProjectReference Include="..\..\src\ImagoraGame.Infrastructure\ImagoraGame.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
