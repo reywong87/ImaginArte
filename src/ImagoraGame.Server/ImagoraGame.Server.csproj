@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\ImagoraGame.Application\ImagoraGame.Application.csproj" />
+    <ProjectReference Include="..\ImagoraGame.Infrastructure\ImagoraGame.Infrastructure.csproj" />
+    <ProjectReference Include="..\ImagoraGame.Contracts\ImagoraGame.Contracts.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

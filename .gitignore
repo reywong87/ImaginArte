@@ -1,0 +1,13 @@
+# .NET build output
+bin/
+obj/
+
+# Local .NET CLI home used by Codex commands in this workspace
+.dotnet/
+
+# IDE/user files
+.vs/
+.vscode/
+*.user
+*.suo
+.idea/
