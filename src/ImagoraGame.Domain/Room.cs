@@ -17,6 +17,8 @@ public sealed class Room
 
     public GamePhase Phase { get; private set; }
 
+    public PlayerId? CurrentStorytellerId { get; private set; }
+
     public IReadOnlyCollection<Player> Players => _players.AsReadOnly();
 
     public static Room Create(RoomCode code)
@@ -72,6 +74,7 @@ public sealed class Room
                 $"A game needs at least {MinimumPlayers} players to start.");
         }
 
-        Phase = GamePhase.InProgress;
+        CurrentStorytellerId = _players[0].Id;
+        Phase = GamePhase.StorytellerChoosing;
     }
 }

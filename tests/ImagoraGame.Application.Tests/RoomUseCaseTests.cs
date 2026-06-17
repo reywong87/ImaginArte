@@ -124,23 +124,27 @@ public sealed class RoomUseCaseTests
     }
 
     [Fact]
-    public async Task StartGame_WithThreePlayers_MovesRoomToInProgress()
+    public async Task StartGame_WithThreePlayers_MovesRoomToStorytellerChoosing()
     {
         var repository = new InMemoryRoomRepository();
         var createRoom = new CreateRoomHandler(repository);
         var joinRoom = new JoinRoomHandler(repository);
         var startGame = new StartGameHandler(repository);
+        var aliceId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
         await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
         await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
 
         var result = await startGame.HandleAsync(new StartGameCommand("abc123"));
 
         Assert.Equal("ABC123", result.Room.RoomCode);
-        Assert.Equal(GamePhase.InProgress, result.Room.Phase);
+        Assert.Equal(GamePhase.StorytellerChoosing, result.Room.Phase);
         Assert.Equal(3, result.Room.Players.Count);
+        Assert.NotNull(result.Room.CurrentStoryteller);
+        Assert.Equal(aliceId, result.Room.CurrentStoryteller.PlayerId);
+        Assert.Equal("Alice", result.Room.CurrentStoryteller.Name);
     }
 
     [Fact]

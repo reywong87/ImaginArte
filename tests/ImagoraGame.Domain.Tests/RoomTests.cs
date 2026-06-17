@@ -11,6 +11,7 @@ public sealed class RoomTests
 
         Assert.Equal("FAMILY-ROOM", room.Code.Value);
         Assert.Equal(GamePhase.WaitingForPlayers, room.Phase);
+        Assert.Null(room.CurrentStorytellerId);
         Assert.Empty(room.Players);
     }
 
@@ -126,7 +127,7 @@ public sealed class RoomTests
     }
 
     [Fact]
-    public void StartGame_WithMinimumPlayers_MovesRoomToInProgress()
+    public void StartGame_WithMinimumPlayers_MovesRoomToStorytellerChoosing()
     {
         var room = Room.Create(new RoomCode("ABC123"));
         room.Join(PlayerId.New(), "Alice");
@@ -135,7 +136,21 @@ public sealed class RoomTests
 
         room.StartGame();
 
-        Assert.Equal(GamePhase.InProgress, room.Phase);
+        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+    }
+
+    [Fact]
+    public void StartGame_SelectsFirstJoinedPlayerAsStoryteller()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(PlayerId.New(), "Bob");
+        room.Join(PlayerId.New(), "Carla");
+
+        room.StartGame();
+
+        Assert.Equal(aliceId, room.CurrentStorytellerId);
     }
 
     [Fact]
@@ -149,6 +164,6 @@ public sealed class RoomTests
 
         var exception = Assert.Throws<DomainRuleViolationException>(room.StartGame);
         Assert.Equal(DomainErrorCode.RoomNotWaitingForPlayers, exception.Code);
-        Assert.Equal(GamePhase.InProgress, room.Phase);
+        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
     }
 }
