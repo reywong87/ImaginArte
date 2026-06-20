@@ -148,6 +148,30 @@ public sealed class RoomUseCaseTests
     }
 
     [Fact]
+    public async Task StartGame_DoesNotExposePrivateHandsInPublicRoomState()
+    {
+        var repository = new InMemoryRoomRepository();
+        var createRoom = new CreateRoomHandler(repository);
+        var joinRoom = new JoinRoomHandler(repository);
+        var startGame = new StartGameHandler(repository);
+
+        await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+
+        var result = await startGame.HandleAsync(new StartGameCommand("abc123"));
+
+        Assert.DoesNotContain(
+            typeof(RoomState).GetProperties(),
+            property => property.Name.Contains("Hand", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            typeof(PlayerState).GetProperties(),
+            property => property.Name.Contains("Hand", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(GamePhase.StorytellerChoosing, result.Room.Phase);
+    }
+
+    [Fact]
     public async Task StartGame_WithFewerThanThreePlayers_PropagatesDomainException()
     {
         var repository = new InMemoryRoomRepository();

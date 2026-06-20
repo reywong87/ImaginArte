@@ -4,6 +4,7 @@ public sealed class Room
 {
     public const int MinimumPlayers = 3;
     public const int MaximumPlayers = 8;
+    public const int InitialHandSize = 6;
 
     private readonly List<Player> _players = [];
 
@@ -20,6 +21,18 @@ public sealed class Room
     public PlayerId? CurrentStorytellerId { get; private set; }
 
     public IReadOnlyCollection<Player> Players => _players.AsReadOnly();
+
+    public IReadOnlyCollection<Card> GetHandFor(PlayerId playerId)
+    {
+        var player = _players.SingleOrDefault(existingPlayer => existingPlayer.Id == playerId);
+
+        if (player is null)
+        {
+            throw new ArgumentException("Player is not in this room.", nameof(playerId));
+        }
+
+        return player.Hand;
+    }
 
     public static Room Create(RoomCode code)
     {
@@ -75,6 +88,29 @@ public sealed class Room
         }
 
         CurrentStorytellerId = _players[0].Id;
+        DealInitialHands();
         Phase = GamePhase.StorytellerChoosing;
+    }
+
+    private void DealInitialHands()
+    {
+        var deck = CreateTemporaryDeck();
+
+        for (var playerIndex = 0; playerIndex < _players.Count; playerIndex++)
+        {
+            var hand = deck
+                .Skip(playerIndex * InitialHandSize)
+                .Take(InitialHandSize);
+
+            _players[playerIndex].DealInitialHand(hand);
+        }
+    }
+
+    private static IReadOnlyList<Card> CreateTemporaryDeck()
+    {
+        return Enumerable
+            .Range(1, MaximumPlayers * InitialHandSize)
+            .Select(cardNumber => new Card(new CardId($"TEMP-{cardNumber:000}")))
+            .ToArray();
     }
 }

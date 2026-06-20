@@ -140,6 +140,66 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void StartGame_DealsInitialHandToEachPlayer()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        var carlaId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(carlaId, "Carla");
+
+        room.StartGame();
+
+        Assert.Equal(Room.InitialHandSize, room.GetHandFor(aliceId).Count);
+        Assert.Equal(Room.InitialHandSize, room.GetHandFor(bobId).Count);
+        Assert.Equal(Room.InitialHandSize, room.GetHandFor(carlaId).Count);
+    }
+
+    [Fact]
+    public void StartGame_DealsUniqueCardsAcrossPlayers()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        var carlaId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(carlaId, "Carla");
+
+        room.StartGame();
+
+        var dealtCardIds = new[]
+            {
+                room.GetHandFor(aliceId),
+                room.GetHandFor(bobId),
+                room.GetHandFor(carlaId)
+            }
+            .SelectMany(hand => hand)
+            .Select(card => card.Id)
+            .ToArray();
+
+        Assert.Equal(dealtCardIds.Length, dealtCardIds.Distinct().Count());
+    }
+
+    [Fact]
+    public void Players_BeforeStartGame_DoNotHaveInitialPlayableHands()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        var carlaId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(carlaId, "Carla");
+
+        Assert.Empty(room.GetHandFor(aliceId));
+        Assert.Empty(room.GetHandFor(bobId));
+        Assert.Empty(room.GetHandFor(carlaId));
+    }
+
+    [Fact]
     public void StartGame_SelectsFirstJoinedPlayerAsStoryteller()
     {
         var room = Room.Create(new RoomCode("ABC123"));
