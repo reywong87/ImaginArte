@@ -124,6 +124,96 @@ public sealed class RoomUseCaseTests
     }
 
     [Fact]
+    public async Task GetPlayerPrivateState_WithJoinedPlayer_ReturnsPublicRoomAndPrivatePlayerSnapshot()
+    {
+        var repository = new InMemoryRoomRepository();
+        var createRoom = new CreateRoomHandler(repository);
+        var joinRoom = new JoinRoomHandler(repository);
+        var startGame = new StartGameHandler(repository);
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+
+        await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", bobId, "Bob"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await startGame.HandleAsync(new StartGameCommand("ABC123"));
+
+        var result = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("abc123", bobId));
+
+        Assert.Equal("ABC123", result.Room.RoomCode);
+        Assert.Equal(GamePhase.StorytellerChoosing, result.Room.Phase);
+        Assert.Equal(3, result.Room.Players.Count);
+        Assert.Equal(aliceId, result.Room.CurrentStoryteller?.PlayerId);
+        Assert.Equal(bobId, result.Player.PlayerId);
+        Assert.Equal("Bob", result.Player.Name);
+        Assert.False(result.Player.IsCurrentStoryteller);
+        Assert.Collection(
+            result.Player.Hand,
+            card => Assert.Equal("TEMP-007", card.CardId),
+            card => Assert.Equal("TEMP-008", card.CardId),
+            card => Assert.Equal("TEMP-009", card.CardId),
+            card => Assert.Equal("TEMP-010", card.CardId),
+            card => Assert.Equal("TEMP-011", card.CardId),
+            card => Assert.Equal("TEMP-012", card.CardId));
+    }
+
+    [Fact]
+    public async Task GetPlayerPrivateState_ForCurrentStoryteller_MarksPlayerAsStoryteller()
+    {
+        var repository = new InMemoryRoomRepository();
+        var createRoom = new CreateRoomHandler(repository);
+        var joinRoom = new JoinRoomHandler(repository);
+        var startGame = new StartGameHandler(repository);
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var aliceId = Guid.NewGuid();
+
+        await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await startGame.HandleAsync(new StartGameCommand("ABC123"));
+
+        var result = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", aliceId));
+
+        Assert.True(result.Player.IsCurrentStoryteller);
+        Assert.Equal(Room.InitialHandSize, result.Player.Hand.Count);
+    }
+
+    [Fact]
+    public async Task GetPlayerPrivateState_WhenRoomDoesNotExist_Throws()
+    {
+        var repository = new InMemoryRoomRepository();
+        var handler = new GetPlayerPrivateStateHandler(repository);
+        var playerId = Guid.NewGuid();
+
+        var exception = await Assert.ThrowsAsync<RoomNotFoundException>(
+            () => handler.HandleAsync(new GetPlayerPrivateStateQuery("missing", playerId)));
+
+        Assert.Equal("MISSING", exception.RoomCode);
+    }
+
+    [Fact]
+    public async Task GetPlayerPrivateState_WhenPlayerIsNotInRoom_Throws()
+    {
+        var repository = new InMemoryRoomRepository();
+        var createRoom = new CreateRoomHandler(repository);
+        var joinRoom = new JoinRoomHandler(repository);
+        var handler = new GetPlayerPrivateStateHandler(repository);
+        var missingPlayerId = Guid.NewGuid();
+
+        await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+
+        var exception = await Assert.ThrowsAsync<PlayerNotFoundInRoomException>(
+            () => handler.HandleAsync(new GetPlayerPrivateStateQuery("abc123", missingPlayerId)));
+
+        Assert.Equal("ABC123", exception.RoomCode);
+        Assert.Equal(missingPlayerId, exception.PlayerId);
+    }
+
+    [Fact]
     public async Task StartGame_WithThreePlayers_MovesRoomToStorytellerChoosing()
     {
         var repository = new InMemoryRoomRepository();

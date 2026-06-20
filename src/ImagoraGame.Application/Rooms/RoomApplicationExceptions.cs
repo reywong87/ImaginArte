@@ -21,3 +21,17 @@ public sealed class RoomNotFoundException : InvalidOperationException
 
     public string RoomCode { get; }
 }
+
+public sealed class PlayerNotFoundInRoomException : InvalidOperationException
+{
+    public PlayerNotFoundInRoomException(string roomCode, Guid playerId)
+        : base($"Player '{playerId}' was not found in room '{roomCode}'.")
+    {
+        RoomCode = roomCode;
+        PlayerId = playerId;
+    }
+
+    public string RoomCode { get; }
+
+    public Guid PlayerId { get; }
+}
