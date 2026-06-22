@@ -20,6 +20,10 @@ public sealed class Room
 
     public PlayerId? CurrentStorytellerId { get; private set; }
 
+    public CardId? StorytellerCardId { get; private set; }
+
+    public string? Clue { get; private set; }
+
     public IReadOnlyCollection<Player> Players => _players.AsReadOnly();
 
     public IReadOnlyCollection<Card> GetHandFor(PlayerId playerId)
@@ -90,6 +94,43 @@ public sealed class Room
         CurrentStorytellerId = _players[0].Id;
         DealInitialHands();
         Phase = GamePhase.StorytellerChoosing;
+    }
+
+    public void ChooseStorytellerCard(PlayerId playerId, CardId cardId, string clue)
+    {
+        if (Phase != GamePhase.StorytellerChoosing)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.RoomNotWaitingForStoryteller,
+                "The storyteller can only choose a card while the room is waiting for the storyteller.");
+        }
+
+        if (CurrentStorytellerId != playerId)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.PlayerIsNotCurrentStoryteller,
+                "Only the current storyteller can choose the storyteller card.");
+        }
+
+        if (string.IsNullOrWhiteSpace(clue))
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.ClueIsRequired,
+                "The storyteller clue is required.");
+        }
+
+        var storyteller = _players.Single(player => player.Id == playerId);
+
+        if (!storyteller.Hand.Any(card => card.Id == cardId))
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.StorytellerCardNotInHand,
+                "The storyteller card must be in the storyteller's hand.");
+        }
+
+        StorytellerCardId = cardId;
+        Clue = clue.Trim();
+        Phase = GamePhase.GuessersSubmitting;
     }
 
     private void DealInitialHands()

@@ -214,6 +214,101 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void ChooseStorytellerCard_WithCardInStorytellerHand_MovesRoomToGuessersSubmitting()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(PlayerId.New(), "Bob");
+        room.Join(PlayerId.New(), "Carla");
+        room.StartGame();
+        var cardId = room.GetHandFor(aliceId).First().Id;
+
+        room.ChooseStorytellerCard(aliceId, cardId, "A strange doorway");
+
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+        Assert.Equal(cardId, room.StorytellerCardId);
+        Assert.Equal("A strange doorway", room.Clue);
+    }
+
+    [Fact]
+    public void ChooseStorytellerCard_WhenPlayerIsNotStoryteller_Throws()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(PlayerId.New(), "Carla");
+        room.StartGame();
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.ChooseStorytellerCard(bobId, bobCardId, "A strange doorway"));
+
+        Assert.Equal(DomainErrorCode.PlayerIsNotCurrentStoryteller, exception.Code);
+        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+    }
+
+    [Fact]
+    public void ChooseStorytellerCard_WhenRoomIsNotWaitingForStoryteller_Throws()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(PlayerId.New(), "Bob");
+        room.Join(PlayerId.New(), "Carla");
+        room.StartGame();
+        var cardId = room.GetHandFor(aliceId).First().Id;
+        room.ChooseStorytellerCard(aliceId, cardId, "A strange doorway");
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.ChooseStorytellerCard(aliceId, cardId, "Another clue"));
+
+        Assert.Equal(DomainErrorCode.RoomNotWaitingForStoryteller, exception.Code);
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+    }
+
+    [Fact]
+    public void ChooseStorytellerCard_WhenCardIsNotInStorytellerHand_Throws()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(PlayerId.New(), "Bob");
+        room.Join(PlayerId.New(), "Carla");
+        room.StartGame();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.ChooseStorytellerCard(aliceId, new CardId("missing-card"), "A strange doorway"));
+
+        Assert.Equal(DomainErrorCode.StorytellerCardNotInHand, exception.Code);
+        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+        Assert.Null(room.StorytellerCardId);
+        Assert.Null(room.Clue);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void ChooseStorytellerCard_WithBlankClue_Throws(string clue)
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(PlayerId.New(), "Bob");
+        room.Join(PlayerId.New(), "Carla");
+        room.StartGame();
+        var cardId = room.GetHandFor(aliceId).First().Id;
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.ChooseStorytellerCard(aliceId, cardId, clue));
+
+        Assert.Equal(DomainErrorCode.ClueIsRequired, exception.Code);
+        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+    }
+
+    [Fact]
     public void StartGame_WhenAlreadyStarted_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));

@@ -8,7 +8,8 @@ public sealed record RoomState(
     string RoomCode,
     GamePhase Phase,
     IReadOnlyCollection<PlayerState> Players,
-    PlayerState? CurrentStoryteller)
+    PlayerState? CurrentStoryteller,
+    string? Clue)
 {
     public static RoomState FromRoom(Room room)
     {
@@ -23,6 +24,7 @@ public sealed record RoomState(
             room.Code.Value,
             room.Phase,
             players,
-            currentStoryteller);
+            currentStoryteller,
+            room.Clue);
     }
 }
