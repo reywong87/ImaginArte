@@ -9,7 +9,9 @@ public sealed record RoomState(
     GamePhase Phase,
     IReadOnlyCollection<PlayerState> Players,
     PlayerState? CurrentStoryteller,
-    string? Clue)
+    string? Clue,
+    int SubmissionCount,
+    int ExpectedSubmissionCount)
 {
     public static RoomState FromRoom(Room room)
     {
@@ -25,6 +27,8 @@ public sealed record RoomState(
             room.Phase,
             players,
             currentStoryteller,
-            room.Clue);
+            room.Clue,
+            room.SubmissionCount,
+            room.ExpectedSubmissionCount);
     }
 }

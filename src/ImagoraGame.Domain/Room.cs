@@ -7,6 +7,7 @@ public sealed class Room
     public const int InitialHandSize = 6;
 
     private readonly List<Player> _players = [];
+    private readonly List<GuessCardSubmission> _guessCardSubmissions = [];
 
     private Room(RoomCode code)
     {
@@ -25,6 +26,14 @@ public sealed class Room
     public string? Clue { get; private set; }
 
     public IReadOnlyCollection<Player> Players => _players.AsReadOnly();
+
+    public IReadOnlyCollection<GuessCardSubmission> GuessCardSubmissions => _guessCardSubmissions.AsReadOnly();
+
+    public int SubmissionCount => _guessCardSubmissions.Count;
+
+    public int ExpectedSubmissionCount => CurrentStorytellerId is null
+        ? 0
+        : _players.Count(player => player.Id != CurrentStorytellerId);
 
     public IReadOnlyCollection<Card> GetHandFor(PlayerId playerId)
     {
@@ -131,6 +140,53 @@ public sealed class Room
         StorytellerCardId = cardId;
         Clue = clue.Trim();
         Phase = GamePhase.GuessersSubmitting;
+    }
+
+    public void SubmitGuessCard(PlayerId playerId, CardId cardId)
+    {
+        if (Phase != GamePhase.GuessersSubmitting)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.RoomNotWaitingForGuessers,
+                "Guessers can only submit cards while the room is waiting for guesser submissions.");
+        }
+
+        var player = _players.SingleOrDefault(existingPlayer => existingPlayer.Id == playerId);
+
+        if (player is null)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.PlayerNotInRoom,
+                "The player must belong to the room to submit a guess card.");
+        }
+
+        if (CurrentStorytellerId == playerId)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.PlayerIsCurrentStoryteller,
+                "The current storyteller cannot submit a guess card.");
+        }
+
+        if (_guessCardSubmissions.Any(submission => submission.PlayerId == playerId))
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.GuessCardAlreadySubmitted,
+                "This guesser has already submitted a guess card.");
+        }
+
+        if (!player.Hand.Any(card => card.Id == cardId))
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.GuessCardNotInHand,
+                "The guess card must be in the guesser's hand.");
+        }
+
+        _guessCardSubmissions.Add(new GuessCardSubmission(playerId, cardId));
+
+        if (SubmissionCount == ExpectedSubmissionCount)
+        {
+            Phase = GamePhase.Voting;
+        }
     }
 
     private void DealInitialHands()

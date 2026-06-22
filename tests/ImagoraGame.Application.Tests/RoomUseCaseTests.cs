@@ -366,4 +366,80 @@ public sealed class RoomUseCaseTests
 
         Assert.Equal(DomainErrorCode.PlayerIsNotCurrentStoryteller, exception.Code);
     }
+
+    [Fact]
+    public async Task SubmitGuessCard_WithValidCommand_UpdatesSubmissionCountAndReturnsCurrentPhase()
+    {
+        var repository = new InMemoryRoomRepository();
+        var submitGuessCard = new SubmitGuessCardHandler(repository);
+        var (_, bobId, _) = await CreateRoomWaitingForGuesserSubmissionsAsync(repository);
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var bobState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", bobId));
+        var bobCardId = bobState.Player.Hand.First().CardId;
+
+        var result = await submitGuessCard.HandleAsync(new SubmitGuessCardCommand("abc123", bobId, bobCardId));
+
+        Assert.Equal("ABC123", result.Room.RoomCode);
+        Assert.Equal(GamePhase.GuessersSubmitting, result.Room.Phase);
+        Assert.Equal(1, result.Room.SubmissionCount);
+        Assert.Equal(2, result.Room.ExpectedSubmissionCount);
+    }
+
+    [Fact]
+    public async Task SubmitGuessCard_WhenRoomDoesNotExist_Throws()
+    {
+        var repository = new InMemoryRoomRepository();
+        var handler = new SubmitGuessCardHandler(repository);
+        var playerId = Guid.NewGuid();
+
+        var exception = await Assert.ThrowsAsync<RoomNotFoundException>(
+            () => handler.HandleAsync(new SubmitGuessCardCommand("missing", playerId, "TEMP-001")));
+
+        Assert.Equal("MISSING", exception.RoomCode);
+    }
+
+    [Fact]
+    public async Task SubmitGuessCard_WhenDomainRuleIsViolated_PropagatesDomainException()
+    {
+        var repository = new InMemoryRoomRepository();
+        var submitGuessCard = new SubmitGuessCardHandler(repository);
+        var (aliceId, _, _) = await CreateRoomWaitingForGuesserSubmissionsAsync(repository);
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var aliceState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", aliceId));
+        var aliceCardId = aliceState.Player.Hand.First().CardId;
+
+        var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
+            () => submitGuessCard.HandleAsync(new SubmitGuessCardCommand("ABC123", aliceId, aliceCardId)));
+
+        Assert.Equal(DomainErrorCode.PlayerIsCurrentStoryteller, exception.Code);
+    }
+
+    private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId)> CreateRoomWaitingForGuesserSubmissionsAsync(
+        InMemoryRoomRepository repository)
+    {
+        var createRoom = new CreateRoomHandler(repository);
+        var joinRoom = new JoinRoomHandler(repository);
+        var startGame = new StartGameHandler(repository);
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var chooseStorytellerCard = new ChooseStorytellerCardHandler(repository);
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+
+        await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", bobId, "Bob"));
+        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", carlaId, "Carla"));
+        await startGame.HandleAsync(new StartGameCommand("ABC123"));
+        var storytellerState = await getPlayerPrivateState.HandleAsync(
+            new GetPlayerPrivateStateQuery("ABC123", aliceId));
+        var storytellerCardId = storytellerState.Player.Hand.First().CardId;
+        await chooseStorytellerCard.HandleAsync(new ChooseStorytellerCardCommand(
+            "ABC123",
+            aliceId,
+            storytellerCardId,
+            "A strange doorway"));
+
+        return (aliceId, bobId, carlaId);
+    }
 }

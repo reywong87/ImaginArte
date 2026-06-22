@@ -309,6 +309,123 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void SubmitGuessCard_WithCardInGuesserHand_StoresSubmission()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForGuesserSubmissions();
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+
+        room.SubmitGuessCard(bobId, bobCardId);
+
+        var submission = Assert.Single(room.GuessCardSubmissions);
+        Assert.Equal(bobId, submission.PlayerId);
+        Assert.Equal(bobCardId, submission.CardId);
+        Assert.Equal(1, room.SubmissionCount);
+        Assert.Equal(2, room.ExpectedSubmissionCount);
+    }
+
+    [Fact]
+    public void SubmitGuessCard_WhenPlayerIsStoryteller_Throws()
+    {
+        var (room, aliceId, _, _) = CreateRoomWaitingForGuesserSubmissions();
+        var aliceCardId = room.GetHandFor(aliceId).First().Id;
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.SubmitGuessCard(aliceId, aliceCardId));
+
+        Assert.Equal(DomainErrorCode.PlayerIsCurrentStoryteller, exception.Code);
+        Assert.Empty(room.GuessCardSubmissions);
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+    }
+
+    [Fact]
+    public void SubmitGuessCard_WhenRoomIsNotWaitingForGuesserSubmissions_Throws()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(PlayerId.New(), "Carla");
+        room.StartGame();
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.SubmitGuessCard(bobId, bobCardId));
+
+        Assert.Equal(DomainErrorCode.RoomNotWaitingForGuessers, exception.Code);
+        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+    }
+
+    [Fact]
+    public void SubmitGuessCard_WhenPlayerIsNotInRoom_Throws()
+    {
+        var (room, _, _, _) = CreateRoomWaitingForGuesserSubmissions();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.SubmitGuessCard(PlayerId.New(), new CardId("TEMP-999")));
+
+        Assert.Equal(DomainErrorCode.PlayerNotInRoom, exception.Code);
+        Assert.Empty(room.GuessCardSubmissions);
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+    }
+
+    [Fact]
+    public void SubmitGuessCard_WhenCardIsNotInGuesserHand_Throws()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForGuesserSubmissions();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.SubmitGuessCard(bobId, new CardId("missing-card")));
+
+        Assert.Equal(DomainErrorCode.GuessCardNotInHand, exception.Code);
+        Assert.Empty(room.GuessCardSubmissions);
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+    }
+
+    [Fact]
+    public void SubmitGuessCard_WhenSameGuesserSubmitsTwice_Throws()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForGuesserSubmissions();
+        var bobCards = room.GetHandFor(bobId).ToArray();
+        room.SubmitGuessCard(bobId, bobCards[0].Id);
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.SubmitGuessCard(bobId, bobCards[1].Id));
+
+        Assert.Equal(DomainErrorCode.GuessCardAlreadySubmitted, exception.Code);
+        Assert.Single(room.GuessCardSubmissions);
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+    }
+
+    [Fact]
+    public void SubmitGuessCard_WhenSomeGuessersStillNeedToSubmit_KeepsRoomInGuessersSubmitting()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForGuesserSubmissions();
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+
+        room.SubmitGuessCard(bobId, bobCardId);
+
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+        Assert.Equal(1, room.SubmissionCount);
+        Assert.Equal(2, room.ExpectedSubmissionCount);
+    }
+
+    [Fact]
+    public void SubmitGuessCard_WhenAllGuessersSubmit_MovesRoomToVoting()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+        var carlaCardId = room.GetHandFor(carlaId).First().Id;
+
+        room.SubmitGuessCard(bobId, bobCardId);
+        room.SubmitGuessCard(carlaId, carlaCardId);
+
+        Assert.Equal(GamePhase.Voting, room.Phase);
+        Assert.Equal(2, room.SubmissionCount);
+        Assert.Equal(2, room.ExpectedSubmissionCount);
+    }
+
+    [Fact]
     public void StartGame_WhenAlreadyStarted_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));
@@ -320,5 +437,22 @@ public sealed class RoomTests
         var exception = Assert.Throws<DomainRuleViolationException>(room.StartGame);
         Assert.Equal(DomainErrorCode.RoomNotWaitingForPlayers, exception.Code);
         Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+    }
+
+    private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
+        CreateRoomWaitingForGuesserSubmissions()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        var carlaId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(carlaId, "Carla");
+        room.StartGame();
+        var storytellerCardId = room.GetHandFor(aliceId).First().Id;
+        room.ChooseStorytellerCard(aliceId, storytellerCardId, "A strange doorway");
+
+        return (room, aliceId, bobId, carlaId);
     }
 }
