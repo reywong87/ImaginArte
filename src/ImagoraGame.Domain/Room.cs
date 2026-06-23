@@ -9,6 +9,7 @@ public sealed class Room
     private readonly List<Player> _players = [];
     private readonly List<GuessCardSubmission> _guessCardSubmissions = [];
     private readonly List<VotingCardOwnership> _votingCardOwnerships = [];
+    private readonly List<Vote> _votes = [];
 
     private Room(RoomCode code)
     {
@@ -41,6 +42,12 @@ public sealed class Room
     public int SubmissionCount => _guessCardSubmissions.Count;
 
     public int ExpectedSubmissionCount => CurrentStorytellerId is null
+        ? 0
+        : _players.Count(player => player.Id != CurrentStorytellerId);
+
+    public int VoteCount => _votes.Count;
+
+    public int ExpectedVoteCount => CurrentStorytellerId is null
         ? 0
         : _players.Count(player => player.Id != CurrentStorytellerId);
 
@@ -199,6 +206,60 @@ public sealed class Room
         }
     }
 
+    public void CastVote(PlayerId voterId, VotingCardId votingCardId)
+    {
+        if (Phase != GamePhase.Voting)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.RoomNotWaitingForVotes,
+                "Votes can only be cast while the room is waiting for votes.");
+        }
+
+        if (!_players.Any(player => player.Id == voterId))
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.PlayerNotInRoom,
+                "The player must belong to the room to cast a vote.");
+        }
+
+        if (CurrentStorytellerId == voterId)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.PlayerIsCurrentStoryteller,
+                "The current storyteller cannot vote.");
+        }
+
+        if (_votes.Any(vote => vote.VoterId == voterId))
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.PlayerAlreadyVoted,
+                "This guesser has already voted.");
+        }
+
+        var votingCard = _votingCardOwnerships.SingleOrDefault(card => card.VotingCardId == votingCardId);
+
+        if (votingCard is null)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.VotingCardNotFound,
+                "The selected voting card must be one of the votable options.");
+        }
+
+        if (votingCard.OwnerPlayerId == voterId && !votingCard.IsStorytellerCard)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.PlayerCannotVoteForOwnCard,
+                "A guesser cannot vote for their own submitted card.");
+        }
+
+        _votes.Add(new Vote(voterId, votingCardId));
+
+        if (VoteCount == ExpectedVoteCount)
+        {
+            Phase = GamePhase.Reveal;
+        }
+    }
+
     private void PrepareVotingCards()
     {
         if (CurrentStorytellerId is not { } storytellerId || StorytellerCardId is not { } storytellerCardId)
@@ -207,6 +268,7 @@ public sealed class Room
         }
 
         _votingCardOwnerships.Clear();
+        _votes.Clear();
 
         AddVotingCard(storytellerCardId, storytellerId, isStorytellerCard: true);
 

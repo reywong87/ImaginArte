@@ -17,6 +17,8 @@ public sealed record RoomState(
     string? Clue,
     int SubmissionCount,
     int ExpectedSubmissionCount,
+    int VoteCount,
+    int ExpectedVoteCount,
     IReadOnlyCollection<VotingCardState> VotingCards)
 {
     public static RoomState FromRoom(Room room)
@@ -42,6 +44,8 @@ public sealed record RoomState(
             room.Clue,
             room.SubmissionCount,
             room.ExpectedSubmissionCount,
+            room.VoteCount,
+            room.ExpectedVoteCount,
             votingCards);
     }
 }

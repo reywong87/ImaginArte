@@ -467,6 +467,82 @@ public sealed class RoomUseCaseTests
         Assert.Equal(DomainErrorCode.PlayerIsCurrentStoryteller, exception.Code);
     }
 
+    [Fact]
+    public async Task CastVote_WithValidCommand_UpdatesVoteCountAndPhase()
+    {
+        var repository = new InMemoryRoomRepository();
+        var castVote = new CastVoteHandler(repository);
+        var (_, bobId, carlaId, votingState) = await CreateRoomWaitingForVotingAsync(repository);
+        var storytellerVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 1).VotingCardId;
+        var bobVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 2).VotingCardId;
+
+        var firstVote = await castVote.HandleAsync(new CastVoteCommand("abc123", bobId, storytellerVotingCardId));
+        var result = await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
+
+        Assert.Equal(GamePhase.Voting, firstVote.Room.Phase);
+        Assert.Equal(1, firstVote.Room.VoteCount);
+        Assert.Equal(2, firstVote.Room.ExpectedVoteCount);
+        Assert.Equal(GamePhase.Reveal, result.Room.Phase);
+        Assert.Equal(2, result.Room.VoteCount);
+        Assert.Equal(2, result.Room.ExpectedVoteCount);
+    }
+
+    [Fact]
+    public async Task CastVote_WhenRoomDoesNotExist_Throws()
+    {
+        var repository = new InMemoryRoomRepository();
+        var handler = new CastVoteHandler(repository);
+        var playerId = Guid.NewGuid();
+
+        var exception = await Assert.ThrowsAsync<RoomNotFoundException>(
+            () => handler.HandleAsync(new CastVoteCommand("missing", playerId, "VOTE-001")));
+
+        Assert.Equal("MISSING", exception.RoomCode);
+    }
+
+    [Fact]
+    public async Task CastVote_WhenDomainRuleIsViolated_PropagatesDomainException()
+    {
+        var repository = new InMemoryRoomRepository();
+        var castVote = new CastVoteHandler(repository);
+        var (aliceId, _, _, votingState) = await CreateRoomWaitingForVotingAsync(repository);
+        var votingCardId = votingState.VotingCards.First().VotingCardId;
+
+        var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
+            () => castVote.HandleAsync(new CastVoteCommand("ABC123", aliceId, votingCardId)));
+
+        Assert.Equal(DomainErrorCode.PlayerIsCurrentStoryteller, exception.Code);
+    }
+
+    [Fact]
+    public async Task CastVote_RoomStateDoesNotExposeVotersOrVotingCardOwners()
+    {
+        var repository = new InMemoryRoomRepository();
+        var castVote = new CastVoteHandler(repository);
+        var (_, bobId, _, votingState) = await CreateRoomWaitingForVotingAsync(repository);
+        var storytellerVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 1).VotingCardId;
+
+        var result = await castVote.HandleAsync(new CastVoteCommand("ABC123", bobId, storytellerVotingCardId));
+
+        Assert.Equal(1, result.Room.VoteCount);
+        Assert.Equal(2, result.Room.ExpectedVoteCount);
+        Assert.DoesNotContain(
+            typeof(RoomState).GetProperties(),
+            property => property.Name.Contains("Voter", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            typeof(RoomState).GetProperties(),
+            property => property.Name.Equals("Votes", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            typeof(RoomState).GetProperties(),
+            property => property.Name.Contains("Owner", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            typeof(VotingCardState).GetProperties(),
+            property => property.Name.Contains("Owner", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            typeof(VotingCardState).GetProperties(),
+            property => property.Name.Contains("Player", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId)> CreateRoomWaitingForGuesserSubmissionsAsync(
         InMemoryRoomRepository repository)
     {
@@ -494,5 +570,22 @@ public sealed class RoomUseCaseTests
             "A strange doorway"));
 
         return (aliceId, bobId, carlaId);
+    }
+
+    private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId, RoomState VotingState)>
+        CreateRoomWaitingForVotingAsync(InMemoryRoomRepository repository)
+    {
+        var submitGuessCard = new SubmitGuessCardHandler(repository);
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var (aliceId, bobId, carlaId) = await CreateRoomWaitingForGuesserSubmissionsAsync(repository);
+        var bobState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", bobId));
+        var carlaState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", carlaId));
+        var bobCardId = bobState.Player.Hand.First().CardId;
+        var carlaCardId = carlaState.Player.Hand.First().CardId;
+
+        await submitGuessCard.HandleAsync(new SubmitGuessCardCommand("ABC123", bobId, bobCardId));
+        var votingState = await submitGuessCard.HandleAsync(new SubmitGuessCardCommand("ABC123", carlaId, carlaCardId));
+
+        return (aliceId, bobId, carlaId, votingState.Room);
     }
 }

@@ -14,5 +14,9 @@ public enum DomainErrorCode
     PlayerNotInRoom = 9,
     PlayerIsCurrentStoryteller = 10,
     GuessCardNotInHand = 11,
-    GuessCardAlreadySubmitted = 12
+    GuessCardAlreadySubmitted = 12,
+    RoomNotWaitingForVotes = 13,
+    VotingCardNotFound = 14,
+    PlayerCannotVoteForOwnCard = 15,
+    PlayerAlreadyVoted = 16
 }

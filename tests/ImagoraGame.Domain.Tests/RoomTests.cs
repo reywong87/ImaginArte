@@ -545,6 +545,160 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void CastVote_WithValidGuesserAndVotingCard_StoresVote()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room.VotingCards.First().VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+
+        Assert.Equal(1, room.VoteCount);
+        Assert.Equal(2, room.ExpectedVoteCount);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void CastVote_WhenPlayerIsStoryteller_Throws()
+    {
+        var (room, aliceId, _, _) = CreateRoomWaitingForVoting();
+        var votingCardId = room.VotingCards.First().VotingCardId;
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.CastVote(aliceId, votingCardId));
+
+        Assert.Equal(DomainErrorCode.PlayerIsCurrentStoryteller, exception.Code);
+        Assert.Equal(0, room.VoteCount);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void CastVote_WhenPlayerIsNotInRoom_Throws()
+    {
+        var (room, _, _, _) = CreateRoomWaitingForVoting();
+        var votingCardId = room.VotingCards.First().VotingCardId;
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.CastVote(PlayerId.New(), votingCardId));
+
+        Assert.Equal(DomainErrorCode.PlayerNotInRoom, exception.Code);
+        Assert.Equal(0, room.VoteCount);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void CastVote_WhenRoomIsNotWaitingForVotes_Throws()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForGuesserSubmissions();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.CastVote(bobId, new VotingCardId("VOTE-001")));
+
+        Assert.Equal(DomainErrorCode.RoomNotWaitingForVotes, exception.Code);
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+    }
+
+    [Fact]
+    public void CastVote_WhenVotingCardDoesNotExist_Throws()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForVoting();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.CastVote(bobId, new VotingCardId("missing-card")));
+
+        Assert.Equal(DomainErrorCode.VotingCardNotFound, exception.Code);
+        Assert.Equal(0, room.VoteCount);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void CastVote_WhenGuesserVotesForOwnSubmittedCard_Throws()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForVoting();
+        var bobVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobId)
+            .VotingCardId;
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.CastVote(bobId, bobVotingCardId));
+
+        Assert.Equal(DomainErrorCode.PlayerCannotVoteForOwnCard, exception.Code);
+        Assert.Equal(0, room.VoteCount);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void CastVote_WhenGuesserVotesForStorytellerCard_IsAllowed()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+
+        Assert.Equal(1, room.VoteCount);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void CastVote_WhenGuesserVotesTwice_Throws()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var carlaVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == carlaId)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.CastVote(bobId, carlaVotingCardId));
+
+        Assert.Equal(DomainErrorCode.PlayerAlreadyVoted, exception.Code);
+        Assert.Equal(1, room.VoteCount);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void CastVote_WhenSomeGuessersStillNeedToVote_KeepsRoomInVoting()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForVoting();
+        var votingCardId = room.VotingCards.First().VotingCardId;
+
+        room.CastVote(bobId, votingCardId);
+
+        Assert.Equal(GamePhase.Voting, room.Phase);
+        Assert.Equal(1, room.VoteCount);
+        Assert.Equal(2, room.ExpectedVoteCount);
+    }
+
+    [Fact]
+    public void CastVote_WhenAllGuessersVote_MovesRoomToReveal()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var bobVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobId)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+        room.CastVote(carlaId, bobVotingCardId);
+
+        Assert.Equal(GamePhase.Reveal, room.Phase);
+        Assert.Equal(2, room.VoteCount);
+        Assert.Equal(2, room.ExpectedVoteCount);
+    }
+
+    [Fact]
     public void StartGame_WhenAlreadyStarted_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));
@@ -571,6 +725,19 @@ public sealed class RoomTests
         room.StartGame();
         var storytellerCardId = room.GetHandFor(aliceId).First().Id;
         room.ChooseStorytellerCard(aliceId, storytellerCardId, "A strange doorway");
+
+        return (room, aliceId, bobId, carlaId);
+    }
+
+    private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
+        CreateRoomWaitingForVoting()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+        var carlaCardId = room.GetHandFor(carlaId).First().Id;
+
+        room.SubmitGuessCard(bobId, bobCardId);
+        room.SubmitGuessCard(carlaId, carlaCardId);
 
         return (room, aliceId, bobId, carlaId);
     }
