@@ -9,6 +9,7 @@ builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
 builder.Services.AddTransient<CreateRoomHandler>();
 builder.Services.AddTransient<JoinRoomHandler>();
 builder.Services.AddTransient<StartGameHandler>();
+builder.Services.AddTransient<ChooseStorytellerCardHandler>();
 builder.Services.AddTransient<GetRoomStateHandler>();
 builder.Services.AddTransient<GetPlayerPrivateStateHandler>();
 
@@ -50,6 +51,23 @@ app.MapPost("/rooms/{roomCode}/start", async (
         async () => (await handler.HandleAsync(
             new StartGameCommand(roomCode),
             cancellationToken)).Room,
+        Results.Ok);
+});
+
+app.MapPost("/rooms/{roomCode}/storyteller-card", async (
+    string roomCode,
+    ChooseStorytellerCardRequest request,
+    ChooseStorytellerCardHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    return await HandleRoomRequestAsync(
+        async () => (await handler.HandleAsync(
+            new ChooseStorytellerCardCommand(
+                roomCode,
+                request.PlayerId,
+                request.CardId,
+                request.Clue),
+            cancellationToken)).Room.ToHttpResponse(),
         Results.Ok);
 });
 

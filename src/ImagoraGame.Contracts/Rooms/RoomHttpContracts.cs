@@ -4,6 +4,11 @@ public sealed record CreateRoomRequest(string RoomCode);
 
 public sealed record JoinRoomRequest(Guid PlayerId, string PlayerName);
 
+public sealed record ChooseStorytellerCardRequest(
+    Guid PlayerId,
+    string CardId,
+    string Clue);
+
 public sealed record GetPlayerPrivateStateRequest(string RoomCode, Guid PlayerId);
 
 public sealed record GetPlayerPrivateStateResponse(

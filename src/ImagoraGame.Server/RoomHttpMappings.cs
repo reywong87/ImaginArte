@@ -17,7 +17,7 @@ internal static class RoomHttpMappings
                 result.Player.IsCurrentStoryteller));
     }
 
-    private static RoomStateResponse ToHttpResponse(this RoomState room)
+    public static RoomStateResponse ToHttpResponse(this RoomState room)
     {
         return new RoomStateResponse(
             room.RoomCode,

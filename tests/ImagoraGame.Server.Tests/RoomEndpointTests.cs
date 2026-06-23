@@ -119,6 +119,102 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
+    public async Task PostStorytellerCard_WithValidRequest_ReturnsUpdatedPublicRoomState()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var aliceId = Guid.NewGuid();
+
+        await CreateStartedRoomAsync(client, "ABC123", aliceId);
+        var privateState = await GetPlayerPrivateStateAsync(client, "ABC123", aliceId);
+        var chosenCardId = privateState.Player.Hand.First().CardId;
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/abc123/storyteller-card",
+            new ChooseStorytellerCardRequest(
+                aliceId,
+                chosenCardId,
+                "  A strange doorway  "));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var room = ReadRequiredJson<RoomStateResponse>(responseBody);
+        Assert.Equal(RoomPhase.GuessersSubmitting, room.Phase);
+        Assert.Equal("A strange doorway", room.Clue);
+        Assert.Equal(aliceId, room.CurrentStoryteller?.PlayerId);
+        Assert.Equal("Alice", room.CurrentStoryteller?.Name);
+        Assert.DoesNotContain("\"hand\"", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(chosenCardId, responseBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PostStorytellerCard_WhenRoomDoesNotExist_ReturnsNotFound()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/missing/storyteller-card",
+            new ChooseStorytellerCardRequest(
+                Guid.NewGuid(),
+                "TEMP-001",
+                "A strange doorway"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostStorytellerCard_WhenPlayerIsNotStoryteller_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+
+        await CreateStartedRoomAsync(client, "ABC123", aliceId, bobId);
+        var bobPrivateState = await GetPlayerPrivateStateAsync(client, "ABC123", bobId);
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/storyteller-card",
+            new ChooseStorytellerCardRequest(
+                bobId,
+                bobPrivateState.Player.Hand.First().CardId,
+                "A strange doorway"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.BadRequest, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostStorytellerCard_WithEmptyClue_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var aliceId = Guid.NewGuid();
+
+        await CreateStartedRoomAsync(client, "ABC123", aliceId);
+        var privateState = await GetPlayerPrivateStateAsync(client, "ABC123", aliceId);
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/storyteller-card",
+            new ChooseStorytellerCardRequest(
+                aliceId,
+                privateState.Player.Hand.First().CardId,
+                string.Empty));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.BadRequest, problem.Status);
+    }
+
+    [Fact]
     public async Task GetRoom_ReturnsPublicRoomStateWithoutPrivateHands()
     {
         using var application = new WebApplicationFactory<Program>();
@@ -226,6 +322,31 @@ public sealed class RoomEndpointTests
 
         response.EnsureSuccessStatusCode();
         return await ReadRequiredJsonAsync<RoomState>(response);
+    }
+
+    private static async Task CreateStartedRoomAsync(
+        HttpClient client,
+        string roomCode,
+        Guid storytellerId,
+        Guid? secondPlayerId = null)
+    {
+        await CreateRoomAsync(client, roomCode);
+        await JoinPlayerAsync(client, roomCode, storytellerId, "Alice");
+        await JoinPlayerAsync(client, roomCode, secondPlayerId ?? Guid.NewGuid(), "Bob");
+        await JoinPlayerAsync(client, roomCode, Guid.NewGuid(), "Carla");
+
+        var response = await client.PostAsync($"/rooms/{roomCode}/start", content: null);
+        response.EnsureSuccessStatusCode();
+    }
+
+    private static async Task<GetPlayerPrivateStateResponse> GetPlayerPrivateStateAsync(
+        HttpClient client,
+        string roomCode,
+        Guid playerId)
+    {
+        var response = await client.GetAsync($"/rooms/{roomCode}/players/{playerId}");
+        response.EnsureSuccessStatusCode();
+        return await ReadRequiredJsonAsync<GetPlayerPrivateStateResponse>(response);
     }
 
     private static async Task<T> ReadRequiredJsonAsync<T>(HttpResponseMessage response)
