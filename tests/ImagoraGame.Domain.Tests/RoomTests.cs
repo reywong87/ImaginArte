@@ -914,6 +914,67 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void CompleteRound_FromScoring_MovesRoomToRoundComplete()
+    {
+        var (room, _, _, _) = CreateRoomAfterReveal();
+        room.ScoreRound();
+
+        room.CompleteRound();
+
+        Assert.Equal(GamePhase.RoundComplete, room.Phase);
+    }
+
+    [Fact]
+    public void CompleteRound_WhenRoomIsNotInScoring_Throws()
+    {
+        var (room, _, _, _) = CreateRoomAfterReveal();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(room.CompleteRound);
+
+        Assert.Equal(DomainErrorCode.RoomNotInScoring, exception.Code);
+        Assert.Equal(GamePhase.Reveal, room.Phase);
+    }
+
+    [Fact]
+    public void CompleteRound_PreservesScoreboardAndRoundScores()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterReveal();
+        room.ScoreRound();
+        var roundScores = room.RoundScores.ToArray();
+        var scoreboard = room.Scoreboard.ToArray();
+
+        room.CompleteRound();
+
+        Assert.Equal(GamePhase.RoundComplete, room.Phase);
+        Assert.Equal(roundScores, room.RoundScores);
+        Assert.Equal(scoreboard, room.Scoreboard);
+        AssertPlayerScore(room.RoundScores, aliceId, "Alice", 3);
+        AssertPlayerScore(room.RoundScores, bobId, "Bob", 4);
+        AssertPlayerScore(room.RoundScores, carlaId, "Carla", 0);
+        AssertPlayerScoreboardEntry(room.Scoreboard, aliceId, "Alice", 3);
+        AssertPlayerScoreboardEntry(room.Scoreboard, bobId, "Bob", 4);
+        AssertPlayerScoreboardEntry(room.Scoreboard, carlaId, "Carla", 0);
+    }
+
+    [Fact]
+    public void CompleteRound_PreservesRevealedVotingCardsForResultsDisplay()
+    {
+        var (room, _, _, _) = CreateRoomAfterReveal();
+        room.ScoreRound();
+        var revealedCards = room.RevealedVotingCards.ToArray();
+
+        room.CompleteRound();
+
+        Assert.Equal(GamePhase.RoundComplete, room.Phase);
+        Assert.Equal(3, room.RevealedVotingCards.Count);
+        Assert.Collection(
+            room.RevealedVotingCards,
+            card => AssertRevealedVotingCard(card, revealedCards[0]),
+            card => AssertRevealedVotingCard(card, revealedCards[1]),
+            card => AssertRevealedVotingCard(card, revealedCards[2]));
+    }
+
+    [Fact]
     public void StartGame_WhenAlreadyStarted_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));
@@ -1032,5 +1093,16 @@ public sealed class RoomTests
 
         Assert.Equal(playerName, score.PlayerName);
         Assert.Equal(totalPoints, score.TotalPoints);
+    }
+
+    private static void AssertRevealedVotingCard(RevealedVotingCard actual, RevealedVotingCard expected)
+    {
+        Assert.Equal(expected.VotingCardId, actual.VotingCardId);
+        Assert.Equal(expected.CardId, actual.CardId);
+        Assert.Equal(expected.DisplayNumber, actual.DisplayNumber);
+        Assert.Equal(expected.OwnerPlayerId, actual.OwnerPlayerId);
+        Assert.Equal(expected.OwnerName, actual.OwnerName);
+        Assert.Equal(expected.IsStorytellerCard, actual.IsStorytellerCard);
+        Assert.Equal(expected.Votes, actual.Votes);
     }
 }

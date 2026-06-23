@@ -46,7 +46,9 @@ public sealed class Room
 
     public IReadOnlyCollection<PlayerScore> Scoreboard => _scoreboard.AsReadOnly();
 
-    public IReadOnlyCollection<RevealedVotingCard> RevealedVotingCards => Phase == GamePhase.Reveal
+    public IReadOnlyCollection<RevealedVotingCard> RevealedVotingCards => Phase is GamePhase.Reveal
+            or GamePhase.Scoring
+            or GamePhase.RoundComplete
         ? _votingCardOwnerships
             .Select((card, index) =>
             {
@@ -354,6 +356,18 @@ public sealed class Room
         Phase = GamePhase.Scoring;
 
         return _roundScoreResult;
+    }
+
+    public void CompleteRound()
+    {
+        if (Phase != GamePhase.Scoring)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.RoomNotInScoring,
+                "A round can only be completed after scoring has been shown.");
+        }
+
+        Phase = GamePhase.RoundComplete;
     }
 
     private void PrepareVotingCards()

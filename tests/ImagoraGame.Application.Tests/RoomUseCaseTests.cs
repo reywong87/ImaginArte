@@ -691,6 +691,87 @@ public sealed class RoomUseCaseTests
         Assert.Equal(DomainErrorCode.RoomNotReadyForScoring, exception.Code);
     }
 
+    [Fact]
+    public async Task CompleteRound_WithScoringRoom_ReturnsRoundCompleteRoomState()
+    {
+        var repository = new InMemoryRoomRepository();
+        var completeRound = new CompleteRoundHandler(repository);
+        var (aliceId, bobId, carlaId) = await CreateRoomAfterScoringAsync(repository);
+
+        var result = await completeRound.HandleAsync(new CompleteRoundCommand("abc123"));
+
+        Assert.Equal("ABC123", result.Room.RoomCode);
+        Assert.Equal(GamePhase.RoundComplete, result.Room.Phase);
+        Assert.Equal(3, result.Room.RevealedCards.Count);
+        Assert.Collection(
+            result.Room.RoundScores,
+            score =>
+            {
+                Assert.Equal(aliceId, score.PlayerId);
+                Assert.Equal("Alice", score.PlayerName);
+                Assert.Equal(3, score.PointsAwarded);
+            },
+            score =>
+            {
+                Assert.Equal(bobId, score.PlayerId);
+                Assert.Equal("Bob", score.PlayerName);
+                Assert.Equal(4, score.PointsAwarded);
+            },
+            score =>
+            {
+                Assert.Equal(carlaId, score.PlayerId);
+                Assert.Equal("Carla", score.PlayerName);
+                Assert.Equal(0, score.PointsAwarded);
+            });
+        Assert.Collection(
+            result.Room.Scoreboard,
+            score =>
+            {
+                Assert.Equal(aliceId, score.PlayerId);
+                Assert.Equal("Alice", score.PlayerName);
+                Assert.Equal(3, score.TotalPoints);
+            },
+            score =>
+            {
+                Assert.Equal(bobId, score.PlayerId);
+                Assert.Equal("Bob", score.PlayerName);
+                Assert.Equal(4, score.TotalPoints);
+            },
+            score =>
+            {
+                Assert.Equal(carlaId, score.PlayerId);
+                Assert.Equal("Carla", score.PlayerName);
+                Assert.Equal(0, score.TotalPoints);
+            });
+    }
+
+    [Fact]
+    public async Task CompleteRound_WhenRoomDoesNotExist_Throws()
+    {
+        var repository = new InMemoryRoomRepository();
+        var handler = new CompleteRoundHandler(repository);
+
+        var exception = await Assert.ThrowsAsync<RoomNotFoundException>(
+            () => handler.HandleAsync(new CompleteRoundCommand("missing")));
+
+        Assert.Equal("MISSING", exception.RoomCode);
+    }
+
+    [Fact]
+    public async Task CompleteRound_WhenDomainRuleIsViolated_PropagatesDomainException()
+    {
+        var repository = new InMemoryRoomRepository();
+        var createRoom = new CreateRoomHandler(repository);
+        var completeRound = new CompleteRoundHandler(repository);
+
+        await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
+
+        var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
+            () => completeRound.HandleAsync(new CompleteRoundCommand("ABC123")));
+
+        Assert.Equal(DomainErrorCode.RoomNotInScoring, exception.Code);
+    }
+
     private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId)> CreateRoomWaitingForGuesserSubmissionsAsync(
         InMemoryRoomRepository repository)
     {
@@ -749,5 +830,16 @@ public sealed class RoomUseCaseTests
         await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
 
         return (aliceId, bobId, carlaId);
+    }
+
+    private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId)> CreateRoomAfterScoringAsync(
+        InMemoryRoomRepository repository)
+    {
+        var scoreRound = new ScoreRoundHandler(repository);
+        var playerIds = await CreateRoomAfterRevealAsync(repository);
+
+        await scoreRound.HandleAsync(new ScoreRoundCommand("ABC123"));
+
+        return playerIds;
     }
 }

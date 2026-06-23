@@ -19,5 +19,6 @@ public enum DomainErrorCode
     VotingCardNotFound = 14,
     PlayerCannotVoteForOwnCard = 15,
     PlayerAlreadyVoted = 16,
-    RoomNotReadyForScoring = 17
+    RoomNotReadyForScoring = 17,
+    RoomNotInScoring = 18
 }
