@@ -678,6 +678,18 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void RevealedVotingCards_BeforeReveal_IsEmpty()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForVoting();
+        var votingCardId = room.VotingCards.First().VotingCardId;
+
+        room.CastVote(bobId, votingCardId);
+
+        Assert.Equal(GamePhase.Voting, room.Phase);
+        Assert.Empty(room.RevealedVotingCards);
+    }
+
+    [Fact]
     public void CastVote_WhenAllGuessersVote_MovesRoomToReveal()
     {
         var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
@@ -696,6 +708,95 @@ public sealed class RoomTests
         Assert.Equal(GamePhase.Reveal, room.Phase);
         Assert.Equal(2, room.VoteCount);
         Assert.Equal(2, room.ExpectedVoteCount);
+    }
+
+    [Fact]
+    public void RevealedVotingCards_WhenAllGuessersVote_IncludesEveryVotableCard()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var bobVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobId)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+        room.CastVote(carlaId, bobVotingCardId);
+
+        Assert.Equal(GamePhase.Reveal, room.Phase);
+        Assert.Equal(3, room.RevealedVotingCards.Count);
+    }
+
+    [Fact]
+    public void RevealedVotingCards_MarksStorytellerCard()
+    {
+        var (room, _, _, _) = CreateRoomAfterReveal();
+
+        var storytellerCard = room.RevealedVotingCards.Single(card => card.IsStorytellerCard);
+
+        Assert.Equal(new VotingCardId("VOTE-001"), storytellerCard.VotingCardId);
+        Assert.Equal(1, storytellerCard.DisplayNumber);
+    }
+
+    [Fact]
+    public void RevealedVotingCards_IncludesRealOwners()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterReveal();
+
+        Assert.Collection(
+            room.RevealedVotingCards,
+            card =>
+            {
+                Assert.Equal(aliceId, card.OwnerPlayerId);
+                Assert.Equal("Alice", card.OwnerName);
+            },
+            card =>
+            {
+                Assert.Equal(bobId, card.OwnerPlayerId);
+                Assert.Equal("Bob", card.OwnerName);
+            },
+            card =>
+            {
+                Assert.Equal(carlaId, card.OwnerPlayerId);
+                Assert.Equal("Carla", card.OwnerName);
+            });
+    }
+
+    [Fact]
+    public void RevealedVotingCards_AssociatesVotesWithVotedCards()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomAfterReveal();
+
+        var storytellerCard = room.RevealedVotingCards.Single(card => card.VotingCardId == new VotingCardId("VOTE-001"));
+        var bobCard = room.RevealedVotingCards.Single(card => card.VotingCardId == new VotingCardId("VOTE-002"));
+
+        Assert.Collection(
+            storytellerCard.Votes,
+            vote =>
+            {
+                Assert.Equal(bobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
+            });
+        Assert.Collection(
+            bobCard.Votes,
+            vote =>
+            {
+                Assert.Equal(carlaId, vote.VoterPlayerId);
+                Assert.Equal("Carla", vote.VoterName);
+            });
+    }
+
+    [Fact]
+    public void RevealedVotingCards_WhenCardHasNoVotes_HasEmptyVoteList()
+    {
+        var (room, _, _, carlaId) = CreateRoomAfterReveal();
+
+        var carlaCard = room.RevealedVotingCards.Single(card => card.OwnerPlayerId == carlaId);
+
+        Assert.Empty(carlaCard.Votes);
     }
 
     [Fact]
@@ -738,6 +839,25 @@ public sealed class RoomTests
 
         room.SubmitGuessCard(bobId, bobCardId);
         room.SubmitGuessCard(carlaId, carlaCardId);
+
+        return (room, aliceId, bobId, carlaId);
+    }
+
+    private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
+        CreateRoomAfterReveal()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var bobVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobId)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+        room.CastVote(carlaId, bobVotingCardId);
 
         return (room, aliceId, bobId, carlaId);
     }

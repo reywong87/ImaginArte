@@ -39,6 +39,33 @@ public sealed class Room
 
     public IReadOnlyCollection<VotingCardOwnership> VotingCardOwnerships => _votingCardOwnerships.AsReadOnly();
 
+    public IReadOnlyCollection<RevealedVotingCard> RevealedVotingCards => Phase == GamePhase.Reveal
+        ? _votingCardOwnerships
+            .Select((card, index) =>
+            {
+                var owner = _players.Single(player => player.Id == card.OwnerPlayerId);
+                var votes = _votes
+                    .Where(vote => vote.VotingCardId == card.VotingCardId)
+                    .Select(vote =>
+                    {
+                        var voter = _players.Single(player => player.Id == vote.VoterId);
+
+                        return new RevealedVote(voter.Id, voter.Name);
+                    })
+                    .ToArray();
+
+                return new RevealedVotingCard(
+                    card.VotingCardId,
+                    card.CardId,
+                    index + 1,
+                    owner.Id,
+                    owner.Name,
+                    card.IsStorytellerCard,
+                    votes);
+            })
+            .ToArray()
+        : Array.Empty<RevealedVotingCard>();
+
     public int SubmissionCount => _guessCardSubmissions.Count;
 
     public int ExpectedSubmissionCount => CurrentStorytellerId is null

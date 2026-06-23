@@ -9,6 +9,19 @@ public sealed record VotingCardState(
     string CardId,
     int DisplayNumber);
 
+public sealed record RevealedVoteState(
+    Guid VoterPlayerId,
+    string VoterName);
+
+public sealed record RevealCardState(
+    string VotingCardId,
+    string CardId,
+    int DisplayNumber,
+    Guid OwnerPlayerId,
+    string OwnerName,
+    bool IsStorytellerCard,
+    IReadOnlyCollection<RevealedVoteState> Votes);
+
 public sealed record RoomState(
     string RoomCode,
     GamePhase Phase,
@@ -19,7 +32,8 @@ public sealed record RoomState(
     int ExpectedSubmissionCount,
     int VoteCount,
     int ExpectedVoteCount,
-    IReadOnlyCollection<VotingCardState> VotingCards)
+    IReadOnlyCollection<VotingCardState> VotingCards,
+    IReadOnlyCollection<RevealCardState> RevealedCards)
 {
     public static RoomState FromRoom(Room room)
     {
@@ -35,6 +49,18 @@ public sealed record RoomState(
                 card.CardId.Value,
                 card.DisplayNumber))
             .ToArray();
+        var revealedCards = room.RevealedVotingCards
+            .Select(card => new RevealCardState(
+                card.VotingCardId.Value,
+                card.CardId.Value,
+                card.DisplayNumber,
+                card.OwnerPlayerId.Value,
+                card.OwnerName,
+                card.IsStorytellerCard,
+                card.Votes
+                    .Select(vote => new RevealedVoteState(vote.VoterPlayerId.Value, vote.VoterName))
+                    .ToArray()))
+            .ToArray();
 
         return new RoomState(
             room.Code.Value,
@@ -46,6 +72,7 @@ public sealed record RoomState(
             room.ExpectedSubmissionCount,
             room.VoteCount,
             room.ExpectedVoteCount,
-            votingCards);
+            votingCards,
+            revealedCards);
     }
 }

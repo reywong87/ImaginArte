@@ -384,6 +384,7 @@ public sealed class RoomUseCaseTests
         Assert.Equal(1, result.Room.SubmissionCount);
         Assert.Equal(2, result.Room.ExpectedSubmissionCount);
         Assert.Empty(result.Room.VotingCards);
+        Assert.Empty(result.Room.RevealedCards);
     }
 
     [Fact]
@@ -403,6 +404,7 @@ public sealed class RoomUseCaseTests
 
         Assert.Equal(GamePhase.Voting, result.Room.Phase);
         Assert.Equal(3, result.Room.VotingCards.Count);
+        Assert.Empty(result.Room.RevealedCards);
         Assert.Collection(
             result.Room.VotingCards,
             card =>
@@ -482,9 +484,67 @@ public sealed class RoomUseCaseTests
         Assert.Equal(GamePhase.Voting, firstVote.Room.Phase);
         Assert.Equal(1, firstVote.Room.VoteCount);
         Assert.Equal(2, firstVote.Room.ExpectedVoteCount);
+        Assert.Empty(firstVote.Room.RevealedCards);
         Assert.Equal(GamePhase.Reveal, result.Room.Phase);
         Assert.Equal(2, result.Room.VoteCount);
         Assert.Equal(2, result.Room.ExpectedVoteCount);
+    }
+
+    [Fact]
+    public async Task CastVote_WithLastVote_ReturnsRevealStateWithAllRevealedCards()
+    {
+        var repository = new InMemoryRoomRepository();
+        var castVote = new CastVoteHandler(repository);
+        var (_, bobId, carlaId, votingState) = await CreateRoomWaitingForVotingAsync(repository);
+        var storytellerVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 1).VotingCardId;
+        var bobVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 2).VotingCardId;
+
+        await castVote.HandleAsync(new CastVoteCommand("ABC123", bobId, storytellerVotingCardId));
+        var result = await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
+
+        Assert.Equal(GamePhase.Reveal, result.Room.Phase);
+        Assert.Equal(3, result.Room.RevealedCards.Count);
+        Assert.Collection(
+            result.Room.RevealedCards,
+            card =>
+            {
+                Assert.Equal("VOTE-001", card.VotingCardId);
+                Assert.Equal("TEMP-001", card.CardId);
+                Assert.Equal(1, card.DisplayNumber);
+                Assert.Equal("Alice", card.OwnerName);
+                Assert.True(card.IsStorytellerCard);
+                Assert.Collection(
+                    card.Votes,
+                    vote =>
+                    {
+                        Assert.Equal(bobId, vote.VoterPlayerId);
+                        Assert.Equal("Bob", vote.VoterName);
+                    });
+            },
+            card =>
+            {
+                Assert.Equal("VOTE-002", card.VotingCardId);
+                Assert.Equal(2, card.DisplayNumber);
+                Assert.Equal(bobId, card.OwnerPlayerId);
+                Assert.Equal("Bob", card.OwnerName);
+                Assert.False(card.IsStorytellerCard);
+                Assert.Collection(
+                    card.Votes,
+                    vote =>
+                    {
+                        Assert.Equal(carlaId, vote.VoterPlayerId);
+                        Assert.Equal("Carla", vote.VoterName);
+                    });
+            },
+            card =>
+            {
+                Assert.Equal("VOTE-003", card.VotingCardId);
+                Assert.Equal(3, card.DisplayNumber);
+                Assert.Equal(carlaId, card.OwnerPlayerId);
+                Assert.Equal("Carla", card.OwnerName);
+                Assert.False(card.IsStorytellerCard);
+                Assert.Empty(card.Votes);
+            });
     }
 
     [Fact]
