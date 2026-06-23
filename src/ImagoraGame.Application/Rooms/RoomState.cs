@@ -27,6 +27,11 @@ public sealed record RoundScoreState(
     string PlayerName,
     int PointsAwarded);
 
+public sealed record ScoreboardEntryState(
+    Guid PlayerId,
+    string PlayerName,
+    int TotalPoints);
+
 public sealed record RoomState(
     string RoomCode,
     GamePhase Phase,
@@ -39,7 +44,8 @@ public sealed record RoomState(
     int ExpectedVoteCount,
     IReadOnlyCollection<VotingCardState> VotingCards,
     IReadOnlyCollection<RevealCardState> RevealedCards,
-    IReadOnlyCollection<RoundScoreState> RoundScores)
+    IReadOnlyCollection<RoundScoreState> RoundScores,
+    IReadOnlyCollection<ScoreboardEntryState> Scoreboard)
 {
     public static RoomState FromRoom(Room room)
     {
@@ -73,6 +79,12 @@ public sealed record RoomState(
                 score.PlayerName,
                 score.PointsAwarded))
             .ToArray();
+        var scoreboard = room.Scoreboard
+            .Select(score => new ScoreboardEntryState(
+                score.PlayerId.Value,
+                score.PlayerName,
+                score.TotalPoints))
+            .ToArray();
 
         return new RoomState(
             room.Code.Value,
@@ -86,6 +98,7 @@ public sealed record RoomState(
             room.ExpectedVoteCount,
             votingCards,
             revealedCards,
-            roundScores);
+            roundScores,
+            scoreboard);
     }
 }

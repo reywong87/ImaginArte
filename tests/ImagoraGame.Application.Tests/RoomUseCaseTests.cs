@@ -55,6 +55,14 @@ public sealed class RoomUseCaseTests
                 Assert.Equal(playerId, player.PlayerId);
                 Assert.Equal("Alice", player.Name);
             });
+        Assert.Collection(
+            result.Room.Scoreboard,
+            score =>
+            {
+                Assert.Equal(playerId, score.PlayerId);
+                Assert.Equal("Alice", score.PlayerName);
+                Assert.Equal(0, score.TotalPoints);
+            });
     }
 
     [Fact]
@@ -633,6 +641,26 @@ public sealed class RoomUseCaseTests
                 Assert.Equal(carlaId, score.PlayerId);
                 Assert.Equal("Carla", score.PlayerName);
                 Assert.Equal(0, score.PointsAwarded);
+            });
+        Assert.Collection(
+            result.Room.Scoreboard,
+            score =>
+            {
+                Assert.Equal(aliceId, score.PlayerId);
+                Assert.Equal("Alice", score.PlayerName);
+                Assert.Equal(3, score.TotalPoints);
+            },
+            score =>
+            {
+                Assert.Equal(bobId, score.PlayerId);
+                Assert.Equal("Bob", score.PlayerName);
+                Assert.Equal(4, score.TotalPoints);
+            },
+            score =>
+            {
+                Assert.Equal(carlaId, score.PlayerId);
+                Assert.Equal("Carla", score.PlayerName);
+                Assert.Equal(0, score.TotalPoints);
             });
     }
 

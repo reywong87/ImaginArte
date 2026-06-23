@@ -13,6 +13,7 @@ public sealed class RoomTests
         Assert.Equal(GamePhase.WaitingForPlayers, room.Phase);
         Assert.Null(room.CurrentStorytellerId);
         Assert.Empty(room.Players);
+        Assert.Empty(room.Scoreboard);
     }
 
     [Fact]
@@ -40,6 +41,48 @@ public sealed class RoomTests
         Assert.Equal(playerId, player.Id);
         Assert.Equal("Alice", player.Name);
         Assert.Collection(room.Players, joinedPlayer => Assert.Equal(playerId, joinedPlayer.Id));
+        Assert.Collection(
+            room.Scoreboard,
+            score =>
+            {
+                Assert.Equal(playerId, score.PlayerId);
+                Assert.Equal("Alice", score.PlayerName);
+                Assert.Equal(0, score.TotalPoints);
+            });
+    }
+
+    [Fact]
+    public void Scoreboard_WhenPlayersJoin_KeepsZeroPointEntriesInJoinOrder()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        var carlaId = PlayerId.New();
+
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(carlaId, "Carla");
+
+        Assert.Collection(
+            room.Scoreboard,
+            score =>
+            {
+                Assert.Equal(aliceId, score.PlayerId);
+                Assert.Equal("Alice", score.PlayerName);
+                Assert.Equal(0, score.TotalPoints);
+            },
+            score =>
+            {
+                Assert.Equal(bobId, score.PlayerId);
+                Assert.Equal("Bob", score.PlayerName);
+                Assert.Equal(0, score.TotalPoints);
+            },
+            score =>
+            {
+                Assert.Equal(carlaId, score.PlayerId);
+                Assert.Equal("Carla", score.PlayerName);
+                Assert.Equal(0, score.TotalPoints);
+            });
     }
 
     [Theory]
@@ -823,6 +866,9 @@ public sealed class RoomTests
         AssertPlayerScore(room.RoundScores, aliceId, "Alice", 3);
         AssertPlayerScore(room.RoundScores, bobId, "Bob", 4);
         AssertPlayerScore(room.RoundScores, carlaId, "Carla", 0);
+        AssertPlayerScoreboardEntry(room.Scoreboard, aliceId, "Alice", 3);
+        AssertPlayerScoreboardEntry(room.Scoreboard, bobId, "Bob", 4);
+        AssertPlayerScoreboardEntry(room.Scoreboard, carlaId, "Carla", 0);
     }
 
     [Fact]
@@ -854,7 +900,7 @@ public sealed class RoomTests
     [Fact]
     public void ScoreRound_WhenCalledTwice_DoesNotDuplicateResults()
     {
-        var (room, _, _, _) = CreateRoomAfterReveal();
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterReveal();
 
         room.ScoreRound();
         var exception = Assert.Throws<DomainRuleViolationException>(room.ScoreRound);
@@ -862,6 +908,9 @@ public sealed class RoomTests
         Assert.Equal(DomainErrorCode.RoomNotReadyForScoring, exception.Code);
         Assert.Equal(GamePhase.Scoring, room.Phase);
         Assert.Equal(3, room.RoundScores.Count);
+        AssertPlayerScoreboardEntry(room.Scoreboard, aliceId, "Alice", 3);
+        AssertPlayerScoreboardEntry(room.Scoreboard, bobId, "Bob", 4);
+        AssertPlayerScoreboardEntry(room.Scoreboard, carlaId, "Carla", 0);
     }
 
     [Fact]
@@ -971,5 +1020,17 @@ public sealed class RoomTests
 
         Assert.Equal(playerName, score.PlayerName);
         Assert.Equal(pointsAwarded, score.PointsAwarded);
+    }
+
+    private static void AssertPlayerScoreboardEntry(
+        IReadOnlyCollection<PlayerScore> scoreboard,
+        PlayerId playerId,
+        string playerName,
+        int totalPoints)
+    {
+        var score = scoreboard.Single(score => score.PlayerId == playerId);
+
+        Assert.Equal(playerName, score.PlayerName);
+        Assert.Equal(totalPoints, score.TotalPoints);
     }
 }

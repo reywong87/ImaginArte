@@ -10,6 +10,7 @@ public sealed class Room
     private readonly List<GuessCardSubmission> _guessCardSubmissions = [];
     private readonly List<VotingCardOwnership> _votingCardOwnerships = [];
     private readonly List<Vote> _votes = [];
+    private readonly List<PlayerScore> _scoreboard = [];
     private RoundScoreResult? _roundScoreResult;
 
     private Room(RoomCode code)
@@ -42,6 +43,8 @@ public sealed class Room
 
     public IReadOnlyCollection<PlayerRoundScore> RoundScores =>
         _roundScoreResult?.PlayerScores ?? Array.Empty<PlayerRoundScore>();
+
+    public IReadOnlyCollection<PlayerScore> Scoreboard => _scoreboard.AsReadOnly();
 
     public IReadOnlyCollection<RevealedVotingCard> RevealedVotingCards => Phase == GamePhase.Reveal
         ? _votingCardOwnerships
@@ -127,6 +130,7 @@ public sealed class Room
         }
 
         _players.Add(player);
+        _scoreboard.Add(new PlayerScore(player.Id, player.Name, 0));
 
         return player;
     }
@@ -346,6 +350,7 @@ public sealed class Room
         _roundScoreResult = new RoundScoreResult(_players
             .Select(player => new PlayerRoundScore(player.Id, player.Name, scoresByPlayerId[player.Id]))
             .ToArray());
+        AddRoundScoresToScoreboard(_roundScoreResult.PlayerScores);
         Phase = GamePhase.Scoring;
 
         return _roundScoreResult;
@@ -400,6 +405,22 @@ public sealed class Room
             {
                 scoresByPlayerId[votedCard.OwnerPlayerId] += 1;
             }
+        }
+    }
+
+    private void AddRoundScoresToScoreboard(IReadOnlyCollection<PlayerRoundScore> roundScores)
+    {
+        var roundScoresByPlayerId = roundScores.ToDictionary(score => score.PlayerId);
+
+        for (var index = 0; index < _scoreboard.Count; index++)
+        {
+            var currentScore = _scoreboard[index];
+            var roundScore = roundScoresByPlayerId[currentScore.PlayerId];
+
+            _scoreboard[index] = currentScore with
+            {
+                TotalPoints = currentScore.TotalPoints + roundScore.PointsAwarded
+            };
         }
     }
 
