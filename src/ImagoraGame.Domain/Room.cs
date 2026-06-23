@@ -370,6 +370,38 @@ public sealed class Room
         Phase = GamePhase.RoundComplete;
     }
 
+    public void AdvanceRound()
+    {
+        if (Phase != GamePhase.RoundComplete)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.RoomNotRoundComplete,
+                "A new round can only start after the current round is complete.");
+        }
+
+        if (CurrentStorytellerId is not { } storytellerId)
+        {
+            throw new InvalidOperationException("Advancing a round requires a current storyteller.");
+        }
+
+        var currentStorytellerIndex = _players.FindIndex(player => player.Id == storytellerId);
+
+        if (currentStorytellerIndex < 0)
+        {
+            throw new InvalidOperationException("The current storyteller must belong to the room.");
+        }
+
+        var nextStorytellerIndex = (currentStorytellerIndex + 1) % _players.Count;
+        CurrentStorytellerId = _players[nextStorytellerIndex].Id;
+        StorytellerCardId = null;
+        Clue = null;
+        _guessCardSubmissions.Clear();
+        _votingCardOwnerships.Clear();
+        _votes.Clear();
+        _roundScoreResult = null;
+        Phase = GamePhase.StorytellerChoosing;
+    }
+
     private void PrepareVotingCards()
     {
         if (CurrentStorytellerId is not { } storytellerId || StorytellerCardId is not { } storytellerCardId)

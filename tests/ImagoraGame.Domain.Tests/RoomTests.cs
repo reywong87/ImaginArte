@@ -975,6 +975,98 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void AdvanceRound_FromRoundComplete_MovesRoomToStorytellerChoosing()
+    {
+        var (room, _, _, _) = CreateRoomAfterRoundComplete();
+
+        room.AdvanceRound();
+
+        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+    }
+
+    [Fact]
+    public void AdvanceRound_RotatesStorytellerToNextJoinedPlayer()
+    {
+        var (room, _, bobId, _) = CreateRoomAfterRoundComplete();
+
+        room.AdvanceRound();
+
+        Assert.Equal(bobId, room.CurrentStorytellerId);
+    }
+
+    [Fact]
+    public void AdvanceRound_WhenStorytellerWasLastJoinedPlayer_RotatesToFirstJoinedPlayer()
+    {
+        var (room, aliceId, _, _) = CreateRoomAfterRoundComplete();
+        room.AdvanceRound();
+        CompleteCurrentRound(room);
+        room.AdvanceRound();
+        CompleteCurrentRound(room);
+
+        room.AdvanceRound();
+
+        Assert.Equal(aliceId, room.CurrentStorytellerId);
+        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+    }
+
+    [Fact]
+    public void AdvanceRound_ClearsPreviousRoundState()
+    {
+        var (room, _, _, _) = CreateRoomAfterRoundComplete();
+
+        room.AdvanceRound();
+
+        Assert.Null(room.Clue);
+        Assert.Null(room.StorytellerCardId);
+        Assert.Empty(room.GuessCardSubmissions);
+        Assert.Empty(room.VotingCardOwnerships);
+        Assert.Empty(room.VotingCards);
+        Assert.Empty(room.RevealedVotingCards);
+        Assert.Equal(0, room.VoteCount);
+        Assert.Empty(room.RoundScores);
+    }
+
+    [Fact]
+    public void AdvanceRound_PreservesAccumulatedScoreboard()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterRoundComplete();
+
+        room.AdvanceRound();
+
+        AssertPlayerScoreboardEntry(room.Scoreboard, aliceId, "Alice", 0);
+        AssertPlayerScoreboardEntry(room.Scoreboard, bobId, "Bob", 2);
+        AssertPlayerScoreboardEntry(room.Scoreboard, carlaId, "Carla", 2);
+    }
+
+    [Fact]
+    public void AdvanceRound_PreservesPlayersAndHands()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterRoundComplete();
+        var players = room.Players.ToArray();
+        var aliceHand = room.GetHandFor(aliceId).ToArray();
+        var bobHand = room.GetHandFor(bobId).ToArray();
+        var carlaHand = room.GetHandFor(carlaId).ToArray();
+
+        room.AdvanceRound();
+
+        Assert.Equal(players, room.Players);
+        Assert.Equal(aliceHand, room.GetHandFor(aliceId));
+        Assert.Equal(bobHand, room.GetHandFor(bobId));
+        Assert.Equal(carlaHand, room.GetHandFor(carlaId));
+    }
+
+    [Fact]
+    public void AdvanceRound_WhenRoomIsNotRoundComplete_Throws()
+    {
+        var (room, _, _, _) = CreateRoomAfterReveal();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(room.AdvanceRound);
+
+        Assert.Equal(DomainErrorCode.RoomNotRoundComplete, exception.Code);
+        Assert.Equal(GamePhase.Reveal, room.Phase);
+    }
+
+    [Fact]
     public void StartGame_WhenAlreadyStarted_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));
@@ -1035,6 +1127,59 @@ public sealed class RoomTests
         room.CastVote(carlaId, bobVotingCardId);
 
         return (room, aliceId, bobId, carlaId);
+    }
+
+    private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
+        CreateRoomAfterRoundComplete()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateStartedRoom();
+
+        CompleteCurrentRound(room);
+
+        return (room, aliceId, bobId, carlaId);
+    }
+
+    private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
+        CreateStartedRoom()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        var carlaId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(carlaId, "Carla");
+        room.StartGame();
+
+        return (room, aliceId, bobId, carlaId);
+    }
+
+    private static void CompleteCurrentRound(Room room)
+    {
+        var storytellerId = room.CurrentStorytellerId
+            ?? throw new InvalidOperationException("Test setup requires a current storyteller.");
+        var storytellerCardId = room.GetHandFor(storytellerId).First().Id;
+        room.ChooseStorytellerCard(storytellerId, storytellerCardId, "A strange doorway");
+
+        foreach (var guesser in room.Players.Where(player => player.Id != storytellerId))
+        {
+            var guessCardId = room.GetHandFor(guesser.Id).First().Id;
+
+            room.SubmitGuessCard(guesser.Id, guessCardId);
+        }
+
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+
+        foreach (var guesser in room.Players.Where(player => player.Id != storytellerId))
+        {
+            room.CastVote(guesser.Id, storytellerVotingCardId);
+        }
+
+        room.ScoreRound();
+        room.CompleteRound();
     }
 
     private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
