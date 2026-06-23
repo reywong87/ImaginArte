@@ -1,4 +1,5 @@
 using ImagoraGame.Application.Rooms;
+using ImagoraGame.Contracts.Rooms;
 using ImagoraGame.Domain;
 using ImagoraGame.Infrastructure.Persistence;
 
@@ -70,10 +71,12 @@ app.MapGet("/rooms/{roomCode}/players/{playerId:guid}", async (
     GetPlayerPrivateStateHandler handler,
     CancellationToken cancellationToken) =>
 {
+    var request = new GetPlayerPrivateStateRequest(roomCode, playerId);
+
     return await HandleRoomRequestAsync(
         async () => (await handler.HandleAsync(
-            new GetPlayerPrivateStateQuery(roomCode, playerId),
-            cancellationToken)).Player,
+            new GetPlayerPrivateStateQuery(request.RoomCode, request.PlayerId),
+            cancellationToken)).ToHttpResponse(),
         Results.Ok);
 });
 
@@ -105,9 +108,5 @@ static async Task<IResult> HandleRoomRequestAsync<TResponse>(
         return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
     }
 }
-
-public sealed record CreateRoomRequest(string RoomCode);
-
-public sealed record JoinRoomRequest(Guid PlayerId, string PlayerName);
 
 public partial class Program;

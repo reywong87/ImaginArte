@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ImagoraGame.Application.Rooms;
+using ImagoraGame.Contracts.Rooms;
 using ImagoraGame.Domain;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -144,7 +145,7 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
-    public async Task GetPlayerPrivateState_ReturnsPlayerSnapshotWithHand()
+    public async Task GetPlayerPrivateState_ReturnsPublicRoomAndPrivatePlayerSnapshot()
     {
         using var application = new WebApplicationFactory<Program>();
         using var client = application.CreateClient();
@@ -160,18 +161,44 @@ public sealed class RoomEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var player = await ReadRequiredJsonAsync<PlayerPrivateState>(response);
-        Assert.Equal(bobId, player.PlayerId);
-        Assert.Equal("Bob", player.Name);
-        Assert.False(player.IsCurrentStoryteller);
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var snapshot = ReadRequiredJson<GetPlayerPrivateStateResponse>(responseBody);
+
+        Assert.Equal("ABC123", snapshot.Room.RoomCode);
+        Assert.Equal(RoomPhase.StorytellerChoosing, snapshot.Room.Phase);
+        Assert.Equal(3, snapshot.Room.Players.Count);
+        Assert.Equal(bobId, snapshot.Player.PlayerId);
+        Assert.Equal("Bob", snapshot.Player.Name);
+        Assert.False(snapshot.Player.IsCurrentStoryteller);
         Assert.Collection(
-            player.Hand,
+            snapshot.Player.Hand,
             card => Assert.Equal("TEMP-007", card.CardId),
             card => Assert.Equal("TEMP-008", card.CardId),
             card => Assert.Equal("TEMP-009", card.CardId),
             card => Assert.Equal("TEMP-010", card.CardId),
             card => Assert.Equal("TEMP-011", card.CardId),
             card => Assert.Equal("TEMP-012", card.CardId));
+
+        using var json = JsonDocument.Parse(responseBody);
+        var roomJson = json.RootElement.GetProperty("room").GetRawText();
+        Assert.DoesNotContain("\"hand\"", roomJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("TEMP-", roomJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetPlayerPrivateState_WhenPlayerDoesNotExist_ReturnsNotFound()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        await CreateRoomAsync(client, "ABC123");
+
+        var response = await client.GetAsync($"/rooms/ABC123/players/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
     }
 
     private static async Task<RoomState> CreateRoomAsync(HttpClient client, string roomCode)
