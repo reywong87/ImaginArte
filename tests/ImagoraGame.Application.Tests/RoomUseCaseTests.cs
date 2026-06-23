@@ -383,6 +383,59 @@ public sealed class RoomUseCaseTests
         Assert.Equal(GamePhase.GuessersSubmitting, result.Room.Phase);
         Assert.Equal(1, result.Room.SubmissionCount);
         Assert.Equal(2, result.Room.ExpectedSubmissionCount);
+        Assert.Empty(result.Room.VotingCards);
+    }
+
+    [Fact]
+    public async Task SubmitGuessCard_WithLastSubmission_ReturnsVotingStateWithPublicVotingCards()
+    {
+        var repository = new InMemoryRoomRepository();
+        var submitGuessCard = new SubmitGuessCardHandler(repository);
+        var (_, bobId, carlaId) = await CreateRoomWaitingForGuesserSubmissionsAsync(repository);
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var bobState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", bobId));
+        var carlaState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", carlaId));
+        var bobCardId = bobState.Player.Hand.First().CardId;
+        var carlaCardId = carlaState.Player.Hand.First().CardId;
+
+        await submitGuessCard.HandleAsync(new SubmitGuessCardCommand("ABC123", bobId, bobCardId));
+        var result = await submitGuessCard.HandleAsync(new SubmitGuessCardCommand("abc123", carlaId, carlaCardId));
+
+        Assert.Equal(GamePhase.Voting, result.Room.Phase);
+        Assert.Equal(3, result.Room.VotingCards.Count);
+        Assert.Collection(
+            result.Room.VotingCards,
+            card =>
+            {
+                Assert.Equal("VOTE-001", card.VotingCardId);
+                Assert.Equal("TEMP-001", card.CardId);
+                Assert.Equal(1, card.DisplayNumber);
+            },
+            card =>
+            {
+                Assert.Equal("VOTE-002", card.VotingCardId);
+                Assert.Equal(bobCardId, card.CardId);
+                Assert.Equal(2, card.DisplayNumber);
+            },
+            card =>
+            {
+                Assert.Equal("VOTE-003", card.VotingCardId);
+                Assert.Equal(carlaCardId, card.CardId);
+                Assert.Equal(3, card.DisplayNumber);
+            });
+    }
+
+    [Fact]
+    public void VotingCardState_DoesNotExposeOwnerOrStorytellerFlag()
+    {
+        var publicPropertyNames = typeof(VotingCardState)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.DoesNotContain(publicPropertyNames, name => name.Contains("Player", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(publicPropertyNames, name => name.Contains("Owner", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(publicPropertyNames, name => name.Contains("Storyteller", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

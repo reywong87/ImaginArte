@@ -4,6 +4,11 @@ namespace ImagoraGame.Application.Rooms;
 
 public sealed record PlayerState(Guid PlayerId, string Name);
 
+public sealed record VotingCardState(
+    string VotingCardId,
+    string CardId,
+    int DisplayNumber);
+
 public sealed record RoomState(
     string RoomCode,
     GamePhase Phase,
@@ -11,7 +16,8 @@ public sealed record RoomState(
     PlayerState? CurrentStoryteller,
     string? Clue,
     int SubmissionCount,
-    int ExpectedSubmissionCount)
+    int ExpectedSubmissionCount,
+    IReadOnlyCollection<VotingCardState> VotingCards)
 {
     public static RoomState FromRoom(Room room)
     {
@@ -21,6 +27,12 @@ public sealed record RoomState(
         var currentStoryteller = room.CurrentStorytellerId is { } storytellerId
             ? players.Single(player => player.PlayerId == storytellerId.Value)
             : null;
+        var votingCards = room.VotingCards
+            .Select(card => new VotingCardState(
+                card.VotingCardId.Value,
+                card.CardId.Value,
+                card.DisplayNumber))
+            .ToArray();
 
         return new RoomState(
             room.Code.Value,
@@ -29,6 +41,7 @@ public sealed record RoomState(
             currentStoryteller,
             room.Clue,
             room.SubmissionCount,
-            room.ExpectedSubmissionCount);
+            room.ExpectedSubmissionCount,
+            votingCards);
     }
 }

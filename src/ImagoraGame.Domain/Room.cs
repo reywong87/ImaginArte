@@ -8,6 +8,7 @@ public sealed class Room
 
     private readonly List<Player> _players = [];
     private readonly List<GuessCardSubmission> _guessCardSubmissions = [];
+    private readonly List<VotingCardOwnership> _votingCardOwnerships = [];
 
     private Room(RoomCode code)
     {
@@ -28,6 +29,14 @@ public sealed class Room
     public IReadOnlyCollection<Player> Players => _players.AsReadOnly();
 
     public IReadOnlyCollection<GuessCardSubmission> GuessCardSubmissions => _guessCardSubmissions.AsReadOnly();
+
+    public IReadOnlyCollection<VotingCard> VotingCards => Phase == GamePhase.Voting
+        ? _votingCardOwnerships
+            .Select((card, index) => new VotingCard(card.VotingCardId, card.CardId, index + 1))
+            .ToArray()
+        : Array.Empty<VotingCard>();
+
+    public IReadOnlyCollection<VotingCardOwnership> VotingCardOwnerships => _votingCardOwnerships.AsReadOnly();
 
     public int SubmissionCount => _guessCardSubmissions.Count;
 
@@ -185,8 +194,44 @@ public sealed class Room
 
         if (SubmissionCount == ExpectedSubmissionCount)
         {
+            PrepareVotingCards();
             Phase = GamePhase.Voting;
         }
+    }
+
+    private void PrepareVotingCards()
+    {
+        if (CurrentStorytellerId is not { } storytellerId || StorytellerCardId is not { } storytellerCardId)
+        {
+            throw new InvalidOperationException("Voting cards require a storyteller and storyteller card.");
+        }
+
+        _votingCardOwnerships.Clear();
+
+        AddVotingCard(storytellerCardId, storytellerId, isStorytellerCard: true);
+
+        var guesserSubmissionsByPlayerId = _guessCardSubmissions.ToDictionary(
+            submission => submission.PlayerId,
+            submission => submission);
+
+        foreach (var guesser in _players.Where(player => player.Id != storytellerId))
+        {
+            var submission = guesserSubmissionsByPlayerId[guesser.Id];
+
+            AddVotingCard(submission.CardId, guesser.Id, isStorytellerCard: false);
+        }
+    }
+
+    private void AddVotingCard(CardId cardId, PlayerId ownerPlayerId, bool isStorytellerCard)
+    {
+        var displayNumber = _votingCardOwnerships.Count + 1;
+        var votingCardId = new VotingCardId($"VOTE-{displayNumber:000}");
+
+        _votingCardOwnerships.Add(new VotingCardOwnership(
+            votingCardId,
+            cardId,
+            ownerPlayerId,
+            isStorytellerCard));
     }
 
     private void DealInitialHands()

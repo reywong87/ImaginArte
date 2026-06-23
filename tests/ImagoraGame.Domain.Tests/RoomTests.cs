@@ -411,6 +411,18 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void VotingCards_BeforeVoting_IsEmpty()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForGuesserSubmissions();
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+
+        room.SubmitGuessCard(bobId, bobCardId);
+
+        Assert.Equal(GamePhase.GuessersSubmitting, room.Phase);
+        Assert.Empty(room.VotingCards);
+    }
+
+    [Fact]
     public void SubmitGuessCard_WhenAllGuessersSubmit_MovesRoomToVoting()
     {
         var (room, _, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
@@ -423,6 +435,113 @@ public sealed class RoomTests
         Assert.Equal(GamePhase.Voting, room.Phase);
         Assert.Equal(2, room.SubmissionCount);
         Assert.Equal(2, room.ExpectedSubmissionCount);
+    }
+
+    [Fact]
+    public void VotingCards_WhenAllGuessersSubmit_IncludesStorytellerAndGuesserCards()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
+        var storytellerCardId = room.StorytellerCardId;
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+        var carlaCardId = room.GetHandFor(carlaId).First().Id;
+
+        room.SubmitGuessCard(bobId, bobCardId);
+        room.SubmitGuessCard(carlaId, carlaCardId);
+
+        Assert.Collection(
+            room.VotingCards,
+            card =>
+            {
+                Assert.Equal(new VotingCardId("VOTE-001"), card.VotingCardId);
+                Assert.Equal(storytellerCardId, card.CardId);
+                Assert.Equal(1, card.DisplayNumber);
+            },
+            card =>
+            {
+                Assert.Equal(new VotingCardId("VOTE-002"), card.VotingCardId);
+                Assert.Equal(bobCardId, card.CardId);
+                Assert.Equal(2, card.DisplayNumber);
+            },
+            card =>
+            {
+                Assert.Equal(new VotingCardId("VOTE-003"), card.VotingCardId);
+                Assert.Equal(carlaCardId, card.CardId);
+                Assert.Equal(3, card.DisplayNumber);
+            });
+    }
+
+    [Fact]
+    public void VotingCards_PublicOptions_DoNotExposeOwnerOrStorytellerFlag()
+    {
+        var publicPropertyNames = typeof(VotingCard)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.DoesNotContain(publicPropertyNames, name => name.Contains("Player", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(publicPropertyNames, name => name.Contains("Owner", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(publicPropertyNames, name => name.Contains("Storyteller", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void VotingCards_PublicIdentifiers_AreStable()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+        var carlaCardId = room.GetHandFor(carlaId).First().Id;
+
+        room.SubmitGuessCard(carlaId, carlaCardId);
+        room.SubmitGuessCard(bobId, bobCardId);
+
+        Assert.Collection(
+            room.VotingCards,
+            card => Assert.Equal("VOTE-001", card.VotingCardId.Value),
+            card =>
+            {
+                Assert.Equal("VOTE-002", card.VotingCardId.Value);
+                Assert.Equal(bobCardId, card.CardId);
+            },
+            card =>
+            {
+                Assert.Equal("VOTE-003", card.VotingCardId.Value);
+                Assert.Equal(carlaCardId, card.CardId);
+            });
+    }
+
+    [Fact]
+    public void VotingCardOwnerships_WhenVotingCardsAreCreated_RetainRealOwners()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
+        var storytellerCardId = room.StorytellerCardId;
+        var bobCardId = room.GetHandFor(bobId).First().Id;
+        var carlaCardId = room.GetHandFor(carlaId).First().Id;
+
+        room.SubmitGuessCard(bobId, bobCardId);
+        room.SubmitGuessCard(carlaId, carlaCardId);
+
+        Assert.Collection(
+            room.VotingCardOwnerships,
+            card =>
+            {
+                Assert.Equal(new VotingCardId("VOTE-001"), card.VotingCardId);
+                Assert.Equal(storytellerCardId, card.CardId);
+                Assert.Equal(aliceId, card.OwnerPlayerId);
+                Assert.True(card.IsStorytellerCard);
+            },
+            card =>
+            {
+                Assert.Equal(new VotingCardId("VOTE-002"), card.VotingCardId);
+                Assert.Equal(bobCardId, card.CardId);
+                Assert.Equal(bobId, card.OwnerPlayerId);
+                Assert.False(card.IsStorytellerCard);
+            },
+            card =>
+            {
+                Assert.Equal(new VotingCardId("VOTE-003"), card.VotingCardId);
+                Assert.Equal(carlaCardId, card.CardId);
+                Assert.Equal(carlaId, card.OwnerPlayerId);
+                Assert.False(card.IsStorytellerCard);
+            });
     }
 
     [Fact]
