@@ -16,7 +16,9 @@ public sealed class RoomUseCaseTests
 
         Assert.Equal("FAMILY-ROOM", result.Room.RoomCode);
         Assert.Equal(GamePhase.WaitingForPlayers, result.Room.Phase);
+        Assert.Equal(25, result.Room.TargetScore);
         Assert.Empty(result.Room.Players);
+        Assert.Empty(result.Room.Winners);
     }
 
     [Fact]
@@ -622,6 +624,7 @@ public sealed class RoomUseCaseTests
 
         Assert.Equal("ABC123", result.Room.RoomCode);
         Assert.Equal(GamePhase.Scoring, result.Room.Phase);
+        Assert.Equal(25, result.Room.TargetScore);
         Assert.Collection(
             result.Room.RoundScores,
             score =>
@@ -662,6 +665,38 @@ public sealed class RoomUseCaseTests
                 Assert.Equal("Carla", score.PlayerName);
                 Assert.Equal(0, score.TotalPoints);
             });
+        Assert.Empty(result.Room.Winners);
+    }
+
+    [Fact]
+    public async Task ScoreRound_WhenTargetIsReached_ReturnsGameCompleteAndWinners()
+    {
+        var repository = new InMemoryRoomRepository();
+        var scoreRound = new ScoreRoundHandler(repository);
+        var (_, bobId, _) = await AddDomainRoomAfterRevealAsync(repository, targetScore: 4);
+
+        var result = await scoreRound.HandleAsync(new ScoreRoundCommand("target"));
+
+        Assert.Equal("TARGET", result.Room.RoomCode);
+        Assert.Equal(GamePhase.GameComplete, result.Room.Phase);
+        Assert.Equal(4, result.Room.TargetScore);
+        var winner = Assert.Single(result.Room.Winners);
+        Assert.Equal(bobId, winner.PlayerId);
+        Assert.Equal("Bob", winner.PlayerName);
+        Assert.Equal(4, winner.TotalPoints);
+    }
+
+    [Fact]
+    public async Task ScoreRound_WhenTargetIsNotReached_ReturnsNoWinners()
+    {
+        var repository = new InMemoryRoomRepository();
+        var scoreRound = new ScoreRoundHandler(repository);
+        await AddDomainRoomAfterRevealAsync(repository, targetScore: 25);
+
+        var result = await scoreRound.HandleAsync(new ScoreRoundCommand("target"));
+
+        Assert.Equal(GamePhase.Scoring, result.Room.Phase);
+        Assert.Empty(result.Room.Winners);
     }
 
     [Fact]
@@ -944,5 +979,42 @@ public sealed class RoomUseCaseTests
         await completeRound.HandleAsync(new CompleteRoundCommand("ABC123"));
 
         return playerIds;
+    }
+
+    private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId)> AddDomainRoomAfterRevealAsync(
+        InMemoryRoomRepository repository,
+        int targetScore)
+    {
+        var room = Room.Create(new RoomCode("TARGET"), targetScore);
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+        var alicePlayerId = new PlayerId(aliceId);
+        var bobPlayerId = new PlayerId(bobId);
+        var carlaPlayerId = new PlayerId(carlaId);
+
+        room.Join(alicePlayerId, "Alice");
+        room.Join(bobPlayerId, "Bob");
+        room.Join(carlaPlayerId, "Carla");
+        room.StartGame();
+        room.ChooseStorytellerCard(alicePlayerId, room.GetHandFor(alicePlayerId).First().Id, "A strange doorway");
+        room.SubmitGuessCard(bobPlayerId, room.GetHandFor(bobPlayerId).First().Id);
+        room.SubmitGuessCard(carlaPlayerId, room.GetHandFor(carlaPlayerId).First().Id);
+
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var bobVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobPlayerId)
+            .VotingCardId;
+
+        room.CastVote(bobPlayerId, storytellerVotingCardId);
+        room.CastVote(carlaPlayerId, bobVotingCardId);
+
+        await repository.AddAsync(room);
+
+        return (aliceId, bobId, carlaId);
     }
 }

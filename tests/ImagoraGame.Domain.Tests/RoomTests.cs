@@ -11,6 +11,7 @@ public sealed class RoomTests
 
         Assert.Equal("FAMILY-ROOM", room.Code.Value);
         Assert.Equal(GamePhase.WaitingForPlayers, room.Phase);
+        Assert.Equal(25, room.TargetScore);
         Assert.Null(room.CurrentStorytellerId);
         Assert.Empty(room.Players);
         Assert.Empty(room.Scoreboard);
@@ -869,6 +870,7 @@ public sealed class RoomTests
         AssertPlayerScoreboardEntry(room.Scoreboard, aliceId, "Alice", 3);
         AssertPlayerScoreboardEntry(room.Scoreboard, bobId, "Bob", 4);
         AssertPlayerScoreboardEntry(room.Scoreboard, carlaId, "Carla", 0);
+        Assert.Empty(room.Winners);
     }
 
     [Fact]
@@ -895,6 +897,69 @@ public sealed class RoomTests
         AssertPlayerScore(room.RoundScores, aliceId, "Alice", 0);
         AssertPlayerScore(room.RoundScores, bobId, "Bob", 3);
         AssertPlayerScore(room.RoundScores, carlaId, "Carla", 3);
+    }
+
+    [Fact]
+    public void ScoreRound_WhenPlayerReachesTarget_MovesRoomToGameComplete()
+    {
+        var (room, _, bobId, _) = CreateRoomAfterReveal(targetScore: 4);
+
+        room.ScoreRound();
+
+        Assert.Equal(GamePhase.GameComplete, room.Phase);
+        var winner = Assert.Single(room.Winners);
+        Assert.Equal(bobId, winner.PlayerId);
+        Assert.Equal(4, winner.TotalPoints);
+    }
+
+    [Fact]
+    public void ScoreRound_WhenMultiplePlayersReachTarget_OnlyHighestTotalWins()
+    {
+        var (room, _, bobId, _) = CreateRoomAfterReveal(targetScore: 3);
+
+        room.ScoreRound();
+
+        Assert.Equal(GamePhase.GameComplete, room.Phase);
+        var winner = Assert.Single(room.Winners);
+        Assert.Equal(bobId, winner.PlayerId);
+        Assert.Equal(4, winner.TotalPoints);
+    }
+
+    [Fact]
+    public void ScoreRound_WhenFirstPlaceIsTied_ExposesAllWinners()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomAfterRevealWithAllGuessersCorrect(targetScore: 2);
+
+        room.ScoreRound();
+
+        Assert.Equal(GamePhase.GameComplete, room.Phase);
+        Assert.Collection(
+            room.Winners,
+            winner =>
+            {
+                Assert.Equal(bobId, winner.PlayerId);
+                Assert.Equal("Bob", winner.PlayerName);
+                Assert.Equal(2, winner.TotalPoints);
+            },
+            winner =>
+            {
+                Assert.Equal(carlaId, winner.PlayerId);
+                Assert.Equal("Carla", winner.PlayerName);
+                Assert.Equal(2, winner.TotalPoints);
+            });
+    }
+
+    [Fact]
+    public void ScoreRound_WhenGameCompletes_PreservesScoreboardTotals()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterReveal(targetScore: 4);
+
+        room.ScoreRound();
+
+        Assert.Equal(GamePhase.GameComplete, room.Phase);
+        AssertPlayerScoreboardEntry(room.Scoreboard, aliceId, "Alice", 3);
+        AssertPlayerScoreboardEntry(room.Scoreboard, bobId, "Bob", 4);
+        AssertPlayerScoreboardEntry(room.Scoreboard, carlaId, "Carla", 0);
     }
 
     [Fact]
@@ -1081,9 +1146,9 @@ public sealed class RoomTests
     }
 
     private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
-        CreateRoomWaitingForGuesserSubmissions()
+        CreateRoomWaitingForGuesserSubmissions(int targetScore = Room.DefaultTargetScore)
     {
-        var room = Room.Create(new RoomCode("ABC123"));
+        var room = Room.Create(new RoomCode("ABC123"), targetScore);
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
@@ -1098,9 +1163,9 @@ public sealed class RoomTests
     }
 
     private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
-        CreateRoomWaitingForVoting()
+        CreateRoomWaitingForVoting(int targetScore = Room.DefaultTargetScore)
     {
-        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions(targetScore);
         var bobCardId = room.GetHandFor(bobId).First().Id;
         var carlaCardId = room.GetHandFor(carlaId).First().Id;
 
@@ -1111,9 +1176,9 @@ public sealed class RoomTests
     }
 
     private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
-        CreateRoomAfterReveal()
+        CreateRoomAfterReveal(int targetScore = Room.DefaultTargetScore)
     {
-        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting(targetScore);
         var storytellerVotingCardId = room
             .VotingCardOwnerships
             .Single(card => card.IsStorytellerCard)
@@ -1183,9 +1248,9 @@ public sealed class RoomTests
     }
 
     private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
-        CreateRoomAfterRevealWithAllGuessersCorrect()
+        CreateRoomAfterRevealWithAllGuessersCorrect(int targetScore = Room.DefaultTargetScore)
     {
-        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting(targetScore);
         var storytellerVotingCardId = room
             .VotingCardOwnerships
             .Single(card => card.IsStorytellerCard)
@@ -1198,9 +1263,9 @@ public sealed class RoomTests
     }
 
     private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
-        CreateRoomAfterRevealWithNoGuessersCorrect()
+        CreateRoomAfterRevealWithNoGuessersCorrect(int targetScore = Room.DefaultTargetScore)
     {
-        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting(targetScore);
         var bobVotingCardId = room
             .VotingCardOwnerships
             .Single(card => card.OwnerPlayerId == bobId)

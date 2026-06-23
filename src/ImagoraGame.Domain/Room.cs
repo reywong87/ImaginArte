@@ -5,6 +5,7 @@ public sealed class Room
     public const int MinimumPlayers = 3;
     public const int MaximumPlayers = 8;
     public const int InitialHandSize = 6;
+    public const int DefaultTargetScore = 25;
 
     private readonly List<Player> _players = [];
     private readonly List<GuessCardSubmission> _guessCardSubmissions = [];
@@ -13,15 +14,23 @@ public sealed class Room
     private readonly List<PlayerScore> _scoreboard = [];
     private RoundScoreResult? _roundScoreResult;
 
-    private Room(RoomCode code)
+    private Room(RoomCode code, int targetScore)
     {
+        if (targetScore <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetScore), targetScore, "Target score must be greater than zero.");
+        }
+
         Code = code;
+        TargetScore = targetScore;
         Phase = GamePhase.WaitingForPlayers;
     }
 
     public RoomCode Code { get; }
 
     public GamePhase Phase { get; private set; }
+
+    public int TargetScore { get; }
 
     public PlayerId? CurrentStorytellerId { get; private set; }
 
@@ -46,9 +55,32 @@ public sealed class Room
 
     public IReadOnlyCollection<PlayerScore> Scoreboard => _scoreboard.AsReadOnly();
 
+    public IReadOnlyCollection<PlayerScore> Winners
+    {
+        get
+        {
+            if (Phase != GamePhase.GameComplete || _scoreboard.Count == 0)
+            {
+                return Array.Empty<PlayerScore>();
+            }
+
+            var highestScore = _scoreboard.Max(score => score.TotalPoints);
+
+            if (highestScore < TargetScore)
+            {
+                return Array.Empty<PlayerScore>();
+            }
+
+            return _scoreboard
+                .Where(score => score.TotalPoints == highestScore)
+                .ToArray();
+        }
+    }
+
     public IReadOnlyCollection<RevealedVotingCard> RevealedVotingCards => Phase is GamePhase.Reveal
             or GamePhase.Scoring
             or GamePhase.RoundComplete
+            or GamePhase.GameComplete
         ? _votingCardOwnerships
             .Select((card, index) =>
             {
@@ -99,11 +131,11 @@ public sealed class Room
         return player.Hand;
     }
 
-    public static Room Create(RoomCode code)
+    public static Room Create(RoomCode code, int targetScore = DefaultTargetScore)
     {
         ArgumentNullException.ThrowIfNull(code);
 
-        return new Room(code);
+        return new Room(code, targetScore);
     }
 
     public Player Join(PlayerId playerId, string playerName)
@@ -353,7 +385,9 @@ public sealed class Room
             .Select(player => new PlayerRoundScore(player.Id, player.Name, scoresByPlayerId[player.Id]))
             .ToArray());
         AddRoundScoresToScoreboard(_roundScoreResult.PlayerScores);
-        Phase = GamePhase.Scoring;
+        Phase = _scoreboard.Any(score => score.TotalPoints >= TargetScore)
+            ? GamePhase.GameComplete
+            : GamePhase.Scoring;
 
         return _roundScoreResult;
     }
