@@ -10,6 +10,7 @@ public sealed class Room
     private readonly List<GuessCardSubmission> _guessCardSubmissions = [];
     private readonly List<VotingCardOwnership> _votingCardOwnerships = [];
     private readonly List<Vote> _votes = [];
+    private RoundScoreResult? _roundScoreResult;
 
     private Room(RoomCode code)
     {
@@ -38,6 +39,9 @@ public sealed class Room
         : Array.Empty<VotingCard>();
 
     public IReadOnlyCollection<VotingCardOwnership> VotingCardOwnerships => _votingCardOwnerships.AsReadOnly();
+
+    public IReadOnlyCollection<PlayerRoundScore> RoundScores =>
+        _roundScoreResult?.PlayerScores ?? Array.Empty<PlayerRoundScore>();
 
     public IReadOnlyCollection<RevealedVotingCard> RevealedVotingCards => Phase == GamePhase.Reveal
         ? _votingCardOwnerships
@@ -287,6 +291,66 @@ public sealed class Room
         }
     }
 
+    public RoundScoreResult ScoreRound()
+    {
+        if (Phase != GamePhase.Reveal)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.RoomNotReadyForScoring,
+                "Round scores can only be calculated after votes are revealed.");
+        }
+
+        if (CurrentStorytellerId is not { } storytellerId)
+        {
+            throw new InvalidOperationException("Round scoring requires a current storyteller.");
+        }
+
+        var storytellerCard = _votingCardOwnerships.Single(card => card.IsStorytellerCard);
+        var guessers = _players
+            .Where(player => player.Id != storytellerId)
+            .ToArray();
+        var correctGuesserIds = _votes
+            .Where(vote => vote.VotingCardId == storytellerCard.VotingCardId)
+            .Select(vote => vote.VoterId)
+            .ToHashSet();
+        var scoresByPlayerId = _players.ToDictionary(player => player.Id, _ => 0);
+
+        if (correctGuesserIds.Count == guessers.Length)
+        {
+            foreach (var guesser in guessers)
+            {
+                scoresByPlayerId[guesser.Id] += 2;
+            }
+        }
+        else if (correctGuesserIds.Count == 0)
+        {
+            foreach (var guesser in guessers)
+            {
+                scoresByPlayerId[guesser.Id] += 2;
+            }
+
+            AwardGuesserCardVoteBonuses(scoresByPlayerId);
+        }
+        else
+        {
+            scoresByPlayerId[storytellerId] += 3;
+
+            foreach (var correctGuesserId in correctGuesserIds)
+            {
+                scoresByPlayerId[correctGuesserId] += 3;
+            }
+
+            AwardGuesserCardVoteBonuses(scoresByPlayerId);
+        }
+
+        _roundScoreResult = new RoundScoreResult(_players
+            .Select(player => new PlayerRoundScore(player.Id, player.Name, scoresByPlayerId[player.Id]))
+            .ToArray());
+        Phase = GamePhase.Scoring;
+
+        return _roundScoreResult;
+    }
+
     private void PrepareVotingCards()
     {
         if (CurrentStorytellerId is not { } storytellerId || StorytellerCardId is not { } storytellerCardId)
@@ -296,6 +360,7 @@ public sealed class Room
 
         _votingCardOwnerships.Clear();
         _votes.Clear();
+        _roundScoreResult = null;
 
         AddVotingCard(storytellerCardId, storytellerId, isStorytellerCard: true);
 
@@ -321,6 +386,21 @@ public sealed class Room
             cardId,
             ownerPlayerId,
             isStorytellerCard));
+    }
+
+    private void AwardGuesserCardVoteBonuses(Dictionary<PlayerId, int> scoresByPlayerId)
+    {
+        var guesserVotingCardsById = _votingCardOwnerships
+            .Where(card => !card.IsStorytellerCard)
+            .ToDictionary(card => card.VotingCardId, card => card);
+
+        foreach (var vote in _votes)
+        {
+            if (guesserVotingCardsById.TryGetValue(vote.VotingCardId, out var votedCard))
+            {
+                scoresByPlayerId[votedCard.OwnerPlayerId] += 1;
+            }
+        }
     }
 
     private void DealInitialHands()

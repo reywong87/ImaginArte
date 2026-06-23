@@ -800,6 +800,71 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void ScoreRound_WhenRoomIsNotInReveal_Throws()
+    {
+        var (room, _, _, _) = CreateRoomWaitingForVoting();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(room.ScoreRound);
+
+        Assert.Equal(DomainErrorCode.RoomNotReadyForScoring, exception.Code);
+        Assert.Empty(room.RoundScores);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void ScoreRound_WithMixedCorrectAndIncorrectVotes_AwardsStorytellerCorrectGuessersAndCardVotes()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterReveal();
+
+        var result = room.ScoreRound();
+
+        Assert.Equal(GamePhase.Scoring, room.Phase);
+        Assert.Equal(room.RoundScores, result.PlayerScores);
+        AssertPlayerScore(room.RoundScores, aliceId, "Alice", 3);
+        AssertPlayerScore(room.RoundScores, bobId, "Bob", 4);
+        AssertPlayerScore(room.RoundScores, carlaId, "Carla", 0);
+    }
+
+    [Fact]
+    public void ScoreRound_WhenAllGuessersFindStorytellerCard_AwardsGuessersTwoWithoutCardVoteBonuses()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterRevealWithAllGuessersCorrect();
+
+        room.ScoreRound();
+
+        Assert.Equal(GamePhase.Scoring, room.Phase);
+        AssertPlayerScore(room.RoundScores, aliceId, "Alice", 0);
+        AssertPlayerScore(room.RoundScores, bobId, "Bob", 2);
+        AssertPlayerScore(room.RoundScores, carlaId, "Carla", 2);
+    }
+
+    [Fact]
+    public void ScoreRound_WhenNoGuessersFindStorytellerCard_AwardsGuessersTwoAndCardVoteBonuses()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomAfterRevealWithNoGuessersCorrect();
+
+        room.ScoreRound();
+
+        Assert.Equal(GamePhase.Scoring, room.Phase);
+        AssertPlayerScore(room.RoundScores, aliceId, "Alice", 0);
+        AssertPlayerScore(room.RoundScores, bobId, "Bob", 3);
+        AssertPlayerScore(room.RoundScores, carlaId, "Carla", 3);
+    }
+
+    [Fact]
+    public void ScoreRound_WhenCalledTwice_DoesNotDuplicateResults()
+    {
+        var (room, _, _, _) = CreateRoomAfterReveal();
+
+        room.ScoreRound();
+        var exception = Assert.Throws<DomainRuleViolationException>(room.ScoreRound);
+
+        Assert.Equal(DomainErrorCode.RoomNotReadyForScoring, exception.Code);
+        Assert.Equal(GamePhase.Scoring, room.Phase);
+        Assert.Equal(3, room.RoundScores.Count);
+    }
+
+    [Fact]
     public void StartGame_WhenAlreadyStarted_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));
@@ -860,5 +925,51 @@ public sealed class RoomTests
         room.CastVote(carlaId, bobVotingCardId);
 
         return (room, aliceId, bobId, carlaId);
+    }
+
+    private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
+        CreateRoomAfterRevealWithAllGuessersCorrect()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+        room.CastVote(carlaId, storytellerVotingCardId);
+
+        return (room, aliceId, bobId, carlaId);
+    }
+
+    private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
+        CreateRoomAfterRevealWithNoGuessersCorrect()
+    {
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var bobVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobId)
+            .VotingCardId;
+        var carlaVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == carlaId)
+            .VotingCardId;
+
+        room.CastVote(bobId, carlaVotingCardId);
+        room.CastVote(carlaId, bobVotingCardId);
+
+        return (room, aliceId, bobId, carlaId);
+    }
+
+    private static void AssertPlayerScore(
+        IReadOnlyCollection<PlayerRoundScore> scores,
+        PlayerId playerId,
+        string playerName,
+        int pointsAwarded)
+    {
+        var score = scores.Single(score => score.PlayerId == playerId);
+
+        Assert.Equal(playerName, score.PlayerName);
+        Assert.Equal(pointsAwarded, score.PointsAwarded);
     }
 }
