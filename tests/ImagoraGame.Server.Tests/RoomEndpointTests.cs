@@ -261,10 +261,14 @@ public sealed class RoomEndpointTests
         Assert.Equal(
             [room.StorytellerCardId, room.BobCardIds[0], room.CarlaCardIds[0]],
             state.VotingCards.Select(card => card.CardId).Order().ToArray());
-        Assert.Equal(3, state.VotingCards.Select(card => card.DisplayNumber).Distinct().Count());
+        Assert.Equal(3, state.VotingCards.Select(card => card.CardId).Distinct().Count());
+        Assert.Equal([1, 2, 3], state.VotingCards.Select(card => card.DisplayNumber).Order().ToArray());
+        Assert.Equal(
+            ["VOTE-001", "VOTE-002", "VOTE-003"],
+            state.VotingCards.Select(card => card.VotingCardId).Order().ToArray());
         Assert.All(
             state.VotingCards,
-            card => Assert.InRange(card.DisplayNumber, 1, state.VotingCards.Count));
+            card => Assert.Equal($"VOTE-{card.DisplayNumber:000}", card.VotingCardId));
         Assert.DoesNotContain("\"hand\"", responseBody, StringComparison.OrdinalIgnoreCase);
 
         using var json = JsonDocument.Parse(responseBody);

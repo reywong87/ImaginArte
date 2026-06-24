@@ -413,28 +413,21 @@ public sealed class RoomUseCaseTests
         var result = await submitGuessCard.HandleAsync(new SubmitGuessCardCommand("abc123", carlaId, carlaCardId));
 
         Assert.Equal(GamePhase.Voting, result.Room.Phase);
-        Assert.Equal(3, result.Room.VotingCards.Count);
+        var votingCards = result.Room.VotingCards.ToArray();
+
+        Assert.Equal(3, votingCards.Length);
         Assert.Empty(result.Room.RevealedCards);
-        Assert.Collection(
-            result.Room.VotingCards,
-            card =>
-            {
-                Assert.Equal("VOTE-001", card.VotingCardId);
-                Assert.Equal("TEMP-001", card.CardId);
-                Assert.Equal(1, card.DisplayNumber);
-            },
-            card =>
-            {
-                Assert.Equal("VOTE-002", card.VotingCardId);
-                Assert.Equal(bobCardId, card.CardId);
-                Assert.Equal(2, card.DisplayNumber);
-            },
-            card =>
-            {
-                Assert.Equal("VOTE-003", card.VotingCardId);
-                Assert.Equal(carlaCardId, card.CardId);
-                Assert.Equal(3, card.DisplayNumber);
-            });
+        Assert.Equal(
+            ["TEMP-001", bobCardId, carlaCardId],
+            votingCards.Select(card => card.CardId).Order().ToArray());
+        Assert.Equal(3, votingCards.Select(card => card.CardId).Distinct().Count());
+        Assert.Equal([1, 2, 3], votingCards.Select(card => card.DisplayNumber).Order().ToArray());
+        Assert.Equal(
+            ["VOTE-001", "VOTE-002", "VOTE-003"],
+            votingCards.Select(card => card.VotingCardId).Order().ToArray());
+        Assert.All(
+            votingCards,
+            card => Assert.Equal($"VOTE-{card.DisplayNumber:000}", card.VotingCardId));
     }
 
     [Fact]
@@ -485,8 +478,8 @@ public sealed class RoomUseCaseTests
         var repository = new InMemoryRoomRepository();
         var castVote = new CastVoteHandler(repository);
         var (_, bobId, carlaId, votingState) = await CreateRoomWaitingForVotingAsync(repository);
-        var storytellerVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 1).VotingCardId;
-        var bobVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 2).VotingCardId;
+        var storytellerVotingCardId = await GetStorytellerVotingCardIdAsync(repository);
+        var bobVotingCardId = await GetVotingCardIdForOwnerAsync(repository, bobId);
 
         var firstVote = await castVote.HandleAsync(new CastVoteCommand("abc123", bobId, storytellerVotingCardId));
         var result = await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
@@ -506,55 +499,43 @@ public sealed class RoomUseCaseTests
         var repository = new InMemoryRoomRepository();
         var castVote = new CastVoteHandler(repository);
         var (_, bobId, carlaId, votingState) = await CreateRoomWaitingForVotingAsync(repository);
-        var storytellerVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 1).VotingCardId;
-        var bobVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 2).VotingCardId;
+        var storytellerVotingCardId = await GetStorytellerVotingCardIdAsync(repository);
+        var bobVotingCardId = await GetVotingCardIdForOwnerAsync(repository, bobId);
 
         await castVote.HandleAsync(new CastVoteCommand("ABC123", bobId, storytellerVotingCardId));
         var result = await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
 
         Assert.Equal(GamePhase.Reveal, result.Room.Phase);
         Assert.Equal(3, result.Room.RevealedCards.Count);
+        Assert.Equal(
+            votingState.VotingCards.Select(card => (card.VotingCardId, card.CardId, card.DisplayNumber)),
+            result.Room.RevealedCards.Select(card => (card.VotingCardId, card.CardId, card.DisplayNumber)));
+
+        var storytellerCard = result.Room.RevealedCards.Single(card => card.IsStorytellerCard);
+        Assert.Equal("Alice", storytellerCard.OwnerName);
         Assert.Collection(
-            result.Room.RevealedCards,
-            card =>
+            storytellerCard.Votes,
+            vote =>
             {
-                Assert.Equal("VOTE-001", card.VotingCardId);
-                Assert.Equal("TEMP-001", card.CardId);
-                Assert.Equal(1, card.DisplayNumber);
-                Assert.Equal("Alice", card.OwnerName);
-                Assert.True(card.IsStorytellerCard);
-                Assert.Collection(
-                    card.Votes,
-                    vote =>
-                    {
-                        Assert.Equal(bobId, vote.VoterPlayerId);
-                        Assert.Equal("Bob", vote.VoterName);
-                    });
-            },
-            card =>
-            {
-                Assert.Equal("VOTE-002", card.VotingCardId);
-                Assert.Equal(2, card.DisplayNumber);
-                Assert.Equal(bobId, card.OwnerPlayerId);
-                Assert.Equal("Bob", card.OwnerName);
-                Assert.False(card.IsStorytellerCard);
-                Assert.Collection(
-                    card.Votes,
-                    vote =>
-                    {
-                        Assert.Equal(carlaId, vote.VoterPlayerId);
-                        Assert.Equal("Carla", vote.VoterName);
-                    });
-            },
-            card =>
-            {
-                Assert.Equal("VOTE-003", card.VotingCardId);
-                Assert.Equal(3, card.DisplayNumber);
-                Assert.Equal(carlaId, card.OwnerPlayerId);
-                Assert.Equal("Carla", card.OwnerName);
-                Assert.False(card.IsStorytellerCard);
-                Assert.Empty(card.Votes);
+                Assert.Equal(bobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
             });
+
+        var bobCard = result.Room.RevealedCards.Single(card => card.OwnerPlayerId == bobId);
+        Assert.Equal("Bob", bobCard.OwnerName);
+        Assert.False(bobCard.IsStorytellerCard);
+        Assert.Collection(
+            bobCard.Votes,
+            vote =>
+            {
+                Assert.Equal(carlaId, vote.VoterPlayerId);
+                Assert.Equal("Carla", vote.VoterName);
+            });
+
+        var carlaCard = result.Room.RevealedCards.Single(card => card.OwnerPlayerId == carlaId);
+        Assert.Equal("Carla", carlaCard.OwnerName);
+        Assert.False(carlaCard.IsStorytellerCard);
+        Assert.Empty(carlaCard.Votes);
     }
 
     [Fact]
@@ -590,7 +571,7 @@ public sealed class RoomUseCaseTests
         var repository = new InMemoryRoomRepository();
         var castVote = new CastVoteHandler(repository);
         var (_, bobId, _, votingState) = await CreateRoomWaitingForVotingAsync(repository);
-        var storytellerVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 1).VotingCardId;
+        var storytellerVotingCardId = await GetStorytellerVotingCardIdAsync(repository);
 
         var result = await castVote.HandleAsync(new CastVoteCommand("ABC123", bobId, storytellerVotingCardId));
 
@@ -950,13 +931,41 @@ public sealed class RoomUseCaseTests
     {
         var castVote = new CastVoteHandler(repository);
         var (aliceId, bobId, carlaId, votingState) = await CreateRoomWaitingForVotingAsync(repository);
-        var storytellerVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 1).VotingCardId;
-        var bobVotingCardId = votingState.VotingCards.Single(card => card.DisplayNumber == 2).VotingCardId;
+        var storytellerVotingCardId = await GetStorytellerVotingCardIdAsync(repository);
+        var bobVotingCardId = await GetVotingCardIdForOwnerAsync(repository, bobId);
 
         await castVote.HandleAsync(new CastVoteCommand("ABC123", bobId, storytellerVotingCardId));
         await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
 
         return (aliceId, bobId, carlaId);
+    }
+
+    private static async Task<string> GetStorytellerVotingCardIdAsync(InMemoryRoomRepository repository)
+    {
+        var room = await GetRequiredRoomAsync(repository);
+
+        return room.VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId
+            .Value;
+    }
+
+    private static async Task<string> GetVotingCardIdForOwnerAsync(
+        InMemoryRoomRepository repository,
+        Guid ownerPlayerId)
+    {
+        var room = await GetRequiredRoomAsync(repository);
+
+        return room.VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId.Value == ownerPlayerId)
+            .VotingCardId
+            .Value;
+    }
+
+    private static async Task<Room> GetRequiredRoomAsync(InMemoryRoomRepository repository)
+    {
+        return await repository.GetByCodeAsync(new RoomCode("ABC123"))
+            ?? throw new InvalidOperationException("Test setup requires room ABC123.");
     }
 
     private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId)> CreateRoomAfterScoringAsync(

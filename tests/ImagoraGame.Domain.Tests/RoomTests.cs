@@ -484,34 +484,36 @@ public sealed class RoomTests
     [Fact]
     public void VotingCards_WhenAllGuessersSubmit_IncludesStorytellerAndGuesserCards()
     {
-        var (room, _, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
-        var storytellerCardId = room.StorytellerCardId;
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions(
+            randomNumberGenerator: new ZeroRandomNumberGenerator());
+        var storytellerCardId = room.StorytellerCardId
+            ?? throw new InvalidOperationException("Test setup requires a storyteller card.");
         var bobCardId = room.GetHandFor(bobId).First().Id;
         var carlaCardId = room.GetHandFor(carlaId).First().Id;
 
         room.SubmitGuessCard(bobId, bobCardId);
         room.SubmitGuessCard(carlaId, carlaCardId);
 
-        Assert.Collection(
-            room.VotingCards,
-            card =>
-            {
-                Assert.Equal(new VotingCardId("VOTE-001"), card.VotingCardId);
-                Assert.Equal(storytellerCardId, card.CardId);
-                Assert.Equal(1, card.DisplayNumber);
-            },
-            card =>
-            {
-                Assert.Equal(new VotingCardId("VOTE-002"), card.VotingCardId);
-                Assert.Equal(bobCardId, card.CardId);
-                Assert.Equal(2, card.DisplayNumber);
-            },
-            card =>
-            {
-                Assert.Equal(new VotingCardId("VOTE-003"), card.VotingCardId);
-                Assert.Equal(carlaCardId, card.CardId);
-                Assert.Equal(3, card.DisplayNumber);
-            });
+        var votingCards = room.VotingCards.ToArray();
+
+        Assert.Equal(3, votingCards.Length);
+        Assert.Equal(
+            [storytellerCardId.Value, bobCardId.Value, carlaCardId.Value],
+            votingCards.Select(card => card.CardId.Value).Order().ToArray());
+        Assert.Equal(3, votingCards.Select(card => card.CardId).Distinct().Count());
+        Assert.Equal([1, 2, 3], votingCards.Select(card => card.DisplayNumber).Order().ToArray());
+        Assert.Equal(
+            ["VOTE-001", "VOTE-002", "VOTE-003"],
+            votingCards.Select(card => card.VotingCardId.Value).Order().ToArray());
+        Assert.All(
+            votingCards,
+            card => Assert.Equal(
+                $"VOTE-{card.DisplayNumber:000}",
+                card.VotingCardId.Value));
+
+        var storytellerCard = votingCards.Single(card => card.CardId == storytellerCardId);
+        Assert.Equal(3, storytellerCard.DisplayNumber);
+        Assert.Equal("VOTE-003", storytellerCard.VotingCardId.Value);
     }
 
     [Fact]
@@ -528,71 +530,61 @@ public sealed class RoomTests
     }
 
     [Fact]
-    public void VotingCards_PublicIdentifiers_AreStable()
+    public void VotingCards_SubmissionOrderDoesNotDeterminePublicPosition()
     {
-        var (room, _, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
-        var bobCardId = room.GetHandFor(bobId).First().Id;
-        var carlaCardId = room.GetHandFor(carlaId).First().Id;
+        var (firstRoom, _, firstBobId, firstCarlaId) = CreateRoomWaitingForGuesserSubmissions(
+            randomNumberGenerator: new ZeroRandomNumberGenerator());
+        var firstBobCardId = firstRoom.GetHandFor(firstBobId).First().Id;
+        var firstCarlaCardId = firstRoom.GetHandFor(firstCarlaId).First().Id;
 
-        room.SubmitGuessCard(carlaId, carlaCardId);
-        room.SubmitGuessCard(bobId, bobCardId);
+        firstRoom.SubmitGuessCard(firstBobId, firstBobCardId);
+        firstRoom.SubmitGuessCard(firstCarlaId, firstCarlaCardId);
 
-        Assert.Collection(
-            room.VotingCards,
-            card => Assert.Equal("VOTE-001", card.VotingCardId.Value),
-            card =>
-            {
-                Assert.Equal("VOTE-002", card.VotingCardId.Value);
-                Assert.Equal(bobCardId, card.CardId);
-            },
-            card =>
-            {
-                Assert.Equal("VOTE-003", card.VotingCardId.Value);
-                Assert.Equal(carlaCardId, card.CardId);
-            });
+        var (secondRoom, _, secondBobId, secondCarlaId) = CreateRoomWaitingForGuesserSubmissions(
+            randomNumberGenerator: new ZeroRandomNumberGenerator());
+        var secondBobCardId = secondRoom.GetHandFor(secondBobId).First().Id;
+        var secondCarlaCardId = secondRoom.GetHandFor(secondCarlaId).First().Id;
+
+        secondRoom.SubmitGuessCard(secondCarlaId, secondCarlaCardId);
+        secondRoom.SubmitGuessCard(secondBobId, secondBobCardId);
+
+        Assert.Equal(
+            firstRoom.VotingCards.Select(card => (card.VotingCardId.Value, card.CardId.Value, card.DisplayNumber)),
+            secondRoom.VotingCards.Select(card => (card.VotingCardId.Value, card.CardId.Value, card.DisplayNumber)));
     }
 
     [Fact]
     public void VotingCardOwnerships_WhenVotingCardsAreCreated_RetainRealOwners()
     {
-        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions();
-        var storytellerCardId = room.StorytellerCardId;
+        var (room, aliceId, bobId, carlaId) = CreateRoomWaitingForGuesserSubmissions(
+            randomNumberGenerator: new ZeroRandomNumberGenerator());
+        var storytellerCardId = room.StorytellerCardId
+            ?? throw new InvalidOperationException("Test setup requires a storyteller card.");
         var bobCardId = room.GetHandFor(bobId).First().Id;
         var carlaCardId = room.GetHandFor(carlaId).First().Id;
 
         room.SubmitGuessCard(bobId, bobCardId);
         room.SubmitGuessCard(carlaId, carlaCardId);
 
-        Assert.Collection(
-            room.VotingCardOwnerships,
-            card =>
-            {
-                Assert.Equal(new VotingCardId("VOTE-001"), card.VotingCardId);
-                Assert.Equal(storytellerCardId, card.CardId);
-                Assert.Equal(aliceId, card.OwnerPlayerId);
-                Assert.True(card.IsStorytellerCard);
-            },
-            card =>
-            {
-                Assert.Equal(new VotingCardId("VOTE-002"), card.VotingCardId);
-                Assert.Equal(bobCardId, card.CardId);
-                Assert.Equal(bobId, card.OwnerPlayerId);
-                Assert.False(card.IsStorytellerCard);
-            },
-            card =>
-            {
-                Assert.Equal(new VotingCardId("VOTE-003"), card.VotingCardId);
-                Assert.Equal(carlaCardId, card.CardId);
-                Assert.Equal(carlaId, card.OwnerPlayerId);
-                Assert.False(card.IsStorytellerCard);
-            });
+        var ownerships = room.VotingCardOwnerships.ToArray();
+
+        Assert.Equal(3, ownerships.Length);
+        AssertOwnership(ownerships, storytellerCardId, aliceId, isStorytellerCard: true);
+        AssertOwnership(ownerships, bobCardId, bobId, isStorytellerCard: false);
+        AssertOwnership(ownerships, carlaCardId, carlaId, isStorytellerCard: false);
+        Assert.Equal(
+            room.VotingCards.Select(card => (card.VotingCardId, card.CardId)),
+            ownerships.Select(card => (card.VotingCardId, card.CardId)));
     }
 
     [Fact]
     public void CastVote_WithValidGuesserAndVotingCard_StoresVote()
     {
         var (room, _, bobId, _) = CreateRoomWaitingForVoting();
-        var storytellerVotingCardId = room.VotingCards.First().VotingCardId;
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
 
         room.CastVote(bobId, storytellerVotingCardId);
 
@@ -605,7 +597,10 @@ public sealed class RoomTests
     public void CastVote_WhenPlayerIsStoryteller_Throws()
     {
         var (room, aliceId, _, _) = CreateRoomWaitingForVoting();
-        var votingCardId = room.VotingCards.First().VotingCardId;
+        var votingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
 
         var exception = Assert.Throws<DomainRuleViolationException>(
             () => room.CastVote(aliceId, votingCardId));
@@ -619,7 +614,10 @@ public sealed class RoomTests
     public void CastVote_WhenPlayerIsNotInRoom_Throws()
     {
         var (room, _, _, _) = CreateRoomWaitingForVoting();
-        var votingCardId = room.VotingCards.First().VotingCardId;
+        var votingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
 
         var exception = Assert.Throws<DomainRuleViolationException>(
             () => room.CastVote(PlayerId.New(), votingCardId));
@@ -712,7 +710,10 @@ public sealed class RoomTests
     public void CastVote_WhenSomeGuessersStillNeedToVote_KeepsRoomInVoting()
     {
         var (room, _, bobId, _) = CreateRoomWaitingForVoting();
-        var votingCardId = room.VotingCards.First().VotingCardId;
+        var votingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
 
         room.CastVote(bobId, votingCardId);
 
@@ -725,7 +726,10 @@ public sealed class RoomTests
     public void RevealedVotingCards_BeforeReveal_IsEmpty()
     {
         var (room, _, bobId, _) = CreateRoomWaitingForVoting();
-        var votingCardId = room.VotingCards.First().VotingCardId;
+        var votingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
 
         room.CastVote(bobId, votingCardId);
 
@@ -758,6 +762,9 @@ public sealed class RoomTests
     public void RevealedVotingCards_WhenAllGuessersVote_IncludesEveryVotableCard()
     {
         var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var votingOrder = room.VotingCards
+            .Select(card => (card.VotingCardId, card.CardId, card.DisplayNumber))
+            .ToArray();
         var storytellerVotingCardId = room
             .VotingCardOwnerships
             .Single(card => card.IsStorytellerCard)
@@ -772,6 +779,11 @@ public sealed class RoomTests
 
         Assert.Equal(GamePhase.Reveal, room.Phase);
         Assert.Equal(3, room.RevealedVotingCards.Count);
+        Assert.Equal(
+            votingOrder,
+            room.RevealedVotingCards
+                .Select(card => (card.VotingCardId, card.CardId, card.DisplayNumber))
+                .ToArray());
     }
 
     [Fact]
@@ -781,8 +793,12 @@ public sealed class RoomTests
 
         var storytellerCard = room.RevealedVotingCards.Single(card => card.IsStorytellerCard);
 
-        Assert.Equal(new VotingCardId("VOTE-001"), storytellerCard.VotingCardId);
-        Assert.Equal(1, storytellerCard.DisplayNumber);
+        var ownership = room.VotingCardOwnerships.Single(card => card.IsStorytellerCard);
+
+        Assert.Equal(ownership.VotingCardId, storytellerCard.VotingCardId);
+        Assert.Equal(
+            room.VotingCardOwnerships.ToList().IndexOf(ownership) + 1,
+            storytellerCard.DisplayNumber);
     }
 
     [Fact]
@@ -790,23 +806,11 @@ public sealed class RoomTests
     {
         var (room, aliceId, bobId, carlaId) = CreateRoomAfterReveal();
 
-        Assert.Collection(
-            room.RevealedVotingCards,
-            card =>
-            {
-                Assert.Equal(aliceId, card.OwnerPlayerId);
-                Assert.Equal("Alice", card.OwnerName);
-            },
-            card =>
-            {
-                Assert.Equal(bobId, card.OwnerPlayerId);
-                Assert.Equal("Bob", card.OwnerName);
-            },
-            card =>
-            {
-                Assert.Equal(carlaId, card.OwnerPlayerId);
-                Assert.Equal("Carla", card.OwnerName);
-            });
+        var revealedCards = room.RevealedVotingCards;
+
+        Assert.Contains(revealedCards, card => card.OwnerPlayerId == aliceId && card.OwnerName == "Alice");
+        Assert.Contains(revealedCards, card => card.OwnerPlayerId == bobId && card.OwnerName == "Bob");
+        Assert.Contains(revealedCards, card => card.OwnerPlayerId == carlaId && card.OwnerName == "Carla");
     }
 
     [Fact]
@@ -814,8 +818,14 @@ public sealed class RoomTests
     {
         var (room, _, bobId, carlaId) = CreateRoomAfterReveal();
 
-        var storytellerCard = room.RevealedVotingCards.Single(card => card.VotingCardId == new VotingCardId("VOTE-001"));
-        var bobCard = room.RevealedVotingCards.Single(card => card.VotingCardId == new VotingCardId("VOTE-002"));
+        var storytellerVotingCardId = room.VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var bobVotingCardId = room.VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobId)
+            .VotingCardId;
+        var storytellerCard = room.RevealedVotingCards.Single(card => card.VotingCardId == storytellerVotingCardId);
+        var bobCard = room.RevealedVotingCards.Single(card => card.VotingCardId == bobVotingCardId);
 
         Assert.Collection(
             storytellerCard.Votes,
@@ -1146,9 +1156,11 @@ public sealed class RoomTests
     }
 
     private static (Room Room, PlayerId AliceId, PlayerId BobId, PlayerId CarlaId)
-        CreateRoomWaitingForGuesserSubmissions(int targetScore = Room.DefaultTargetScore)
+        CreateRoomWaitingForGuesserSubmissions(
+            int targetScore = Room.DefaultTargetScore,
+            IRandomNumberGenerator? randomNumberGenerator = null)
     {
-        var room = Room.Create(new RoomCode("ABC123"), targetScore);
+        var room = Room.Create(new RoomCode("ABC123"), targetScore, randomNumberGenerator);
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
@@ -1314,5 +1326,25 @@ public sealed class RoomTests
         Assert.Equal(expected.OwnerName, actual.OwnerName);
         Assert.Equal(expected.IsStorytellerCard, actual.IsStorytellerCard);
         Assert.Equal(expected.Votes, actual.Votes);
+    }
+
+    private static void AssertOwnership(
+        IReadOnlyCollection<VotingCardOwnership> ownerships,
+        CardId cardId,
+        PlayerId ownerPlayerId,
+        bool isStorytellerCard)
+    {
+        var ownership = ownerships.Single(card => card.CardId == cardId);
+
+        Assert.Equal(ownerPlayerId, ownership.OwnerPlayerId);
+        Assert.Equal(isStorytellerCard, ownership.IsStorytellerCard);
+    }
+
+    private sealed class ZeroRandomNumberGenerator : IRandomNumberGenerator
+    {
+        public int Next(int exclusiveUpperBound)
+        {
+            return 0;
+        }
     }
 }

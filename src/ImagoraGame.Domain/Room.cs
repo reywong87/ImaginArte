@@ -12,9 +12,10 @@ public sealed class Room
     private readonly List<VotingCardOwnership> _votingCardOwnerships = [];
     private readonly List<Vote> _votes = [];
     private readonly List<PlayerScore> _scoreboard = [];
+    private readonly IRandomNumberGenerator _randomNumberGenerator;
     private RoundScoreResult? _roundScoreResult;
 
-    private Room(RoomCode code, int targetScore)
+    private Room(RoomCode code, int targetScore, IRandomNumberGenerator randomNumberGenerator)
     {
         if (targetScore <= 0)
         {
@@ -23,6 +24,7 @@ public sealed class Room
 
         Code = code;
         TargetScore = targetScore;
+        _randomNumberGenerator = randomNumberGenerator;
         Phase = GamePhase.WaitingForPlayers;
     }
 
@@ -131,11 +133,14 @@ public sealed class Room
         return player.Hand;
     }
 
-    public static Room Create(RoomCode code, int targetScore = DefaultTargetScore)
+    public static Room Create(
+        RoomCode code,
+        int targetScore = DefaultTargetScore,
+        IRandomNumberGenerator? randomNumberGenerator = null)
     {
         ArgumentNullException.ThrowIfNull(code);
 
-        return new Room(code, targetScore);
+        return new Room(code, targetScore, randomNumberGenerator ?? new SharedRandomNumberGenerator());
     }
 
     public Player Join(PlayerId playerId, string playerName)
@@ -447,17 +452,38 @@ public sealed class Room
         _votes.Clear();
         _roundScoreResult = null;
 
-        AddVotingCard(storytellerCardId, storytellerId, isStorytellerCard: true);
-
         var guesserSubmissionsByPlayerId = _guessCardSubmissions.ToDictionary(
             submission => submission.PlayerId,
             submission => submission);
+        var votingCardCandidates = new List<VotingCardCandidate>
+        {
+            new(storytellerCardId, storytellerId, IsStorytellerCard: true)
+        };
 
         foreach (var guesser in _players.Where(player => player.Id != storytellerId))
         {
             var submission = guesserSubmissionsByPlayerId[guesser.Id];
 
-            AddVotingCard(submission.CardId, guesser.Id, isStorytellerCard: false);
+            votingCardCandidates.Add(new VotingCardCandidate(
+                submission.CardId,
+                guesser.Id,
+                IsStorytellerCard: false));
+        }
+
+        Shuffle(votingCardCandidates);
+
+        foreach (var candidate in votingCardCandidates)
+        {
+            AddVotingCard(candidate.CardId, candidate.OwnerPlayerId, candidate.IsStorytellerCard);
+        }
+    }
+
+    private void Shuffle<T>(IList<T> items)
+    {
+        for (var currentIndex = items.Count - 1; currentIndex > 0; currentIndex--)
+        {
+            var swapIndex = _randomNumberGenerator.Next(currentIndex + 1);
+            (items[currentIndex], items[swapIndex]) = (items[swapIndex], items[currentIndex]);
         }
     }
 
@@ -525,4 +551,9 @@ public sealed class Room
             .Select(cardNumber => new Card(new CardId($"TEMP-{cardNumber:000}")))
             .ToArray();
     }
+
+    private sealed record VotingCardCandidate(
+        CardId CardId,
+        PlayerId OwnerPlayerId,
+        bool IsStorytellerCard);
 }
