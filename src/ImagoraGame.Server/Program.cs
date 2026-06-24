@@ -12,6 +12,7 @@ builder.Services.AddTransient<StartGameHandler>();
 builder.Services.AddTransient<ChooseStorytellerCardHandler>();
 builder.Services.AddTransient<SubmitGuessCardHandler>();
 builder.Services.AddTransient<CastVoteHandler>();
+builder.Services.AddTransient<ScoreRoundHandler>();
 builder.Services.AddTransient<GetRoomStateHandler>();
 builder.Services.AddTransient<GetPlayerPrivateStateHandler>();
 
@@ -101,6 +102,18 @@ app.MapPost("/rooms/{roomCode}/votes", async (
                 roomCode,
                 request.PlayerId,
                 request.VotingCardId),
+            cancellationToken)).Room.ToHttpResponse(),
+        Results.Ok);
+});
+
+app.MapPost("/rooms/{roomCode}/score", async (
+    string roomCode,
+    ScoreRoundHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    return await HandleRoomRequestAsync(
+        async () => (await handler.HandleAsync(
+            new ScoreRoundCommand(roomCode),
             cancellationToken)).Room.ToHttpResponse(),
         Results.Ok);
 });

@@ -551,6 +551,115 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
+    public async Task PostScore_WithRevealRoom_ReturnsScoringStateAndPreservesRevealDetails()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareRevealRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsync("/rooms/abc123/score", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var state = await ReadRequiredJsonAsync<RoomStateResponse>(response);
+        Assert.Equal(RoomPhase.Scoring, state.Phase);
+        Assert.Empty(state.Winners);
+        AssertPlayerRoundScore(state.RoundScores, room.AliceId, "Alice", 3);
+        AssertPlayerRoundScore(state.RoundScores, room.BobId, "Bob", 4);
+        AssertPlayerRoundScore(state.RoundScores, room.CarlaId, "Carla", 0);
+        AssertScoreboardEntry(state.Scoreboard, room.AliceId, "Alice", 3);
+        AssertScoreboardEntry(state.Scoreboard, room.BobId, "Bob", 4);
+        AssertScoreboardEntry(state.Scoreboard, room.CarlaId, "Carla", 0);
+
+        Assert.Equal(room.RevealState.RevealedCards.Count, state.RevealedCards.Count);
+        Assert.Equal(
+            room.RevealState.RevealedCards.Select(
+                card => (card.VotingCardId, card.CardId, card.DisplayNumber)),
+            state.RevealedCards.Select(
+                card => (card.VotingCardId, card.CardId, card.DisplayNumber)));
+
+        var storytellerCard = state.RevealedCards.Single(
+            card => card.CardId == room.StorytellerCardId);
+        Assert.Equal(room.AliceId, storytellerCard.OwnerPlayerId);
+        Assert.Equal("Alice", storytellerCard.OwnerName);
+        Assert.True(storytellerCard.IsStorytellerCard);
+        Assert.Collection(
+            storytellerCard.Votes,
+            vote =>
+            {
+                Assert.Equal(room.BobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
+            });
+
+        var bobCard = state.RevealedCards.Single(card => card.CardId == room.BobCardId);
+        Assert.Equal(room.BobId, bobCard.OwnerPlayerId);
+        Assert.Equal("Bob", bobCard.OwnerName);
+        Assert.False(bobCard.IsStorytellerCard);
+        Assert.Collection(
+            bobCard.Votes,
+            vote =>
+            {
+                Assert.Equal(room.CarlaId, vote.VoterPlayerId);
+                Assert.Equal("Carla", vote.VoterName);
+            });
+
+        var carlaCard = state.RevealedCards.Single(card => card.CardId == room.CarlaCardId);
+        Assert.Equal(room.CarlaId, carlaCard.OwnerPlayerId);
+        Assert.Equal("Carla", carlaCard.OwnerName);
+        Assert.False(carlaCard.IsStorytellerCard);
+        Assert.Empty(carlaCard.Votes);
+    }
+
+    [Fact]
+    public async Task PostScore_WhenRoomDoesNotExist_ReturnsNotFound()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.PostAsync("/rooms/missing/score", content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostScore_WhenNotInRevealOrAlreadyScored_ReturnsBadRequestWithoutDuplicatingPoints()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        await CreateRoomAsync(client, "NOT-READY");
+
+        var prematureResponse = await client.PostAsync(
+            "/rooms/NOT-READY/score",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, prematureResponse.StatusCode);
+
+        var room = await PrepareRevealRoomAsync(client, "ABC123");
+        var firstResponse = await client.PostAsync("/rooms/ABC123/score", content: null);
+        firstResponse.EnsureSuccessStatusCode();
+
+        var duplicateResponse = await client.PostAsync("/rooms/ABC123/score", content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, duplicateResponse.StatusCode);
+
+        var stateResponse = await client.GetAsync("/rooms/ABC123");
+        stateResponse.EnsureSuccessStatusCode();
+        var state = await ReadRequiredJsonAsync<RoomStateResponse>(stateResponse);
+
+        Assert.Equal(RoomPhase.Scoring, state.Phase);
+        AssertPlayerRoundScore(state.RoundScores, room.AliceId, "Alice", 3);
+        AssertPlayerRoundScore(state.RoundScores, room.BobId, "Bob", 4);
+        AssertPlayerRoundScore(state.RoundScores, room.CarlaId, "Carla", 0);
+        AssertScoreboardEntry(state.Scoreboard, room.AliceId, "Alice", 3);
+        AssertScoreboardEntry(state.Scoreboard, room.BobId, "Bob", 4);
+        AssertScoreboardEntry(state.Scoreboard, room.CarlaId, "Carla", 0);
+    }
+
+    [Fact]
     public async Task GetRoom_ReturnsPublicRoomStateWithoutPrivateHands()
     {
         using var application = new WebApplicationFactory<Program>();
@@ -741,6 +850,60 @@ public sealed class RoomEndpointTests
             await ReadRequiredJsonAsync<RoomStateResponse>(response));
     }
 
+    private static async Task<RevealRoom> PrepareRevealRoomAsync(
+        HttpClient client,
+        string roomCode)
+    {
+        var room = await PrepareVotingRoomAsync(client, roomCode);
+        var storytellerVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.StorytellerCardId)
+            .VotingCardId;
+        var bobVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.BobCardId)
+            .VotingCardId;
+
+        var firstResponse = await client.PostAsJsonAsync(
+            $"/rooms/{roomCode}/votes",
+            new CastVoteRequest(room.BobId, storytellerVotingCardId));
+        firstResponse.EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(
+            $"/rooms/{roomCode}/votes",
+            new CastVoteRequest(room.CarlaId, bobVotingCardId));
+        response.EnsureSuccessStatusCode();
+
+        return new RevealRoom(
+            room.AliceId,
+            room.BobId,
+            room.CarlaId,
+            room.StorytellerCardId,
+            room.BobCardId,
+            room.CarlaCardId,
+            await ReadRequiredJsonAsync<RoomStateResponse>(response));
+    }
+
+    private static void AssertPlayerRoundScore(
+        IReadOnlyCollection<RoundScoreStateResponse> roundScores,
+        Guid playerId,
+        string playerName,
+        int pointsAwarded)
+    {
+        var score = roundScores.Single(score => score.PlayerId == playerId);
+        Assert.Equal(playerName, score.PlayerName);
+        Assert.Equal(pointsAwarded, score.PointsAwarded);
+    }
+
+    private static void AssertScoreboardEntry(
+        IReadOnlyCollection<ScoreboardEntryStateResponse> scoreboard,
+        Guid playerId,
+        string playerName,
+        int totalPoints)
+    {
+        var score = scoreboard.Single(score => score.PlayerId == playerId);
+        Assert.Equal(playerName, score.PlayerName);
+        Assert.Equal(totalPoints, score.TotalPoints);
+    }
+
     private static async Task<GetPlayerPrivateStateResponse> GetPlayerPrivateStateAsync(
         HttpClient client,
         string roomCode,
@@ -772,6 +935,15 @@ public sealed class RoomEndpointTests
         string BobCardId,
         string CarlaCardId,
         RoomStateResponse VotingState);
+
+    private sealed record RevealRoom(
+        Guid AliceId,
+        Guid BobId,
+        Guid CarlaId,
+        string StorytellerCardId,
+        string BobCardId,
+        string CarlaCardId,
+        RoomStateResponse RevealState);
 
     private sealed record GuessSubmissionRoom(
         Guid AliceId,
