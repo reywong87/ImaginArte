@@ -735,6 +735,136 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
+    public async Task PostAdvanceRound_WithRoundCompleteRoom_StartsNextRoundAndRefillsPrivateHands()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareRoundCompleteRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsync(
+            "/rooms/abc123/advance-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var state = ReadRequiredJson<RoomStateResponse>(responseBody);
+
+        Assert.Equal(RoomPhase.StorytellerChoosing, state.Phase);
+        Assert.Equal(room.BobId, state.CurrentStoryteller?.PlayerId);
+        Assert.Equal("Bob", state.CurrentStoryteller?.Name);
+        Assert.Null(state.Clue);
+        Assert.Equal(0, state.SubmissionCount);
+        Assert.Equal(0, state.VoteCount);
+        Assert.Empty(state.VotingCards);
+        Assert.Empty(state.RevealedCards);
+        Assert.Empty(state.RoundScores);
+        Assert.Equal(
+            room.RoundCompleteState.Players.Select(player => (player.PlayerId, player.Name)),
+            state.Players.Select(player => (player.PlayerId, player.Name)));
+        Assert.Equal(
+            room.RoundCompleteState.Scoreboard.Select(
+                score => (score.PlayerId, score.PlayerName, score.TotalPoints)),
+            state.Scoreboard.Select(
+                score => (score.PlayerId, score.PlayerName, score.TotalPoints)));
+        Assert.DoesNotContain("\"hand\"", responseBody, StringComparison.OrdinalIgnoreCase);
+
+        var aliceAfter = await GetPlayerPrivateStateAsync(client, "ABC123", room.AliceId);
+        var bobAfter = await GetPlayerPrivateStateAsync(client, "ABC123", room.BobId);
+        var carlaAfter = await GetPlayerPrivateStateAsync(client, "ABC123", room.CarlaId);
+
+        AssertRefilledHand(room.AliceBefore, aliceAfter, room.StorytellerCardId);
+        AssertRefilledHand(room.BobBefore, bobAfter, room.BobCardId);
+        AssertRefilledHand(room.CarlaBefore, carlaAfter, room.CarlaCardId);
+
+        var allCardIds = aliceAfter.Player.Hand
+            .Concat(bobAfter.Player.Hand)
+            .Concat(carlaAfter.Player.Hand)
+            .Select(card => card.CardId)
+            .ToArray();
+        Assert.Equal(allCardIds.Length, allCardIds.Distinct().Count());
+        Assert.False(aliceAfter.Player.IsCurrentStoryteller);
+        Assert.True(bobAfter.Player.IsCurrentStoryteller);
+        Assert.False(carlaAfter.Player.IsCurrentStoryteller);
+    }
+
+    [Fact]
+    public async Task PostAdvanceRound_WhenRoomDoesNotExist_ReturnsNotFound()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.PostAsync(
+            "/rooms/missing/advance-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostAdvanceRound_BeforeRoundComplete_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        await CreateRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsync(
+            "/rooms/ABC123/advance-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.BadRequest, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostAdvanceRound_Twice_ReturnsBadRequestWithoutAdvancingAgain()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareRoundCompleteRoomAsync(client, "ABC123");
+
+        var firstResponse = await client.PostAsync(
+            "/rooms/ABC123/advance-round",
+            content: null);
+        firstResponse.EnsureSuccessStatusCode();
+
+        var aliceAfterFirstAdvance = await GetPlayerPrivateStateAsync(client, "ABC123", room.AliceId);
+        var bobAfterFirstAdvance = await GetPlayerPrivateStateAsync(client, "ABC123", room.BobId);
+        var carlaAfterFirstAdvance = await GetPlayerPrivateStateAsync(client, "ABC123", room.CarlaId);
+
+        var secondResponse = await client.PostAsync(
+            "/rooms/ABC123/advance-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
+
+        var stateResponse = await client.GetAsync("/rooms/ABC123");
+        stateResponse.EnsureSuccessStatusCode();
+        var state = await ReadRequiredJsonAsync<RoomStateResponse>(stateResponse);
+        var aliceAfterSecondAttempt = await GetPlayerPrivateStateAsync(client, "ABC123", room.AliceId);
+        var bobAfterSecondAttempt = await GetPlayerPrivateStateAsync(client, "ABC123", room.BobId);
+        var carlaAfterSecondAttempt = await GetPlayerPrivateStateAsync(client, "ABC123", room.CarlaId);
+
+        Assert.Equal(RoomPhase.StorytellerChoosing, state.Phase);
+        Assert.Equal(room.BobId, state.CurrentStoryteller?.PlayerId);
+        Assert.Equal(
+            aliceAfterFirstAdvance.Player.Hand,
+            aliceAfterSecondAttempt.Player.Hand);
+        Assert.Equal(
+            bobAfterFirstAdvance.Player.Hand,
+            bobAfterSecondAttempt.Player.Hand);
+        Assert.Equal(
+            carlaAfterFirstAdvance.Player.Hand,
+            carlaAfterSecondAttempt.Player.Hand);
+    }
+
+    [Fact]
     public async Task GetRoom_ReturnsPublicRoomStateWithoutPrivateHands()
     {
         using var application = new WebApplicationFactory<Program>();
@@ -971,6 +1101,55 @@ public sealed class RoomEndpointTests
         return await ReadRequiredJsonAsync<RoomStateResponse>(response);
     }
 
+    private static async Task<RoundCompleteRoom> PrepareRoundCompleteRoomAsync(
+        HttpClient client,
+        string roomCode)
+    {
+        var revealRoom = await PrepareRevealRoomAsync(client, roomCode);
+        var aliceBefore = await GetPlayerPrivateStateAsync(client, roomCode, revealRoom.AliceId);
+        var bobBefore = await GetPlayerPrivateStateAsync(client, roomCode, revealRoom.BobId);
+        var carlaBefore = await GetPlayerPrivateStateAsync(client, roomCode, revealRoom.CarlaId);
+
+        var scoreResponse = await client.PostAsync(
+            $"/rooms/{roomCode}/score",
+            content: null);
+        scoreResponse.EnsureSuccessStatusCode();
+
+        var completeResponse = await client.PostAsync(
+            $"/rooms/{roomCode}/complete-round",
+            content: null);
+        completeResponse.EnsureSuccessStatusCode();
+
+        return new RoundCompleteRoom(
+            revealRoom.AliceId,
+            revealRoom.BobId,
+            revealRoom.CarlaId,
+            revealRoom.StorytellerCardId,
+            revealRoom.BobCardId,
+            revealRoom.CarlaCardId,
+            aliceBefore,
+            bobBefore,
+            carlaBefore,
+            await ReadRequiredJsonAsync<RoomStateResponse>(completeResponse));
+    }
+
+    private static void AssertRefilledHand(
+        GetPlayerPrivateStateResponse before,
+        GetPlayerPrivateStateResponse after,
+        string usedCardId)
+    {
+        Assert.Equal(Room.InitialHandSize, after.Player.Hand.Count);
+        Assert.DoesNotContain(after.Player.Hand, card => card.CardId == usedCardId);
+
+        var previousCardIds = before.Player.Hand.Select(card => card.CardId).ToHashSet();
+        var replacementCardIds = after.Player.Hand
+            .Select(card => card.CardId)
+            .Where(cardId => !previousCardIds.Contains(cardId))
+            .ToArray();
+
+        Assert.Single(replacementCardIds);
+    }
+
     private static void AssertPlayerRoundScore(
         IReadOnlyCollection<RoundScoreStateResponse> roundScores,
         Guid playerId,
@@ -1041,4 +1220,16 @@ public sealed class RoomEndpointTests
         string StorytellerCardId,
         IReadOnlyList<string> BobCardIds,
         IReadOnlyList<string> CarlaCardIds);
+
+    private sealed record RoundCompleteRoom(
+        Guid AliceId,
+        Guid BobId,
+        Guid CarlaId,
+        string StorytellerCardId,
+        string BobCardId,
+        string CarlaCardId,
+        GetPlayerPrivateStateResponse AliceBefore,
+        GetPlayerPrivateStateResponse BobBefore,
+        GetPlayerPrivateStateResponse CarlaBefore,
+        RoomStateResponse RoundCompleteState);
 }
