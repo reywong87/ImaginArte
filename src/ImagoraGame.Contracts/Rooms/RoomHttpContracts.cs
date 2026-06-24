@@ -13,6 +13,10 @@ public sealed record SubmitGuessCardRequest(
     Guid PlayerId,
     string CardId);
 
+public sealed record CastVoteRequest(
+    Guid PlayerId,
+    string VotingCardId);
+
 public sealed record GetPlayerPrivateStateRequest(string RoomCode, Guid PlayerId);
 
 public sealed record GetPlayerPrivateStateResponse(

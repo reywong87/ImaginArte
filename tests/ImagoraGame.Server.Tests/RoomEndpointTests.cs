@@ -353,6 +353,204 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
+    public async Task PostVotes_WithFirstValidVote_ReturnsPrivateVotingState()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+        var storytellerVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.StorytellerCardId)
+            .VotingCardId;
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/abc123/votes",
+            new CastVoteRequest(room.BobId, storytellerVotingCardId));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var state = ReadRequiredJson<RoomStateResponse>(responseBody);
+        Assert.Equal(RoomPhase.Voting, state.Phase);
+        Assert.Equal(1, state.VoteCount);
+        Assert.Equal(2, state.ExpectedVoteCount);
+        Assert.Empty(state.RevealedCards);
+        Assert.DoesNotContain("voterPlayerId", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("voterName", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ownerPlayerId", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ownerName", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("isStorytellerCard", responseBody, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PostVotes_WithLastVote_MovesToRevealAndRevealsVoteDetails()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+        var storytellerVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.StorytellerCardId)
+            .VotingCardId;
+        var bobVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.BobCardId)
+            .VotingCardId;
+
+        var firstResponse = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(room.BobId, storytellerVotingCardId));
+        firstResponse.EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(room.CarlaId, bobVotingCardId));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var state = await ReadRequiredJsonAsync<RoomStateResponse>(response);
+        Assert.Equal(RoomPhase.Reveal, state.Phase);
+        Assert.Equal(state.ExpectedVoteCount, state.VoteCount);
+        Assert.Empty(state.VotingCards);
+        Assert.Equal(room.VotingState.VotingCards.Count, state.RevealedCards.Count);
+        Assert.Equal(
+            room.VotingState.VotingCards.Select(
+                card => (card.VotingCardId, card.CardId, card.DisplayNumber)),
+            state.RevealedCards.Select(
+                card => (card.VotingCardId, card.CardId, card.DisplayNumber)));
+
+        var storytellerCard = state.RevealedCards.Single(
+            card => card.CardId == room.StorytellerCardId);
+        Assert.Equal(room.AliceId, storytellerCard.OwnerPlayerId);
+        Assert.Equal("Alice", storytellerCard.OwnerName);
+        Assert.True(storytellerCard.IsStorytellerCard);
+        Assert.Collection(
+            storytellerCard.Votes,
+            vote =>
+            {
+                Assert.Equal(room.BobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
+            });
+
+        var bobCard = state.RevealedCards.Single(card => card.CardId == room.BobCardId);
+        Assert.Equal(room.BobId, bobCard.OwnerPlayerId);
+        Assert.Equal("Bob", bobCard.OwnerName);
+        Assert.False(bobCard.IsStorytellerCard);
+        Assert.Collection(
+            bobCard.Votes,
+            vote =>
+            {
+                Assert.Equal(room.CarlaId, vote.VoterPlayerId);
+                Assert.Equal("Carla", vote.VoterName);
+            });
+
+        var carlaCard = state.RevealedCards.Single(card => card.CardId == room.CarlaCardId);
+        Assert.Equal(room.CarlaId, carlaCard.OwnerPlayerId);
+        Assert.Equal("Carla", carlaCard.OwnerName);
+        Assert.False(carlaCard.IsStorytellerCard);
+        Assert.Empty(carlaCard.Votes);
+    }
+
+    [Fact]
+    public async Task PostVotes_WhenRoomDoesNotExist_ReturnsNotFound()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/missing/votes",
+            new CastVoteRequest(Guid.NewGuid(), "VOTE-001"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostVotes_WhenStorytellerVotes_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(
+                room.AliceId,
+                room.VotingState.VotingCards.First().VotingCardId));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostVotes_WhenPlayerVotesTwice_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+        var storytellerVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.StorytellerCardId)
+            .VotingCardId;
+        var carlaVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.CarlaCardId)
+            .VotingCardId;
+
+        var firstResponse = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(room.BobId, storytellerVotingCardId));
+        firstResponse.EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(room.BobId, carlaVotingCardId));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostVotes_WhenPlayerVotesForOwnCard_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+        var bobVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.BobCardId)
+            .VotingCardId;
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(room.BobId, bobVotingCardId));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostVotes_WhenVotingCardDoesNotExist_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(room.BobId, "VOTE-999"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PostVotes_WhenRoomIsNotInVoting_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareGuessSubmissionRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(room.BobId, "VOTE-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetRoom_ReturnsPublicRoomStateWithoutPrivateHands()
     {
         using var application = new WebApplicationFactory<Program>();
@@ -515,6 +713,34 @@ public sealed class RoomEndpointTests
             carlaState.Player.Hand.Select(card => card.CardId).ToArray());
     }
 
+    private static async Task<VotingRoom> PrepareVotingRoomAsync(
+        HttpClient client,
+        string roomCode)
+    {
+        var room = await PrepareGuessSubmissionRoomAsync(client, roomCode);
+        var bobCardId = room.BobCardIds[0];
+        var carlaCardId = room.CarlaCardIds[0];
+
+        var firstResponse = await client.PostAsJsonAsync(
+            $"/rooms/{roomCode}/guess-cards",
+            new SubmitGuessCardRequest(room.BobId, bobCardId));
+        firstResponse.EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(
+            $"/rooms/{roomCode}/guess-cards",
+            new SubmitGuessCardRequest(room.CarlaId, carlaCardId));
+        response.EnsureSuccessStatusCode();
+
+        return new VotingRoom(
+            room.AliceId,
+            room.BobId,
+            room.CarlaId,
+            room.StorytellerCardId,
+            bobCardId,
+            carlaCardId,
+            await ReadRequiredJsonAsync<RoomStateResponse>(response));
+    }
+
     private static async Task<GetPlayerPrivateStateResponse> GetPlayerPrivateStateAsync(
         HttpClient client,
         string roomCode,
@@ -537,6 +763,15 @@ public sealed class RoomEndpointTests
         Assert.NotNull(value);
         return value;
     }
+
+    private sealed record VotingRoom(
+        Guid AliceId,
+        Guid BobId,
+        Guid CarlaId,
+        string StorytellerCardId,
+        string BobCardId,
+        string CarlaCardId,
+        RoomStateResponse VotingState);
 
     private sealed record GuessSubmissionRoom(
         Guid AliceId,

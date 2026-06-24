@@ -11,6 +11,7 @@ builder.Services.AddTransient<JoinRoomHandler>();
 builder.Services.AddTransient<StartGameHandler>();
 builder.Services.AddTransient<ChooseStorytellerCardHandler>();
 builder.Services.AddTransient<SubmitGuessCardHandler>();
+builder.Services.AddTransient<CastVoteHandler>();
 builder.Services.AddTransient<GetRoomStateHandler>();
 builder.Services.AddTransient<GetPlayerPrivateStateHandler>();
 
@@ -84,6 +85,22 @@ app.MapPost("/rooms/{roomCode}/guess-cards", async (
                 roomCode,
                 request.PlayerId,
                 request.CardId),
+            cancellationToken)).Room.ToHttpResponse(),
+        Results.Ok);
+});
+
+app.MapPost("/rooms/{roomCode}/votes", async (
+    string roomCode,
+    CastVoteRequest request,
+    CastVoteHandler handler,
+    CancellationToken cancellationToken) =>
+{
+    return await HandleRoomRequestAsync(
+        async () => (await handler.HandleAsync(
+            new CastVoteCommand(
+                roomCode,
+                request.PlayerId,
+                request.VotingCardId),
             cancellationToken)).Room.ToHttpResponse(),
         Results.Ok);
 });
