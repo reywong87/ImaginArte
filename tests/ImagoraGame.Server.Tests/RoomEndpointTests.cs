@@ -660,6 +660,81 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
+    public async Task PostCompleteRound_WithScoringRoom_ReturnsRoundCompleteAndPreservesRoundResults()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var scoringState = await PrepareScoringRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsync(
+            "/rooms/abc123/complete-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var state = await ReadRequiredJsonAsync<RoomStateResponse>(response);
+        Assert.Equal(RoomPhase.RoundComplete, state.Phase);
+        Assert.Equal(scoringState.RoundScores, state.RoundScores);
+        Assert.Equal(scoringState.Scoreboard, state.Scoreboard);
+        Assert.Equal(
+            JsonSerializer.Serialize(scoringState.RevealedCards, JsonSerializerOptions.Web),
+            JsonSerializer.Serialize(state.RevealedCards, JsonSerializerOptions.Web));
+        Assert.Equal(scoringState.CurrentStoryteller, state.CurrentStoryteller);
+        Assert.Empty(state.Winners);
+    }
+
+    [Fact]
+    public async Task PostCompleteRound_WhenRoomDoesNotExist_ReturnsNotFound()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.PostAsync(
+            "/rooms/missing/complete-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostCompleteRound_BeforeScoringOrTwice_ReturnsBadRequestWithoutChangingScores()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        await CreateRoomAsync(client, "NOT-READY");
+
+        var prematureResponse = await client.PostAsync(
+            "/rooms/NOT-READY/complete-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, prematureResponse.StatusCode);
+
+        var scoringState = await PrepareScoringRoomAsync(client, "ABC123");
+        var firstResponse = await client.PostAsync(
+            "/rooms/ABC123/complete-round",
+            content: null);
+        firstResponse.EnsureSuccessStatusCode();
+
+        var duplicateResponse = await client.PostAsync(
+            "/rooms/ABC123/complete-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, duplicateResponse.StatusCode);
+
+        var stateResponse = await client.GetAsync("/rooms/ABC123");
+        stateResponse.EnsureSuccessStatusCode();
+        var state = await ReadRequiredJsonAsync<RoomStateResponse>(stateResponse);
+
+        Assert.Equal(RoomPhase.RoundComplete, state.Phase);
+        Assert.Equal(scoringState.RoundScores, state.RoundScores);
+        Assert.Equal(scoringState.Scoreboard, state.Scoreboard);
+    }
+
+    [Fact]
     public async Task GetRoom_ReturnsPublicRoomStateWithoutPrivateHands()
     {
         using var application = new WebApplicationFactory<Program>();
@@ -880,6 +955,20 @@ public sealed class RoomEndpointTests
             room.BobCardId,
             room.CarlaCardId,
             await ReadRequiredJsonAsync<RoomStateResponse>(response));
+    }
+
+    private static async Task<RoomStateResponse> PrepareScoringRoomAsync(
+        HttpClient client,
+        string roomCode)
+    {
+        await PrepareRevealRoomAsync(client, roomCode);
+
+        var response = await client.PostAsync(
+            $"/rooms/{roomCode}/score",
+            content: null);
+        response.EnsureSuccessStatusCode();
+
+        return await ReadRequiredJsonAsync<RoomStateResponse>(response);
     }
 
     private static void AssertPlayerRoundScore(
