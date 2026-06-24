@@ -9,6 +9,10 @@ public sealed record ChooseStorytellerCardRequest(
     string CardId,
     string Clue);
 
+public sealed record SubmitGuessCardRequest(
+    Guid PlayerId,
+    string CardId);
+
 public sealed record GetPlayerPrivateStateRequest(string RoomCode, Guid PlayerId);
 
 public sealed record GetPlayerPrivateStateResponse(
