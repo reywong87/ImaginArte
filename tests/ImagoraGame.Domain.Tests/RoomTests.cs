@@ -1114,20 +1114,96 @@ public sealed class RoomTests
     }
 
     [Fact]
-    public void AdvanceRound_PreservesPlayersAndHands()
+    public void AdvanceRound_RemovesStorytellerUsedCard()
+    {
+        var (room, aliceId, _, _) = CreateRoomAfterRoundComplete();
+        var storytellerCardId = room.StorytellerCardId
+            ?? throw new InvalidOperationException("Test setup requires a storyteller card.");
+
+        room.AdvanceRound();
+
+        Assert.DoesNotContain(room.GetHandFor(aliceId), card => card.Id == storytellerCardId);
+    }
+
+    [Fact]
+    public void AdvanceRound_RemovesEachGuesserUsedCard()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomAfterRoundComplete();
+        var usedCardsByPlayerId = room.GuessCardSubmissions.ToDictionary(
+            submission => submission.PlayerId,
+            submission => submission.CardId);
+
+        room.AdvanceRound();
+
+        Assert.DoesNotContain(room.GetHandFor(bobId), card => card.Id == usedCardsByPlayerId[bobId]);
+        Assert.DoesNotContain(room.GetHandFor(carlaId), card => card.Id == usedCardsByPlayerId[carlaId]);
+    }
+
+    [Fact]
+    public void AdvanceRound_PreservesPlayersAndRefillsHandsWithReplacementCards()
     {
         var (room, aliceId, bobId, carlaId) = CreateRoomAfterRoundComplete();
         var players = room.Players.ToArray();
-        var aliceHand = room.GetHandFor(aliceId).ToArray();
-        var bobHand = room.GetHandFor(bobId).ToArray();
-        var carlaHand = room.GetHandFor(carlaId).ToArray();
+        var previousHandsByPlayerId = players.ToDictionary(
+            player => player.Id,
+            player => room.GetHandFor(player.Id).Select(card => card.Id).ToHashSet());
+        var usedCardsByPlayerId = room.GuessCardSubmissions.ToDictionary(
+            submission => submission.PlayerId,
+            submission => submission.CardId);
+        usedCardsByPlayerId.Add(
+            room.CurrentStorytellerId!.Value,
+            room.StorytellerCardId!.Value);
 
         room.AdvanceRound();
 
         Assert.Equal(players, room.Players);
-        Assert.Equal(aliceHand, room.GetHandFor(aliceId));
-        Assert.Equal(bobHand, room.GetHandFor(bobId));
-        Assert.Equal(carlaHand, room.GetHandFor(carlaId));
+        Assert.Equal(Room.InitialHandSize, room.GetHandFor(aliceId).Count);
+        Assert.Equal(Room.InitialHandSize, room.GetHandFor(bobId).Count);
+        Assert.Equal(Room.InitialHandSize, room.GetHandFor(carlaId).Count);
+
+        foreach (var player in players)
+        {
+            var currentCardIds = room.GetHandFor(player.Id).Select(card => card.Id).ToHashSet();
+            var retainedCardIds = previousHandsByPlayerId[player.Id]
+                .Where(cardId => cardId != usedCardsByPlayerId[player.Id])
+                .ToHashSet();
+
+            Assert.Subset(currentCardIds, retainedCardIds);
+            Assert.Single(currentCardIds.Except(retainedCardIds));
+        }
+    }
+
+    [Fact]
+    public void AdvanceRound_DoesNotReturnDiscardedCardsToAnyHand()
+    {
+        var (room, _, _, _) = CreateRoomAfterRoundComplete();
+        var discardedCardIds = room.GuessCardSubmissions
+            .Select(submission => submission.CardId)
+            .Append(room.StorytellerCardId!.Value)
+            .ToHashSet();
+
+        room.AdvanceRound();
+
+        var activeCardIds = room.Players
+            .SelectMany(player => room.GetHandFor(player.Id))
+            .Select(card => card.Id);
+
+        Assert.Empty(activeCardIds.Intersect(discardedCardIds));
+    }
+
+    [Fact]
+    public void AdvanceRound_LeavesNoDuplicateCardsAcrossPlayerHands()
+    {
+        var (room, _, _, _) = CreateRoomAfterRoundComplete();
+
+        room.AdvanceRound();
+
+        var activeCardIds = room.Players
+            .SelectMany(player => room.GetHandFor(player.Id))
+            .Select(card => card.Id)
+            .ToArray();
+
+        Assert.Equal(activeCardIds.Length, activeCardIds.Distinct().Count());
     }
 
     [Fact]

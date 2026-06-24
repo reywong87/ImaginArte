@@ -801,6 +801,12 @@ public sealed class RoomUseCaseTests
         Assert.Equal(GamePhase.StorytellerChoosing, result.Room.Phase);
         Assert.Equal(bobId, result.Room.CurrentStoryteller?.PlayerId);
         Assert.Equal("Bob", result.Room.CurrentStoryteller?.Name);
+        Assert.DoesNotContain(
+            typeof(RoomState).GetProperties(),
+            property => property.Name.Contains("Hand", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            typeof(PlayerState).GetProperties(),
+            property => property.Name.Contains("Hand", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -851,6 +857,35 @@ public sealed class RoomUseCaseTests
                 Assert.Equal("Carla", score.PlayerName);
                 Assert.Equal(0, score.TotalPoints);
             });
+    }
+
+    [Fact]
+    public async Task AdvanceRound_PrivateSnapshotsContainRefilledHandsWithoutUsedCards()
+    {
+        var repository = new InMemoryRoomRepository();
+        var advanceRound = new AdvanceRoundHandler(repository);
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var (aliceId, bobId, carlaId) = await CreateRoomAfterRoundCompleteAsync(repository);
+        var roomBeforeAdvance = await GetRequiredRoomAsync(repository);
+        var usedCardIdsByPlayerId = roomBeforeAdvance.GuessCardSubmissions.ToDictionary(
+            submission => submission.PlayerId.Value,
+            submission => submission.CardId.Value);
+        usedCardIdsByPlayerId.Add(
+            roomBeforeAdvance.CurrentStorytellerId!.Value.Value,
+            roomBeforeAdvance.StorytellerCardId!.Value.Value);
+
+        await advanceRound.HandleAsync(new AdvanceRoundCommand("ABC123"));
+
+        foreach (var playerId in new[] { aliceId, bobId, carlaId })
+        {
+            var snapshot = await getPlayerPrivateState.HandleAsync(
+                new GetPlayerPrivateStateQuery("ABC123", playerId));
+
+            Assert.Equal(Room.InitialHandSize, snapshot.Player.Hand.Count);
+            Assert.DoesNotContain(
+                snapshot.Player.Hand,
+                card => card.CardId == usedCardIdsByPlayerId[playerId]);
+        }
     }
 
     [Fact]

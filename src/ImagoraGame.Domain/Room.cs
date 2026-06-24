@@ -6,8 +6,11 @@ public sealed class Room
     public const int MaximumPlayers = 8;
     public const int InitialHandSize = 6;
     public const int DefaultTargetScore = 25;
+    private const int TemporaryDeckSize = 120;
 
     private readonly List<Player> _players = [];
+    private readonly List<Card> _availableDeck = [];
+    private readonly List<Card> _discardPile = [];
     private readonly List<GuessCardSubmission> _guessCardSubmissions = [];
     private readonly List<VotingCardOwnership> _votingCardOwnerships = [];
     private readonly List<Vote> _votes = [];
@@ -423,12 +426,31 @@ public sealed class Room
             throw new InvalidOperationException("Advancing a round requires a current storyteller.");
         }
 
+        if (StorytellerCardId is not { } storytellerCardId)
+        {
+            throw new InvalidOperationException("Advancing a round requires a storyteller card.");
+        }
+
         var currentStorytellerIndex = _players.FindIndex(player => player.Id == storytellerId);
 
         if (currentStorytellerIndex < 0)
         {
             throw new InvalidOperationException("The current storyteller must belong to the room.");
         }
+
+        var usedCardsByPlayerId = _guessCardSubmissions.ToDictionary(
+            submission => submission.PlayerId,
+            submission => submission.CardId);
+        usedCardsByPlayerId.Add(storytellerId, storytellerCardId);
+
+        foreach (var player in _players)
+        {
+            var usedCardId = usedCardsByPlayerId[player.Id];
+            var discardedCard = player.RemoveCard(usedCardId);
+            _discardPile.Add(discardedCard);
+        }
+
+        RefillHands();
 
         var nextStorytellerIndex = (currentStorytellerIndex + 1) % _players.Count;
         CurrentStorytellerId = _players[nextStorytellerIndex].Id;
@@ -532,22 +554,53 @@ public sealed class Room
 
     private void DealInitialHands()
     {
-        var deck = CreateTemporaryDeck();
+        _availableDeck.Clear();
+        _availableDeck.AddRange(CreateTemporaryDeck());
+        _discardPile.Clear();
 
-        for (var playerIndex = 0; playerIndex < _players.Count; playerIndex++)
+        foreach (var player in _players)
         {
-            var hand = deck
-                .Skip(playerIndex * InitialHandSize)
-                .Take(InitialHandSize);
+            var hand = DrawCards(InitialHandSize);
 
-            _players[playerIndex].DealInitialHand(hand);
+            player.DealInitialHand(hand);
         }
+    }
+
+    private void RefillHands()
+    {
+        foreach (var player in _players)
+        {
+            var cardsNeeded = InitialHandSize - player.Hand.Count;
+
+            foreach (var card in DrawCards(cardsNeeded))
+            {
+                player.AddCard(card);
+            }
+        }
+    }
+
+    private IReadOnlyCollection<Card> DrawCards(int count)
+    {
+        if (count < 0)
+        {
+            throw new InvalidOperationException("A player hand cannot exceed the initial hand size.");
+        }
+
+        if (_availableDeck.Count < count)
+        {
+            throw new InvalidOperationException("The available deck does not contain enough cards.");
+        }
+
+        var cards = _availableDeck.Take(count).ToArray();
+        _availableDeck.RemoveRange(0, count);
+
+        return cards;
     }
 
     private static IReadOnlyList<Card> CreateTemporaryDeck()
     {
         return Enumerable
-            .Range(1, MaximumPlayers * InitialHandSize)
+            .Range(1, TemporaryDeckSize)
             .Select(cardNumber => new Card(new CardId($"TEMP-{cardNumber:000}")))
             .ToArray();
     }
