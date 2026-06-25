@@ -27,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImagoraGame.Server.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImagoraGame.Contracts.Tests", "tests\ImagoraGame.Contracts.Tests\ImagoraGame.Contracts.Tests.csproj", "{72951C98-6261-4EB6-9095-8136ADCEDB62}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImagoraGame.Client.Blazor.Tests", "tests\ImagoraGame.Client.Blazor.Tests\ImagoraGame.Client.Blazor.Tests.csproj", "{A0F507DA-27CE-44F0-8865-39B808168CF5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -157,6 +159,18 @@ Global
 		{72951C98-6261-4EB6-9095-8136ADCEDB62}.Release|x64.Build.0 = Release|Any CPU
 		{72951C98-6261-4EB6-9095-8136ADCEDB62}.Release|x86.ActiveCfg = Release|Any CPU
 		{72951C98-6261-4EB6-9095-8136ADCEDB62}.Release|x86.Build.0 = Release|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Debug|x64.Build.0 = Debug|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Debug|x86.Build.0 = Debug|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Release|x64.ActiveCfg = Release|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Release|x64.Build.0 = Release|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Release|x86.ActiveCfg = Release|Any CPU
+		{A0F507DA-27CE-44F0-8865-39B808168CF5}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -172,5 +186,6 @@ Global
 		{DBDFC92D-F9DA-4017-8393-59AED8A9E048} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{8CE52412-CB1C-4C6D-9EE2-3777F297E75A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{72951C98-6261-4EB6-9095-8136ADCEDB62} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{A0F507DA-27CE-44F0-8865-39B808168CF5} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

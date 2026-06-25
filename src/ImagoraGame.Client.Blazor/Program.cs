@@ -1,11 +1,22 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using ImagoraGame.Client.Blazor;
+using ImagoraGame.Client.Blazor.Rooms;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"];
+if (string.IsNullOrWhiteSpace(apiBaseUrl))
+{
+    throw new InvalidOperationException("Configuration value 'ApiBaseUrl' is required.");
+}
+
+var apiBaseUri = new Uri(apiBaseUrl, UriKind.Absolute);
+builder.Services.AddScoped(_ => new HttpClient { BaseAddress = apiBaseUri });
+builder.Services.AddSingleton(new RoomClientOptions(apiBaseUri));
+builder.Services.AddSingleton<IRoomRealtimeConnectionFactory, SignalRRoomRealtimeConnectionFactory>();
+builder.Services.AddTransient<RoomClient>();
 
 await builder.Build().RunAsync();

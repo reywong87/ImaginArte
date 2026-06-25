@@ -1,0 +1,151 @@
+@page "/tv/{RoomCode}"
+@layout TvLayout
+@implements IAsyncDisposable
+@using ImagoraGame.Client.Blazor.Rooms
+@using ImagoraGame.Contracts.Rooms
+@inject RoomClient RoomClient
+
+<PageTitle>Lobby @DisplayRoomCode</PageTitle>
+
+<div class="tv-lobby">
+    @if (RoomClient.Room is null)
+    {
+        <section class="loading-panel" aria-live="polite">
+            <p class="eyebrow">ImagoraGame</p>
+            <h1>Abriendo la sala</h1>
+            <p>@ConnectionLabel</p>
+            @if (RoomClient.ErrorMessage is not null)
+            {
+                <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+            }
+        </section>
+    }
+    else
+    {
+        var room = RoomClient.Room;
+
+        <header class="lobby-header">
+            <div>
+                <p class="eyebrow">Sala</p>
+                <h1>@room.RoomCode</h1>
+            </div>
+            <div class="connection-state connection-@RoomClient.ConnectionStatus.ToString().ToLowerInvariant()">
+                <span class="connection-dot" aria-hidden="true"></span>
+                @ConnectionLabel
+            </div>
+        </header>
+
+        <section class="lobby-content">
+            <div class="players-panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Jugadores conectados</p>
+                        <h2>@room.Players.Count @(room.Players.Count == 1 ? "jugador" : "jugadores")</h2>
+                    </div>
+                    @if (room.Phase == RoomPhase.WaitingForPlayers)
+                    {
+                        <p class="waiting-copy">Esperando a la familia…</p>
+                    }
+                </div>
+
+                @if (room.Players.Count == 0)
+                {
+                    <p class="empty-state">Aún no se ha unido ningún jugador.</p>
+                }
+                else
+                {
+                    <ol class="player-list">
+                        @foreach (var player in room.Players)
+                        {
+                            <li @key="player.PlayerId">
+                                <span class="player-number">@(room.Players.TakeWhile(item => item.PlayerId != player.PlayerId).Count() + 1)</span>
+                                <span>@player.Name</span>
+                            </li>
+                        }
+                    </ol>
+                }
+            </div>
+
+            <aside class="action-panel">
+                @if (room.Phase == RoomPhase.StorytellerChoosing)
+                {
+                    <p class="eyebrow">La partida ha comenzado</p>
+                    <h2>Turno de @RoomLobbyPresentation.StorytellerName(room)</h2>
+                    <p>El narrador está eligiendo una carta y una pista.</p>
+                }
+                else if (RoomLobbyPresentation.ShowsStartButton(room))
+                {
+                    <p class="eyebrow">Control de TV</p>
+                    <h2>Todo listo para imaginar</h2>
+                    <p>Se necesitan al menos @RoomLobbyPresentation.MinimumPlayersToStart jugadores.</p>
+                    <button class="start-button"
+                            disabled="@(!RoomLobbyPresentation.CanStart(room, RoomClient.IsStarting))"
+                            @onclick="StartGameAsync">
+                        @(RoomClient.IsStarting ? "Iniciando…" : "Iniciar partida")
+                    </button>
+                }
+                else
+                {
+                    <p class="eyebrow">Partida en curso</p>
+                    <h2>@PhaseLabel(room.Phase)</h2>
+                }
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </aside>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string RoomCode { get; set; } = string.Empty;
+
+    private string DisplayRoomCode =>
+        RoomClient.Room?.RoomCode ?? RoomCode.Trim().ToUpperInvariant();
+
+    private string ConnectionLabel => RoomClient.ConnectionStatus switch
+    {
+        RoomConnectionStatus.Loading => "Cargando",
+        RoomConnectionStatus.Connected => "Conectado",
+        RoomConnectionStatus.Reconnecting => "Reconectando",
+        RoomConnectionStatus.Disconnected => "Desconectado",
+        RoomConnectionStatus.Error => "Error de conexión",
+        _ => "Desconocido"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        RoomClient.StateChanged += HandleStateChanged;
+        await RoomClient.InitializeAsync(RoomCode);
+    }
+
+    private Task StartGameAsync()
+    {
+        return RoomClient.StartGameAsync();
+    }
+
+    private void HandleStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static string PhaseLabel(RoomPhase phase) => phase switch
+    {
+        RoomPhase.GuessersSubmitting => "Los jugadores están eligiendo",
+        RoomPhase.Voting => "Es hora de votar",
+        RoomPhase.Reveal => "Descubriendo las cartas",
+        RoomPhase.Scoring => "Calculando puntos",
+        RoomPhase.RoundComplete => "Ronda terminada",
+        RoomPhase.GameComplete => "Partida terminada",
+        _ => "La partida continúa"
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        RoomClient.StateChanged -= HandleStateChanged;
+        await RoomClient.DisposeAsync();
+    }
+}

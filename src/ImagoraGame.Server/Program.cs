@@ -6,6 +6,24 @@ using ImagoraGame.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSignalR();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("BlazorDevelopment", policy =>
+    {
+        var allowedOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>() ?? [];
+
+        if (allowedOrigins.Length > 0)
+        {
+            policy
+                .WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
+    });
+});
 builder.Services.AddSingleton(typeof(CancellationToken), CancellationToken.None);
 builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
 builder.Services.AddTransient<CreateRoomHandler>();
@@ -22,6 +40,8 @@ builder.Services.AddTransient<GetPlayerPrivateStateHandler>();
 builder.Services.AddTransient<RoomRealtimePublisher>();
 
 var app = builder.Build();
+
+app.UseCors("BlazorDevelopment");
 
 app.MapGet("/", () => "Hello World!");
 app.MapHub<RoomHub>("/hubs/rooms");
