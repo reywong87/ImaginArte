@@ -23,4 +23,20 @@ internal sealed class RoomRealtimePublisher
                 new RoomUpdatedEvent(room),
                 cancellationToken);
     }
+
+    public Task PublishPlayerStateUpdatedAsync(
+        GetPlayerPrivateStateResponse state,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        return _hubContext.Clients
+            .Group(RoomHubGroupNames.PrivatePlayer(
+                state.Room.RoomCode,
+                state.Player.PlayerId))
+            .SendAsync(
+                RoomRealtimeEventNames.PlayerStateUpdated,
+                new PlayerStateUpdatedEvent(state),
+                cancellationToken);
+    }
 }

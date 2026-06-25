@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -270,6 +271,204 @@ public sealed class RoomHubTests
         Assert.False(unexpectedUpdate.IsCompleted);
     }
 
+    [Fact]
+    public async Task PostStart_BroadcastsPublicStateAndEachPlayersOwnPrivateState()
+    {
+        using var application = CreateApplication();
+        using var httpClient = application.CreateClient();
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+
+        await CreateRoomAsync(httpClient, "ABC123");
+        await CreateRoomAsync(httpClient, "OTHER");
+        await JoinPlayerAsync(httpClient, "ABC123", aliceId, "Alice");
+        await JoinPlayerAsync(httpClient, "ABC123", bobId, "Bob");
+        await JoinPlayerAsync(httpClient, "ABC123", carlaId, "Carla");
+
+        await using var tvConnection = CreateHubConnection(application);
+        await using var aliceConnection = CreateHubConnection(application);
+        await using var bobConnection = CreateHubConnection(application);
+        await using var carlaConnection = CreateHubConnection(application);
+        await using var otherRoomConnection = CreateHubConnection(application);
+
+        var tvPublicEvents = TrackEvents<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var alicePrivateEvents = TrackEvents<PlayerStateUpdatedEvent>(
+            aliceConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var bobPrivateEvents = TrackEvents<PlayerStateUpdatedEvent>(
+            bobConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var carlaPrivateEvents = TrackEvents<PlayerStateUpdatedEvent>(
+            carlaConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var otherRoomPublicEvents = TrackEvents<RoomUpdatedEvent>(
+            otherRoomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+
+        var initialTvEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var initialAliceEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            aliceConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var initialBobEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            bobConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var initialCarlaEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            carlaConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var initialOtherRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            otherRoomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+
+        await Task.WhenAll(
+            tvConnection.StartAsync(),
+            aliceConnection.StartAsync(),
+            bobConnection.StartAsync(),
+            carlaConnection.StartAsync(),
+            otherRoomConnection.StartAsync());
+        await SubscribeToRoomAsync(tvConnection, "abc123");
+        await SubscribeAsPlayerAsync(aliceConnection, "ABC123", aliceId);
+        await SubscribeAsPlayerAsync(bobConnection, "abc123", bobId);
+        await SubscribeAsPlayerAsync(carlaConnection, "ABC123", carlaId);
+        await SubscribeToRoomAsync(otherRoomConnection, "other");
+        await Task.WhenAll(
+            initialTvEvent,
+            initialAliceEvent,
+            initialBobEvent,
+            initialCarlaEvent,
+            initialOtherRoomEvent).WaitAsync(TimeSpan.FromSeconds(5));
+
+        tvPublicEvents.Clear();
+        alicePrivateEvents.Clear();
+        bobPrivateEvents.Clear();
+        carlaPrivateEvents.Clear();
+        otherRoomPublicEvents.Clear();
+
+        var roomUpdated = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var aliceUpdated = WaitForEvent<PlayerStateUpdatedEvent>(
+            aliceConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var bobUpdated = WaitForEvent<PlayerStateUpdatedEvent>(
+            bobConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var carlaUpdated = WaitForEvent<PlayerStateUpdatedEvent>(
+            carlaConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+
+        var response = await httpClient.PostAsync("/rooms/abc123/start", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var responseRoom = await response.Content.ReadFromJsonAsync<RoomStateResponse>();
+        Assert.NotNull(responseRoom);
+
+        var publicEvent = await roomUpdated.WaitAsync(TimeSpan.FromSeconds(5));
+        var privateEvents = await Task.WhenAll(
+                aliceUpdated,
+                bobUpdated,
+                carlaUpdated)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        var expectedPrivateStates = await Task.WhenAll(
+            GetPlayerPrivateStateAsync(httpClient, "ABC123", aliceId),
+            GetPlayerPrivateStateAsync(httpClient, "ABC123", bobId),
+            GetPlayerPrivateStateAsync(httpClient, "ABC123", carlaId));
+
+        Assert.Equal(RoomPhase.StorytellerChoosing, publicEvent.Room.Phase);
+        Assert.Equal(aliceId, publicEvent.Room.CurrentStoryteller?.PlayerId);
+        Assert.Equal(
+            JsonSerializer.Serialize(responseRoom),
+            JsonSerializer.Serialize(publicEvent.Room));
+        Assert.DoesNotContain(
+            "\"hand\"",
+            JsonSerializer.Serialize(publicEvent),
+            StringComparison.OrdinalIgnoreCase);
+
+        AssertPrivateState(privateEvents[0], expectedPrivateStates[0], true);
+        AssertPrivateState(privateEvents[1], expectedPrivateStates[1], false);
+        AssertPrivateState(privateEvents[2], expectedPrivateStates[2], false);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(300));
+
+        Assert.Collection(
+            alicePrivateEvents,
+            playerEvent => Assert.Equal(aliceId, playerEvent.State.Player.PlayerId));
+        Assert.Collection(
+            bobPrivateEvents,
+            playerEvent => Assert.Equal(bobId, playerEvent.State.Player.PlayerId));
+        Assert.Collection(
+            carlaPrivateEvents,
+            playerEvent => Assert.Equal(carlaId, playerEvent.State.Player.PlayerId));
+        Assert.Single(tvPublicEvents);
+        Assert.Empty(otherRoomPublicEvents);
+    }
+
+    [Fact]
+    public async Task PostStart_WhenRoomIsAlreadyStarted_DoesNotPublishOrSaveAgain()
+    {
+        var repository = new CountingRoomRepository();
+        using var application = CreateApplication(repository);
+        using var httpClient = application.CreateClient();
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+
+        await CreateRoomAsync(httpClient, "ABC123");
+        await JoinPlayerAsync(httpClient, "ABC123", aliceId, "Alice");
+        await JoinPlayerAsync(httpClient, "ABC123", bobId, "Bob");
+        await JoinPlayerAsync(httpClient, "ABC123", carlaId, "Carla");
+        await using var publicConnection = CreateHubConnection(application);
+        await using var privateConnection = CreateHubConnection(application);
+        var initialPublicEvent = WaitForEvent<RoomUpdatedEvent>(
+            publicConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var initialPrivateEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            privateConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+
+        await Task.WhenAll(
+            publicConnection.StartAsync(),
+            privateConnection.StartAsync());
+        await SubscribeToRoomAsync(publicConnection, "ABC123");
+        await SubscribeAsPlayerAsync(privateConnection, "ABC123", aliceId);
+        await Task.WhenAll(initialPublicEvent, initialPrivateEvent)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        var saveCountBeforeStart = repository.SaveCount;
+        var firstPublicEvent = WaitForEvent<RoomUpdatedEvent>(
+            publicConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var firstPrivateEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            privateConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+
+        var firstResponse = await httpClient.PostAsync("/rooms/ABC123/start", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+        await Task.WhenAll(firstPublicEvent, firstPrivateEvent)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(saveCountBeforeStart + 1, repository.SaveCount);
+
+        var unexpectedPublicEvent = WaitForEvent<RoomUpdatedEvent>(
+            publicConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var unexpectedPrivateEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            privateConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+
+        var secondResponse = await httpClient.PostAsync("/rooms/ABC123/start", content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
+        await Task.WhenAll(
+            AssertNoEventAsync(unexpectedPublicEvent),
+            AssertNoEventAsync(unexpectedPrivateEvent));
+        Assert.Equal(saveCountBeforeStart + 1, repository.SaveCount);
+    }
+
     private static HubConnection CreateHubConnection(
         WebApplicationFactory<Program> application)
     {
@@ -314,6 +513,38 @@ public sealed class RoomHubTests
             TaskCreationOptions.RunContinuationsAsynchronously);
         connection.On<TEvent>(eventName, value => completion.TrySetResult(value));
         return completion.Task;
+    }
+
+    private static ConcurrentQueue<TEvent> TrackEvents<TEvent>(
+        HubConnection connection,
+        string eventName)
+    {
+        var events = new ConcurrentQueue<TEvent>();
+        connection.On<TEvent>(eventName, events.Enqueue);
+        return events;
+    }
+
+    private static async Task AssertNoEventAsync(Task eventTask)
+    {
+        await Assert.ThrowsAsync<TimeoutException>(
+            () => eventTask.WaitAsync(TimeSpan.FromMilliseconds(500)));
+    }
+
+    private static void AssertPrivateState(
+        PlayerStateUpdatedEvent playerEvent,
+        GetPlayerPrivateStateResponse expectedState,
+        bool expectedIsCurrentStoryteller)
+    {
+        Assert.Equal("ABC123", playerEvent.State.Room.RoomCode);
+        Assert.Equal(RoomPhase.StorytellerChoosing, playerEvent.State.Room.Phase);
+        Assert.Equal(expectedState.Player.PlayerId, playerEvent.State.Player.PlayerId);
+        Assert.Equal(
+            expectedState.Player.Hand.Select(card => card.CardId),
+            playerEvent.State.Player.Hand.Select(card => card.CardId));
+        Assert.Equal(Room.InitialHandSize, playerEvent.State.Player.Hand.Count);
+        Assert.Equal(
+            expectedIsCurrentStoryteller,
+            playerEvent.State.Player.IsCurrentStoryteller);
     }
 
     private static Task SubscribeToRoomAsync(
@@ -364,6 +595,17 @@ public sealed class RoomHubTests
         var room = await client.GetFromJsonAsync<RoomStateResponse>($"/rooms/{roomCode}");
         Assert.NotNull(room);
         return room;
+    }
+
+    private static async Task<GetPlayerPrivateStateResponse> GetPlayerPrivateStateAsync(
+        HttpClient client,
+        string roomCode,
+        Guid playerId)
+    {
+        var state = await client.GetFromJsonAsync<GetPlayerPrivateStateResponse>(
+            $"/rooms/{roomCode}/players/{playerId}");
+        Assert.NotNull(state);
+        return state;
     }
 
     private sealed class CountingRoomRepository : IRoomRepository

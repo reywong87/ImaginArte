@@ -63,12 +63,33 @@ app.MapPost("/rooms/{roomCode}/players", async (
 app.MapPost("/rooms/{roomCode}/start", async (
     string roomCode,
     StartGameHandler handler,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
-        async () => (await handler.HandleAsync(
-            new StartGameCommand(roomCode),
-            cancellationToken)).Room.ToHttpResponse(),
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new StartGameCommand(roomCode),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await realtimePublisher.PublishRoomUpdatedAsync(response, cancellationToken);
+
+            foreach (var player in response.Players)
+            {
+                var privateState = await getPlayerPrivateState.HandleAsync(
+                    new GetPlayerPrivateStateQuery(response.RoomCode, player.PlayerId),
+                    cancellationToken);
+
+                await realtimePublisher.PublishPlayerStateUpdatedAsync(
+                    privateState.ToHttpResponse(),
+                    cancellationToken);
+            }
+
+            return response;
+        },
         Results.Ok);
 });
 
