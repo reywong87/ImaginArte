@@ -19,6 +19,7 @@ builder.Services.AddTransient<CompleteRoundHandler>();
 builder.Services.AddTransient<AdvanceRoundHandler>();
 builder.Services.AddTransient<GetRoomStateHandler>();
 builder.Services.AddTransient<GetPlayerPrivateStateHandler>();
+builder.Services.AddTransient<RoomRealtimePublisher>();
 
 var app = builder.Build();
 
@@ -41,12 +42,21 @@ app.MapPost("/rooms/{roomCode}/players", async (
     string roomCode,
     JoinRoomRequest request,
     JoinRoomHandler handler,
+    RoomRealtimePublisher realtimePublisher,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
-        async () => (await handler.HandleAsync(
-            new JoinRoomCommand(roomCode, request.PlayerId, request.PlayerName),
-            cancellationToken)).Room.ToHttpResponse(),
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new JoinRoomCommand(roomCode, request.PlayerId, request.PlayerName),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await realtimePublisher.PublishRoomUpdatedAsync(response, cancellationToken);
+
+            return response;
+        },
         Results.Ok);
 });
 

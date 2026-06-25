@@ -1,10 +1,15 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ImagoraGame.Application.Rooms;
 using ImagoraGame.Contracts.Rooms;
+using ImagoraGame.Domain;
+using ImagoraGame.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ImagoraGame.Server.Tests;
 
@@ -173,6 +178,98 @@ public sealed class RoomHubTests
             JsonSerializer.Serialize(after));
     }
 
+    [Fact]
+    public async Task PostPlayers_BroadcastsUpdatedPublicRoomOnlyToSubscribedRoom()
+    {
+        var repository = new CountingRoomRepository();
+        using var application = CreateApplication(repository);
+        using var httpClient = application.CreateClient();
+        await CreateRoomAsync(httpClient, "ABC123");
+        await CreateRoomAsync(httpClient, "OTHER");
+        await using var roomConnection = CreateHubConnection(application);
+        await using var otherRoomConnection = CreateHubConnection(application);
+        var initialRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            roomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var initialOtherRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            otherRoomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+
+        await roomConnection.StartAsync();
+        await otherRoomConnection.StartAsync();
+        await SubscribeToRoomAsync(roomConnection, "abc123");
+        await SubscribeToRoomAsync(otherRoomConnection, "other");
+        await initialRoomEvent.WaitAsync(TimeSpan.FromSeconds(5));
+        await initialOtherRoomEvent.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var roomUpdated = WaitForEvent<RoomUpdatedEvent>(
+            roomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var otherRoomUpdated = WaitForEvent<RoomUpdatedEvent>(
+            otherRoomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var playerId = Guid.NewGuid();
+
+        var response = await httpClient.PostAsJsonAsync(
+            "/rooms/abc123/players",
+            new JoinRoomRequest(playerId, " Alice "));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var responseRoom = await response.Content.ReadFromJsonAsync<RoomStateResponse>();
+        Assert.NotNull(responseRoom);
+
+        var receivedEvent = await roomUpdated.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("ABC123", receivedEvent.Room.RoomCode);
+        Assert.Collection(
+            receivedEvent.Room.Players,
+            player =>
+            {
+                Assert.Equal(playerId, player.PlayerId);
+                Assert.Equal("Alice", player.Name);
+            });
+        Assert.Equal(
+            JsonSerializer.Serialize(responseRoom),
+            JsonSerializer.Serialize(receivedEvent.Room));
+        Assert.DoesNotContain(
+            "\"hand\"",
+            JsonSerializer.Serialize(receivedEvent),
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, repository.SaveCount);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(300));
+        Assert.False(otherRoomUpdated.IsCompleted);
+    }
+
+    [Fact]
+    public async Task PostPlayers_WhenJoinFails_DoesNotBroadcastRoomUpdated()
+    {
+        using var application = CreateApplication();
+        using var httpClient = application.CreateClient();
+        var playerId = Guid.NewGuid();
+        await CreateRoomAsync(httpClient, "ABC123");
+        await JoinPlayerAsync(httpClient, "ABC123", playerId, "Alice");
+        await using var connection = CreateHubConnection(application);
+        var initialRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            connection,
+            RoomRealtimeEventNames.RoomUpdated);
+
+        await connection.StartAsync();
+        await SubscribeToRoomAsync(connection, "ABC123");
+        await initialRoomEvent.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var unexpectedUpdate = WaitForEvent<RoomUpdatedEvent>(
+            connection,
+            RoomRealtimeEventNames.RoomUpdated);
+
+        var response = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/players",
+            new JoinRoomRequest(playerId, "Alice Again"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await Task.Delay(TimeSpan.FromMilliseconds(300));
+        Assert.False(unexpectedUpdate.IsCompleted);
+    }
+
     private static HubConnection CreateHubConnection(
         WebApplicationFactory<Program> application)
     {
@@ -193,6 +290,20 @@ public sealed class RoomHubTests
                 builder.ConfigureServices(services =>
                     services.Configure<HubOptions>(
                         options => options.EnableDetailedErrors = true)));
+    }
+
+    private static WebApplicationFactory<Program> CreateApplication(
+        IRoomRepository repository)
+    {
+        return new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+                builder.ConfigureServices(services =>
+                {
+                    services.RemoveAll<IRoomRepository>();
+                    services.AddSingleton(repository);
+                    services.Configure<HubOptions>(
+                        options => options.EnableDetailedErrors = true);
+                }));
     }
 
     private static Task<TEvent> WaitForEvent<TEvent>(
@@ -253,5 +364,34 @@ public sealed class RoomHubTests
         var room = await client.GetFromJsonAsync<RoomStateResponse>($"/rooms/{roomCode}");
         Assert.NotNull(room);
         return room;
+    }
+
+    private sealed class CountingRoomRepository : IRoomRepository
+    {
+        private readonly InMemoryRoomRepository _inner = new();
+
+        public int SaveCount { get; private set; }
+
+        public Task<Room?> GetByCodeAsync(
+            RoomCode code,
+            CancellationToken cancellationToken = default)
+        {
+            return _inner.GetByCodeAsync(code, cancellationToken);
+        }
+
+        public Task AddAsync(
+            Room room,
+            CancellationToken cancellationToken = default)
+        {
+            return _inner.AddAsync(room, cancellationToken);
+        }
+
+        public async Task SaveAsync(
+            Room room,
+            CancellationToken cancellationToken = default)
+        {
+            SaveCount++;
+            await _inner.SaveAsync(room, cancellationToken);
+        }
     }
 }
