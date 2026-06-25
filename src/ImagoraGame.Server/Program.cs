@@ -30,7 +30,7 @@ app.MapPost("/rooms", async (
     return await HandleRoomRequestAsync(
         async () => (await handler.HandleAsync(
             new CreateRoomCommand(request.RoomCode),
-            cancellationToken)).Room,
+            cancellationToken)).Room.ToHttpResponse(),
         room => Results.Created($"/rooms/{room.RoomCode}", room));
 });
 
@@ -43,7 +43,7 @@ app.MapPost("/rooms/{roomCode}/players", async (
     return await HandleRoomRequestAsync(
         async () => (await handler.HandleAsync(
             new JoinRoomCommand(roomCode, request.PlayerId, request.PlayerName),
-            cancellationToken)).Room,
+            cancellationToken)).Room.ToHttpResponse(),
         Results.Ok);
 });
 
@@ -55,7 +55,7 @@ app.MapPost("/rooms/{roomCode}/start", async (
     return await HandleRoomRequestAsync(
         async () => (await handler.HandleAsync(
             new StartGameCommand(roomCode),
-            cancellationToken)).Room,
+            cancellationToken)).Room.ToHttpResponse(),
         Results.Ok);
 });
 
@@ -152,7 +152,7 @@ app.MapGet("/rooms/{roomCode}", async (
     return await HandleRoomRequestAsync(
         async () => (await handler.HandleAsync(
             new GetRoomStateQuery(roomCode),
-            cancellationToken)).Room,
+            cancellationToken)).Room.ToHttpResponse(),
         Results.Ok);
 });
 

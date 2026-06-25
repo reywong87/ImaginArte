@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using ImagoraGame.Application.Rooms;
 using ImagoraGame.Contracts.Rooms;
 using ImagoraGame.Domain;
 using Microsoft.AspNetCore.Mvc;
@@ -25,9 +24,9 @@ public sealed class RoomEndpointTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal("/rooms/FAMILY-ROOM", response.Headers.Location?.OriginalString);
 
-        var room = await ReadRequiredJsonAsync<RoomState>(response);
+        var room = await ReadPublicRoomStateAsync(response);
         Assert.Equal("FAMILY-ROOM", room.RoomCode);
-        Assert.Equal(GamePhase.WaitingForPlayers, room.Phase);
+        Assert.Equal(RoomPhase.WaitingForPlayers, room.Phase);
         Assert.Empty(room.Players);
     }
 
@@ -67,8 +66,9 @@ public sealed class RoomEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var room = await ReadRequiredJsonAsync<RoomState>(response);
+        var room = await ReadPublicRoomStateAsync(response);
         Assert.Equal("ABC123", room.RoomCode);
+        Assert.Equal(RoomPhase.WaitingForPlayers, room.Phase);
         Assert.Collection(
             room.Players,
             player =>
@@ -112,8 +112,8 @@ public sealed class RoomEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var room = await ReadRequiredJsonAsync<RoomState>(response);
-        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+        var room = await ReadPublicRoomStateAsync(response);
+        Assert.Equal(RoomPhase.StorytellerChoosing, room.Phase);
         Assert.Equal(aliceId, room.CurrentStoryteller?.PlayerId);
         Assert.Equal("Alice", room.CurrentStoryteller?.Name);
     }
@@ -139,7 +139,7 @@ public sealed class RoomEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var responseBody = await response.Content.ReadAsStringAsync();
-        var room = ReadRequiredJson<RoomStateResponse>(responseBody);
+        var room = ReadPublicRoomState(responseBody);
         Assert.Equal(RoomPhase.GuessersSubmitting, room.Phase);
         Assert.Equal("A strange doorway", room.Clue);
         Assert.Equal(aliceId, room.CurrentStoryteller?.PlayerId);
@@ -228,7 +228,7 @@ public sealed class RoomEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var responseBody = await response.Content.ReadAsStringAsync();
-        var state = ReadRequiredJson<RoomStateResponse>(responseBody);
+        var state = ReadPublicRoomState(responseBody);
         Assert.Equal(RoomPhase.GuessersSubmitting, state.Phase);
         Assert.Equal(1, state.SubmissionCount);
         Assert.Equal(2, state.ExpectedSubmissionCount);
@@ -255,7 +255,7 @@ public sealed class RoomEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var responseBody = await response.Content.ReadAsStringAsync();
-        var state = ReadRequiredJson<RoomStateResponse>(responseBody);
+        var state = ReadPublicRoomState(responseBody);
         Assert.Equal(RoomPhase.Voting, state.Phase);
         Assert.Equal(state.ExpectedSubmissionCount, state.SubmissionCount);
         Assert.Equal(
@@ -369,7 +369,7 @@ public sealed class RoomEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var responseBody = await response.Content.ReadAsStringAsync();
-        var state = ReadRequiredJson<RoomStateResponse>(responseBody);
+        var state = ReadPublicRoomState(responseBody);
         Assert.Equal(RoomPhase.Voting, state.Phase);
         Assert.Equal(1, state.VoteCount);
         Assert.Equal(2, state.ExpectedVoteCount);
@@ -405,7 +405,7 @@ public sealed class RoomEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var state = await ReadRequiredJsonAsync<RoomStateResponse>(response);
+        var state = await ReadPublicRoomStateAsync(response);
         Assert.Equal(RoomPhase.Reveal, state.Phase);
         Assert.Equal(state.ExpectedVoteCount, state.VoteCount);
         Assert.Empty(state.VotingCards);
@@ -561,7 +561,7 @@ public sealed class RoomEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var state = await ReadRequiredJsonAsync<RoomStateResponse>(response);
+        var state = await ReadPublicRoomStateAsync(response);
         Assert.Equal(RoomPhase.Scoring, state.Phase);
         Assert.Empty(state.Winners);
         AssertPlayerRoundScore(state.RoundScores, room.AliceId, "Alice", 3);
@@ -648,7 +648,7 @@ public sealed class RoomEndpointTests
 
         var stateResponse = await client.GetAsync("/rooms/ABC123");
         stateResponse.EnsureSuccessStatusCode();
-        var state = await ReadRequiredJsonAsync<RoomStateResponse>(stateResponse);
+        var state = await ReadPublicRoomStateAsync(stateResponse);
 
         Assert.Equal(RoomPhase.Scoring, state.Phase);
         AssertPlayerRoundScore(state.RoundScores, room.AliceId, "Alice", 3);
@@ -672,7 +672,7 @@ public sealed class RoomEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var state = await ReadRequiredJsonAsync<RoomStateResponse>(response);
+        var state = await ReadPublicRoomStateAsync(response);
         Assert.Equal(RoomPhase.RoundComplete, state.Phase);
         Assert.Equal(scoringState.RoundScores, state.RoundScores);
         Assert.Equal(scoringState.Scoreboard, state.Scoreboard);
@@ -727,7 +727,7 @@ public sealed class RoomEndpointTests
 
         var stateResponse = await client.GetAsync("/rooms/ABC123");
         stateResponse.EnsureSuccessStatusCode();
-        var state = await ReadRequiredJsonAsync<RoomStateResponse>(stateResponse);
+        var state = await ReadPublicRoomStateAsync(stateResponse);
 
         Assert.Equal(RoomPhase.RoundComplete, state.Phase);
         Assert.Equal(scoringState.RoundScores, state.RoundScores);
@@ -748,7 +748,7 @@ public sealed class RoomEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var responseBody = await response.Content.ReadAsStringAsync();
-        var state = ReadRequiredJson<RoomStateResponse>(responseBody);
+        var state = ReadPublicRoomState(responseBody);
 
         Assert.Equal(RoomPhase.StorytellerChoosing, state.Phase);
         Assert.Equal(room.BobId, state.CurrentStoryteller?.PlayerId);
@@ -846,7 +846,7 @@ public sealed class RoomEndpointTests
 
         var stateResponse = await client.GetAsync("/rooms/ABC123");
         stateResponse.EnsureSuccessStatusCode();
-        var state = await ReadRequiredJsonAsync<RoomStateResponse>(stateResponse);
+        var state = await ReadPublicRoomStateAsync(stateResponse);
         var aliceAfterSecondAttempt = await GetPlayerPrivateStateAsync(client, "ABC123", room.AliceId);
         var bobAfterSecondAttempt = await GetPlayerPrivateStateAsync(client, "ABC123", room.BobId);
         var carlaAfterSecondAttempt = await GetPlayerPrivateStateAsync(client, "ABC123", room.CarlaId);
@@ -881,9 +881,9 @@ public sealed class RoomEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var responseBody = await response.Content.ReadAsStringAsync();
-        var room = ReadRequiredJson<RoomState>(responseBody);
+        var room = ReadPublicRoomState(responseBody);
         Assert.Equal("ABC123", room.RoomCode);
-        Assert.Equal(GamePhase.StorytellerChoosing, room.Phase);
+        Assert.Equal(RoomPhase.StorytellerChoosing, room.Phase);
 
         using var json = JsonDocument.Parse(responseBody);
         Assert.False(json.RootElement.TryGetProperty("hand", out _));
@@ -947,7 +947,7 @@ public sealed class RoomEndpointTests
         Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
     }
 
-    private static async Task<RoomState> CreateRoomAsync(HttpClient client, string roomCode)
+    private static async Task<RoomStateResponse> CreateRoomAsync(HttpClient client, string roomCode)
     {
         var response = await client.PostAsJsonAsync("/rooms", new
         {
@@ -955,10 +955,10 @@ public sealed class RoomEndpointTests
         });
 
         response.EnsureSuccessStatusCode();
-        return await ReadRequiredJsonAsync<RoomState>(response);
+        return await ReadPublicRoomStateAsync(response);
     }
 
-    private static async Task<RoomState> JoinPlayerAsync(
+    private static async Task<RoomStateResponse> JoinPlayerAsync(
         HttpClient client,
         string roomCode,
         Guid playerId,
@@ -971,7 +971,7 @@ public sealed class RoomEndpointTests
         });
 
         response.EnsureSuccessStatusCode();
-        return await ReadRequiredJsonAsync<RoomState>(response);
+        return await ReadPublicRoomStateAsync(response);
     }
 
     private static async Task CreateStartedRoomAsync(
@@ -987,6 +987,7 @@ public sealed class RoomEndpointTests
 
         var response = await client.PostAsync($"/rooms/{roomCode}/start", content: null);
         response.EnsureSuccessStatusCode();
+        await ReadPublicRoomStateAsync(response);
     }
 
     private static async Task<GuessSubmissionRoom> PrepareGuessSubmissionRoomAsync(
@@ -1004,6 +1005,7 @@ public sealed class RoomEndpointTests
 
         var startResponse = await client.PostAsync($"/rooms/{roomCode}/start", content: null);
         startResponse.EnsureSuccessStatusCode();
+        await ReadPublicRoomStateAsync(startResponse);
 
         var aliceState = await GetPlayerPrivateStateAsync(client, roomCode, aliceId);
         var bobState = await GetPlayerPrivateStateAsync(client, roomCode, bobId);
@@ -1052,7 +1054,7 @@ public sealed class RoomEndpointTests
             room.StorytellerCardId,
             bobCardId,
             carlaCardId,
-            await ReadRequiredJsonAsync<RoomStateResponse>(response));
+            await ReadPublicRoomStateAsync(response));
     }
 
     private static async Task<RevealRoom> PrepareRevealRoomAsync(
@@ -1084,7 +1086,7 @@ public sealed class RoomEndpointTests
             room.StorytellerCardId,
             room.BobCardId,
             room.CarlaCardId,
-            await ReadRequiredJsonAsync<RoomStateResponse>(response));
+            await ReadPublicRoomStateAsync(response));
     }
 
     private static async Task<RoomStateResponse> PrepareScoringRoomAsync(
@@ -1098,7 +1100,7 @@ public sealed class RoomEndpointTests
             content: null);
         response.EnsureSuccessStatusCode();
 
-        return await ReadRequiredJsonAsync<RoomStateResponse>(response);
+        return await ReadPublicRoomStateAsync(response);
     }
 
     private static async Task<RoundCompleteRoom> PrepareRoundCompleteRoomAsync(
@@ -1130,7 +1132,7 @@ public sealed class RoomEndpointTests
             aliceBefore,
             bobBefore,
             carlaBefore,
-            await ReadRequiredJsonAsync<RoomStateResponse>(completeResponse));
+            await ReadPublicRoomStateAsync(completeResponse));
     }
 
     private static void AssertRefilledHand(
@@ -1193,6 +1195,19 @@ public sealed class RoomEndpointTests
         var value = JsonSerializer.Deserialize<T>(responseBody, JsonSerializerOptions.Web);
         Assert.NotNull(value);
         return value;
+    }
+
+    private static async Task<RoomStateResponse> ReadPublicRoomStateAsync(
+        HttpResponseMessage response)
+    {
+        var responseBody = await response.Content.ReadAsStringAsync();
+        return ReadPublicRoomState(responseBody);
+    }
+
+    private static RoomStateResponse ReadPublicRoomState(string responseBody)
+    {
+        Assert.DoesNotContain("\"hand\"", responseBody, StringComparison.OrdinalIgnoreCase);
+        return ReadRequiredJson<RoomStateResponse>(responseBody);
     }
 
     private sealed record VotingRoom(
