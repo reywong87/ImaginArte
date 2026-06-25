@@ -5,6 +5,8 @@ using ImagoraGame.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSignalR();
+builder.Services.AddSingleton(typeof(CancellationToken), CancellationToken.None);
 builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
 builder.Services.AddTransient<CreateRoomHandler>();
 builder.Services.AddTransient<JoinRoomHandler>();
@@ -21,6 +23,7 @@ builder.Services.AddTransient<GetPlayerPrivateStateHandler>();
 var app = builder.Build();
 
 app.MapGet("/", () => "Hello World!");
+app.MapHub<RoomHub>("/hubs/rooms");
 
 app.MapPost("/rooms", async (
     CreateRoomRequest request,
