@@ -39,6 +39,11 @@ internal sealed class SignalRRoomRealtimeConnection : IRoomRealtimeConnection
         return _connection.On(RoomRealtimeEventNames.RoomUpdated, handler);
     }
 
+    public IDisposable OnPlayerStateUpdated(Action<PlayerStateUpdatedEvent> handler)
+    {
+        return _connection.On(RoomRealtimeEventNames.PlayerStateUpdated, handler);
+    }
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
         return _connection.StartAsync(cancellationToken);
@@ -47,6 +52,14 @@ internal sealed class SignalRRoomRealtimeConnection : IRoomRealtimeConnection
     public Task SubscribeToRoomAsync(string roomCode, CancellationToken cancellationToken)
     {
         return _connection.InvokeAsync("SubscribeToRoom", roomCode, cancellationToken);
+    }
+
+    public Task SubscribeAsPlayerAsync(
+        string roomCode,
+        Guid playerId,
+        CancellationToken cancellationToken)
+    {
+        return _connection.InvokeAsync("SubscribeAsPlayer", roomCode, playerId, cancellationToken);
     }
 
     public ValueTask DisposeAsync()

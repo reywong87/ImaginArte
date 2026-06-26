@@ -12,9 +12,16 @@ public interface IRoomRealtimeConnection : IAsyncDisposable
 
     IDisposable OnRoomUpdated(Action<RoomUpdatedEvent> handler);
 
+    IDisposable OnPlayerStateUpdated(Action<PlayerStateUpdatedEvent> handler);
+
     Task StartAsync(CancellationToken cancellationToken);
 
     Task SubscribeToRoomAsync(string roomCode, CancellationToken cancellationToken);
+
+    Task SubscribeAsPlayerAsync(
+        string roomCode,
+        Guid playerId,
+        CancellationToken cancellationToken);
 }
 
 public interface IRoomRealtimeConnectionFactory

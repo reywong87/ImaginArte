@@ -1,7 +1,10 @@
 @page "/join"
 @page "/join/{RoomCode}"
+@implements IAsyncDisposable
 @using ImagoraGame.Client.Blazor.Rooms
+@using ImagoraGame.Contracts.Rooms
 @inject MobileJoinClient JoinClient
+@inject MobileRoomClient MobileRoomClient
 
 <PageTitle>Unirse a sala</PageTitle>
 
@@ -51,7 +54,12 @@
         <section class="lobby-panel" aria-labelledby="lobby-title">
             <p class="eyebrow">Sala @_lobby.RoomCode</p>
             <h1 id="lobby-title">@_lobby.PlayerName</h1>
-            <p class="waiting-message">Ya estás dentro. Espera a que la TV inicie la partida.</p>
+            <p class="mobile-status">@MobileStatusMessage</p>
+
+            @if (MobileRoomClient.ErrorMessage is not null)
+            {
+                <p class="error-message" role="alert">@MobileRoomClient.ErrorMessage</p>
+            }
         </section>
     }
 </main>
@@ -67,6 +75,21 @@
     private string? _errorMessage;
 
     private bool HasRoomCodeFromUrl => !string.IsNullOrWhiteSpace(RoomCode);
+
+    private string MobileStatusMessage
+    {
+        get
+        {
+            var privateState = MobileRoomClient.PrivateState;
+            if (privateState is not null &&
+                privateState.Room.Phase != RoomPhase.WaitingForPlayers)
+            {
+                return "La partida ha empezado. Mantén esta pantalla lista para tu próximo turno.";
+            }
+
+            return "Jugador unido. Esperando a que la TV inicie la partida.";
+        }
+    }
 
     protected override void OnParametersSet()
     {
@@ -92,6 +115,7 @@
                 _form.RoomCode,
                 _form.PlayerName,
                 _playerId);
+            await MobileRoomClient.ConnectAsync(_lobby);
         }
         catch (HttpRequestException exception)
         {
@@ -109,6 +133,22 @@
         {
             _isJoining = false;
         }
+    }
+
+    protected override void OnInitialized()
+    {
+        MobileRoomClient.StateChanged += HandleMobileRoomChanged;
+    }
+
+    private void HandleMobileRoomChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        MobileRoomClient.StateChanged -= HandleMobileRoomChanged;
+        await MobileRoomClient.DisposeAsync();
     }
 
     private sealed class JoinRoomForm

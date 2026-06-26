@@ -262,6 +262,11 @@ public sealed class RoomClientTests
             });
         }
 
+        public IDisposable OnPlayerStateUpdated(Action<PlayerStateUpdatedEvent> handler)
+        {
+            return new CallbackDisposable(() => { });
+        }
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
             return Task.CompletedTask;
@@ -270,6 +275,14 @@ public sealed class RoomClientTests
         public Task SubscribeToRoomAsync(string roomCode, CancellationToken cancellationToken)
         {
             SubscribedRoomCode = roomCode;
+            return Task.CompletedTask;
+        }
+
+        public Task SubscribeAsPlayerAsync(
+            string roomCode,
+            Guid playerId,
+            CancellationToken cancellationToken)
+        {
             return Task.CompletedTask;
         }
 

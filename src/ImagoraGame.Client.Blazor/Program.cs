@@ -19,5 +19,6 @@ builder.Services.AddSingleton(new RoomClientOptions(apiBaseUri));
 builder.Services.AddSingleton<IRoomRealtimeConnectionFactory, SignalRRoomRealtimeConnectionFactory>();
 builder.Services.AddTransient<RoomClient>();
 builder.Services.AddTransient<MobileJoinClient>();
+builder.Services.AddTransient<MobileRoomClient>();
 
 await builder.Build().RunAsync();
