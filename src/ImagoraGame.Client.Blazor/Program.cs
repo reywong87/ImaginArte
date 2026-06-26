@@ -18,5 +18,6 @@ builder.Services.AddScoped(_ => new HttpClient { BaseAddress = apiBaseUri });
 builder.Services.AddSingleton(new RoomClientOptions(apiBaseUri));
 builder.Services.AddSingleton<IRoomRealtimeConnectionFactory, SignalRRoomRealtimeConnectionFactory>();
 builder.Services.AddTransient<RoomClient>();
+builder.Services.AddTransient<MobileJoinClient>();
 
 await builder.Build().RunAsync();

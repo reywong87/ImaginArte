@@ -1,0 +1,128 @@
+@page "/join"
+@page "/join/{RoomCode}"
+@using ImagoraGame.Client.Blazor.Rooms
+@inject MobileJoinClient JoinClient
+
+<PageTitle>Unirse a sala</PageTitle>
+
+<main class="mobile-join">
+    @if (_lobby is null)
+    {
+        <section class="join-panel" aria-labelledby="join-title">
+            <p class="eyebrow">ImagoraGame</p>
+            <h1 id="join-title">Unirse a sala</h1>
+
+            <EditForm Model="_form" OnValidSubmit="JoinRoomAsync" FormName="mobile-join">
+                <DataAnnotationsValidator />
+
+                <div class="field-group">
+                    <label for="room-code">Código de sala</label>
+                    <InputText id="room-code"
+                               class="text-input room-code-input"
+                               autocomplete="off"
+                               autocapitalize="characters"
+                               disabled="@HasRoomCodeFromUrl"
+                               @bind-Value="_form.RoomCode" />
+                    <ValidationMessage For="@(() => _form.RoomCode)" />
+                </div>
+
+                <div class="field-group">
+                    <label for="player-name">Tu nombre</label>
+                    <InputText id="player-name"
+                               class="text-input"
+                               autocomplete="name"
+                               @bind-Value="_form.PlayerName" />
+                    <ValidationMessage For="@(() => _form.PlayerName)" />
+                </div>
+
+                <button class="primary-action" type="submit" disabled="@_isJoining">
+                    @(_isJoining ? "Uniendo..." : "Entrar")
+                </button>
+
+                @if (_errorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@_errorMessage</p>
+                }
+            </EditForm>
+        </section>
+    }
+    else
+    {
+        <section class="lobby-panel" aria-labelledby="lobby-title">
+            <p class="eyebrow">Sala @_lobby.RoomCode</p>
+            <h1 id="lobby-title">@_lobby.PlayerName</h1>
+            <p class="waiting-message">Ya estás dentro. Espera a que la TV inicie la partida.</p>
+        </section>
+    }
+</main>
+
+@code {
+    [Parameter]
+    public string? RoomCode { get; set; }
+
+    private readonly JoinRoomForm _form = new();
+    private readonly Guid _playerId = Guid.NewGuid();
+    private MobileLobbyState? _lobby;
+    private bool _isJoining;
+    private string? _errorMessage;
+
+    private bool HasRoomCodeFromUrl => !string.IsNullOrWhiteSpace(RoomCode);
+
+    protected override void OnParametersSet()
+    {
+        if (HasRoomCodeFromUrl)
+        {
+            _form.RoomCode = RoomCode!.Trim().ToUpperInvariant();
+        }
+    }
+
+    private async Task JoinRoomAsync()
+    {
+        if (_isJoining)
+        {
+            return;
+        }
+
+        _isJoining = true;
+        _errorMessage = null;
+
+        try
+        {
+            _lobby = await JoinClient.JoinAsync(
+                _form.RoomCode,
+                _form.PlayerName,
+                _playerId);
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            _errorMessage = "La operación fue cancelada.";
+        }
+        catch
+        {
+            _errorMessage = "No se pudo unir a la sala. Comprueba que el servidor está disponible.";
+        }
+        finally
+        {
+            _isJoining = false;
+        }
+    }
+
+    private sealed class JoinRoomForm
+    {
+        [System.ComponentModel.DataAnnotations.Required(
+            ErrorMessage = "Introduce el código de sala.")]
+        public string RoomCode { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(
+            ErrorMessage = "Introduce tu nombre.")]
+        [System.ComponentModel.DataAnnotations.StringLength(
+            40,
+            MinimumLength = 1,
+            ErrorMessage = "El nombre debe tener entre 1 y 40 caracteres.")]
+        public string PlayerName { get; set; } = string.Empty;
+    }
+}
