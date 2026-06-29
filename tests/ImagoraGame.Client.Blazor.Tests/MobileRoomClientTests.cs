@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http.Json;
 using ImagoraGame.Client.Blazor.Rooms;
 using ImagoraGame.Contracts.Rooms;
 
@@ -68,26 +70,155 @@ public sealed class MobileRoomClientTests
         Assert.True(realtime.PlayerStateListenerWasDisposed);
     }
 
+    [Fact]
+    public async Task ChooseStorytellerCardAsync_PostsToExpectedEndpointAndUsesRequest()
+    {
+        var playerId = Guid.NewGuid();
+        var updatedRoom = CreateRoom("ABC123", playerId, "Alice", RoomPhase.GuessersSubmitting);
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(updatedRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Alice"));
+        realtime.Publish(new PlayerStateUpdatedEvent(CreatePrivateState(
+            "ABC123",
+            playerId,
+            "Alice",
+            RoomPhase.StorytellerChoosing,
+            isCurrentStoryteller: true,
+            [new CardStateResponse("card-1")])));
+
+        await client.ChooseStorytellerCardAsync("card-1", "  Una pista  ");
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal(
+            "http://localhost:5080/rooms/ABC123/storyteller-card",
+            request.RequestUri?.ToString());
+
+        var chooseRequest = await request.Content!.ReadFromJsonAsync<ChooseStorytellerCardRequest>();
+        Assert.Equal(playerId, chooseRequest!.PlayerId);
+        Assert.Equal("card-1", chooseRequest.CardId);
+        Assert.Equal("Una pista", chooseRequest.Clue);
+        Assert.Equal(RoomPhase.GuessersSubmitting, client.PrivateState!.Room.Phase);
+        Assert.Null(client.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ChooseStorytellerCardAsync_WhenServerRejectsOperation_ExposesProblemDetail()
+    {
+        var playerId = Guid.NewGuid();
+        var handler = new RecordingHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = JsonContent.Create(new
+                {
+                    Detail = "Solo el narrador puede elegir carta."
+                })
+            });
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Alice"));
+
+        await client.ChooseStorytellerCardAsync("card-1", "Pista");
+
+        Assert.Equal("Solo el narrador puede elegir carta.", client.ErrorMessage);
+        Assert.False(client.IsChoosingStorytellerCard);
+    }
+
+    [Fact]
+    public async Task ChooseStorytellerCardAsync_SetsSendingStateWhileRequestIsInFlight()
+    {
+        var playerId = Guid.NewGuid();
+        var responseSource = new TaskCompletionSource<HttpResponseMessage>();
+        var handler = new RecordingHttpMessageHandler(_ => responseSource.Task);
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Alice"));
+
+        var chooseTask = client.ChooseStorytellerCardAsync("card-1", "Pista");
+
+        Assert.True(client.IsChoosingStorytellerCard);
+
+        responseSource.SetResult(JsonResponse(CreateRoom(
+            "ABC123",
+            playerId,
+            "Alice",
+            RoomPhase.GuessersSubmitting)));
+        await chooseTask;
+
+        Assert.False(client.IsChoosingStorytellerCard);
+    }
+
     private static MobileRoomClient CreateClient(FakeRoomRealtimeConnection realtime)
+    {
+        return CreateClient(
+            new RecordingHttpMessageHandler(_ => JsonResponse(CreateRoom(
+                "ABC123",
+                Guid.NewGuid(),
+                "Alice",
+                RoomPhase.WaitingForPlayers))),
+            realtime);
+    }
+
+    private static MobileRoomClient CreateClient(
+        HttpMessageHandler handler,
+        FakeRoomRealtimeConnection realtime)
     {
         var baseUri = new Uri("http://localhost:5080/");
         return new MobileRoomClient(
+            new HttpClient(handler) { BaseAddress = baseUri },
             new RoomClientOptions(baseUri),
             new FakeRoomRealtimeConnectionFactory(realtime));
+    }
+
+    private static HttpResponseMessage JsonResponse(RoomStateResponse room)
+    {
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = JsonContent.Create(room)
+        };
+    }
+
+    private static RoomStateResponse CreateRoom(
+        string roomCode,
+        Guid playerId,
+        string playerName,
+        RoomPhase phase)
+    {
+        var player = new PlayerStateResponse(playerId, playerName);
+        return new RoomStateResponse(
+            roomCode,
+            phase,
+            25,
+            [player],
+            CurrentStoryteller: phase == RoomPhase.StorytellerChoosing ? player : null,
+            Clue: null,
+            SubmissionCount: 0,
+            ExpectedSubmissionCount: 0,
+            VoteCount: 0,
+            ExpectedVoteCount: 0,
+            VotingCards: [],
+            RevealedCards: [],
+            RoundScores: [],
+            Scoreboard: [],
+            Winners: []);
     }
 
     private static GetPlayerPrivateStateResponse CreatePrivateState(
         string roomCode,
         Guid playerId,
-        string playerName)
+        string playerName,
+        RoomPhase phase = RoomPhase.WaitingForPlayers,
+        bool isCurrentStoryteller = false,
+        IReadOnlyCollection<CardStateResponse>? hand = null)
     {
         var player = new PlayerStateResponse(playerId, playerName);
         var room = new RoomStateResponse(
             roomCode,
-            RoomPhase.WaitingForPlayers,
+            phase,
             25,
             [player],
-            CurrentStoryteller: null,
+            CurrentStoryteller: isCurrentStoryteller ? player : null,
             Clue: null,
             SubmissionCount: 0,
             ExpectedSubmissionCount: 0,
@@ -104,8 +235,28 @@ public sealed class MobileRoomClientTests
             new PlayerPrivateStateResponse(
                 playerId,
                 playerName,
-                Hand: [],
-                IsCurrentStoryteller: false));
+                Hand: hand ?? [],
+                IsCurrentStoryteller: isCurrentStoryteller));
+    }
+
+    private sealed class RecordingHttpMessageHandler(
+        Func<HttpRequestMessage, Task<HttpResponseMessage>> responseFactory)
+        : HttpMessageHandler
+    {
+        public RecordingHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> responseFactory)
+            : this(request => Task.FromResult(responseFactory(request)))
+        {
+        }
+
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return responseFactory(request);
+        }
     }
 
     private sealed class FakeRoomRealtimeConnectionFactory(

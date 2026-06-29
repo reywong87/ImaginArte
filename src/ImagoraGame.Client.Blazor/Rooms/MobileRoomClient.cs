@@ -1,9 +1,12 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using ImagoraGame.Contracts.Rooms;
 
 namespace ImagoraGame.Client.Blazor.Rooms;
 
 public sealed class MobileRoomClient : IAsyncDisposable
 {
+    private readonly HttpClient _httpClient;
     private readonly RoomClientOptions _options;
     private readonly IRoomRealtimeConnectionFactory _connectionFactory;
     private IRoomRealtimeConnection? _connection;
@@ -12,9 +15,11 @@ public sealed class MobileRoomClient : IAsyncDisposable
     private bool _disposed;
 
     public MobileRoomClient(
+        HttpClient httpClient,
         RoomClientOptions options,
         IRoomRealtimeConnectionFactory connectionFactory)
     {
+        _httpClient = httpClient;
         _options = options;
         _connectionFactory = connectionFactory;
     }
@@ -29,6 +34,8 @@ public sealed class MobileRoomClient : IAsyncDisposable
         RoomConnectionStatus.Loading;
 
     public string? ErrorMessage { get; private set; }
+
+    public bool IsChoosingStorytellerCard { get; private set; }
 
     public async Task ConnectAsync(
         MobileLobbyState lobby,
@@ -64,8 +71,58 @@ public sealed class MobileRoomClient : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            ErrorMessage = ToUserMessage(exception);
+            ErrorMessage = await ToUserMessageAsync(exception);
             SetStatus(RoomConnectionStatus.Error);
+        }
+    }
+
+    public async Task ChooseStorytellerCardAsync(
+        string cardId,
+        string clue,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_lobby is null || IsChoosingStorytellerCard)
+        {
+            return;
+        }
+
+        IsChoosingStorytellerCard = true;
+        ErrorMessage = null;
+        NotifyStateChanged();
+
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                $"rooms/{Uri.EscapeDataString(_lobby.RoomCode.Trim())}/storyteller-card",
+                new ChooseStorytellerCardRequest(
+                    _lobby.PlayerId,
+                    cardId,
+                    clue.Trim()),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw await CreateRequestExceptionAsync(response, cancellationToken);
+            }
+
+            var room = await response.Content.ReadFromJsonAsync<RoomStateResponse>(
+                cancellationToken: cancellationToken)
+                ?? throw new HttpRequestException("El servidor devolvió una respuesta vacía.");
+
+            if (PrivateState is not null)
+            {
+                PrivateState = PrivateState with { Room = room };
+            }
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = await ToUserMessageAsync(exception);
+        }
+        finally
+        {
+            IsChoosingStorytellerCard = false;
+            NotifyStateChanged();
         }
     }
 
@@ -100,7 +157,7 @@ public sealed class MobileRoomClient : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            ErrorMessage = ToUserMessage(exception);
+            ErrorMessage = await ToUserMessageAsync(exception);
             SetStatus(RoomConnectionStatus.Error);
         }
     }
@@ -130,13 +187,57 @@ public sealed class MobileRoomClient : IAsyncDisposable
         StateChanged?.Invoke();
     }
 
-    private static string ToUserMessage(Exception exception)
+    private static async Task<HttpRequestException> CreateRequestExceptionAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
     {
-        return exception switch
+        var detail = await ReadProblemDetailAsync(response, cancellationToken);
+        return new HttpRequestException(
+            string.IsNullOrWhiteSpace(detail)
+                ? $"El servidor rechazó la operación ({(int)response.StatusCode})."
+                : detail,
+            inner: null,
+            response.StatusCode);
+    }
+
+    private static async Task<string?> ReadProblemDetailAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        try
         {
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var document = await JsonDocument.ParseAsync(
+                stream,
+                cancellationToken: cancellationToken);
+
+            if (document.RootElement.TryGetProperty("detail", out var detail))
+            {
+                return detail.GetString();
+            }
+
+            if (document.RootElement.TryGetProperty("title", out var title))
+            {
+                return title.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return null;
+    }
+
+    private static Task<string> ToUserMessageAsync(Exception exception)
+    {
+        var message = exception switch
+        {
+            HttpRequestException => exception.Message,
             OperationCanceledException => "La operación fue cancelada.",
             _ => "No se pudo comunicar con la sala. Comprueba que el servidor está disponible."
         };
+
+        return Task.FromResult(message);
     }
 
     public async ValueTask DisposeAsync()

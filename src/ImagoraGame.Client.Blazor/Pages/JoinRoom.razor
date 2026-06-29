@@ -54,7 +54,46 @@
         <section class="lobby-panel" aria-labelledby="lobby-title">
             <p class="eyebrow">Sala @_lobby.RoomCode</p>
             <h1 id="lobby-title">@_lobby.PlayerName</h1>
-            <p class="mobile-status">@MobileStatusMessage</p>
+
+            @if (ShowsStorytellerAction)
+            {
+                <div class="storyteller-action" aria-labelledby="storyteller-action-title">
+                    <h2 id="storyteller-action-title">Elige tu carta</h2>
+                    <p class="mobile-status">Selecciona una carta de tu mano y escribe la pista para la ronda.</p>
+
+                    <div class="hand-grid" aria-label="Cartas de tu mano">
+                        @foreach (var card in MobileRoomClient.PrivateState!.Player.Hand)
+                        {
+                            <button type="button"
+                                    class="card-choice @(card.CardId == _selectedStorytellerCardId ? "selected" : null)"
+                                    aria-pressed="@(card.CardId == _selectedStorytellerCardId)"
+                                    @onclick="() => SelectStorytellerCard(card.CardId)">
+                                <span>Carta</span>
+                                <strong>@card.CardId</strong>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="field-group">
+                        <label for="storyteller-clue">Pista</label>
+                        <InputText id="storyteller-clue"
+                                   class="text-input"
+                                   autocomplete="off"
+                                   @bind-Value="_storytellerClue" />
+                    </div>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@(!CanSubmitStorytellerCard)"
+                            @onclick="SubmitStorytellerCardAsync">
+                        @(MobileRoomClient.IsChoosingStorytellerCard ? "Enviando..." : "Enviar pista")
+                    </button>
+                </div>
+            }
+            else
+            {
+                <p class="mobile-status">@MobileStatusMessage</p>
+            }
 
             @if (MobileRoomClient.ErrorMessage is not null)
             {
@@ -73,6 +112,8 @@
     private MobileLobbyState? _lobby;
     private bool _isJoining;
     private string? _errorMessage;
+    private string? _selectedStorytellerCardId;
+    private string _storytellerClue = string.Empty;
 
     private bool HasRoomCodeFromUrl => !string.IsNullOrWhiteSpace(RoomCode);
 
@@ -81,6 +122,11 @@
         get
         {
             var privateState = MobileRoomClient.PrivateState;
+            if (privateState?.Room.Phase == RoomPhase.GuessersSubmitting)
+            {
+                return "Pista enviada. Esperando a que el resto elija su carta.";
+            }
+
             if (privateState is not null &&
                 privateState.Room.Phase != RoomPhase.WaitingForPlayers)
             {
@@ -90,6 +136,22 @@
             return "Jugador unido. Esperando a que la TV inicie la partida.";
         }
     }
+
+    private bool ShowsStorytellerAction
+    {
+        get
+        {
+            var privateState = MobileRoomClient.PrivateState;
+            return privateState?.Room.Phase == RoomPhase.StorytellerChoosing &&
+                privateState.Player.IsCurrentStoryteller;
+        }
+    }
+
+    private bool CanSubmitStorytellerCard =>
+        ShowsStorytellerAction &&
+        !MobileRoomClient.IsChoosingStorytellerCard &&
+        !string.IsNullOrWhiteSpace(_selectedStorytellerCardId) &&
+        !string.IsNullOrWhiteSpace(_storytellerClue);
 
     protected override void OnParametersSet()
     {
@@ -142,7 +204,30 @@
 
     private void HandleMobileRoomChanged()
     {
+        if (MobileRoomClient.PrivateState?.Room.Phase != RoomPhase.StorytellerChoosing)
+        {
+            _selectedStorytellerCardId = null;
+            _storytellerClue = string.Empty;
+        }
+
         _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void SelectStorytellerCard(string cardId)
+    {
+        _selectedStorytellerCardId = cardId;
+    }
+
+    private async Task SubmitStorytellerCardAsync()
+    {
+        if (!CanSubmitStorytellerCard || _selectedStorytellerCardId is null)
+        {
+            return;
+        }
+
+        await MobileRoomClient.ChooseStorytellerCardAsync(
+            _selectedStorytellerCardId,
+            _storytellerClue);
     }
 
     public async ValueTask DisposeAsync()
