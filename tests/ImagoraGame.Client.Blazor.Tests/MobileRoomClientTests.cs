@@ -149,6 +149,84 @@ public sealed class MobileRoomClientTests
         Assert.False(client.IsChoosingStorytellerCard);
     }
 
+    [Fact]
+    public async Task SubmitGuessCardAsync_PostsToExpectedEndpointAndUsesRequest()
+    {
+        var playerId = Guid.NewGuid();
+        var updatedRoom = CreateRoom("ABC123", playerId, "Bob", RoomPhase.Voting);
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(updatedRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+        realtime.Publish(new PlayerStateUpdatedEvent(CreatePrivateState(
+            "ABC123",
+            playerId,
+            "Bob",
+            RoomPhase.GuessersSubmitting,
+            isCurrentStoryteller: false,
+            [new CardStateResponse("card-2")])));
+
+        await client.SubmitGuessCardAsync("card-2");
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal(
+            "http://localhost:5080/rooms/ABC123/guess-cards",
+            request.RequestUri?.ToString());
+
+        var submitRequest = await request.Content!.ReadFromJsonAsync<SubmitGuessCardRequest>();
+        Assert.Equal(playerId, submitRequest!.PlayerId);
+        Assert.Equal("card-2", submitRequest.CardId);
+        Assert.Equal(RoomPhase.Voting, client.PrivateState!.Room.Phase);
+        Assert.Null(client.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task SubmitGuessCardAsync_WhenServerRejectsOperation_ExposesProblemDetail()
+    {
+        var playerId = Guid.NewGuid();
+        var handler = new RecordingHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = JsonContent.Create(new
+                {
+                    Detail = "Solo los adivinadores pueden entregar carta."
+                })
+            });
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+
+        await client.SubmitGuessCardAsync("card-2");
+
+        Assert.Equal("Solo los adivinadores pueden entregar carta.", client.ErrorMessage);
+        Assert.False(client.IsSubmittingGuessCard);
+    }
+
+    [Fact]
+    public async Task SubmitGuessCardAsync_SetsSendingStateWhileRequestIsInFlight()
+    {
+        var playerId = Guid.NewGuid();
+        var responseSource = new TaskCompletionSource<HttpResponseMessage>();
+        var handler = new RecordingHttpMessageHandler(_ => responseSource.Task);
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+
+        var submitTask = client.SubmitGuessCardAsync("card-2");
+
+        Assert.True(client.IsSubmittingGuessCard);
+
+        responseSource.SetResult(JsonResponse(CreateRoom(
+            "ABC123",
+            playerId,
+            "Bob",
+            RoomPhase.Voting)));
+        await submitTask;
+
+        Assert.False(client.IsSubmittingGuessCard);
+    }
+
     private static MobileRoomClient CreateClient(FakeRoomRealtimeConnection realtime)
     {
         return CreateClient(

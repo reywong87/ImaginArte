@@ -37,6 +37,8 @@ public sealed class MobileRoomClient : IAsyncDisposable
 
     public bool IsChoosingStorytellerCard { get; private set; }
 
+    public bool IsSubmittingGuessCard { get; private set; }
+
     public async Task ConnectAsync(
         MobileLobbyState lobby,
         CancellationToken cancellationToken = default)
@@ -122,6 +124,54 @@ public sealed class MobileRoomClient : IAsyncDisposable
         finally
         {
             IsChoosingStorytellerCard = false;
+            NotifyStateChanged();
+        }
+    }
+
+    public async Task SubmitGuessCardAsync(
+        string cardId,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_lobby is null || IsSubmittingGuessCard)
+        {
+            return;
+        }
+
+        IsSubmittingGuessCard = true;
+        ErrorMessage = null;
+        NotifyStateChanged();
+
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                $"rooms/{Uri.EscapeDataString(_lobby.RoomCode.Trim())}/guess-cards",
+                new SubmitGuessCardRequest(
+                    _lobby.PlayerId,
+                    cardId),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw await CreateRequestExceptionAsync(response, cancellationToken);
+            }
+
+            var room = await response.Content.ReadFromJsonAsync<RoomStateResponse>(
+                cancellationToken: cancellationToken)
+                ?? throw new HttpRequestException("El servidor devolvió una respuesta vacía.");
+
+            if (PrivateState is not null)
+            {
+                PrivateState = PrivateState with { Room = room };
+            }
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = await ToUserMessageAsync(exception);
+        }
+        finally
+        {
+            IsSubmittingGuessCard = false;
             NotifyStateChanged();
         }
     }

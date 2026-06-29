@@ -57,7 +57,7 @@
 
             @if (ShowsStorytellerAction)
             {
-                <div class="storyteller-action" aria-labelledby="storyteller-action-title">
+                <div class="player-action" aria-labelledby="storyteller-action-title">
                     <h2 id="storyteller-action-title">Elige tu carta</h2>
                     <p class="mobile-status">Selecciona una carta de tu mano y escribe la pista para la ronda.</p>
 
@@ -90,6 +90,39 @@
                     </button>
                 </div>
             }
+            else if (ShowsGuesserSubmissionAction)
+            {
+                <div class="player-action" aria-labelledby="guesser-submission-title">
+                    <h2 id="guesser-submission-title">Entrega tu carta</h2>
+
+                    <div class="round-clue" aria-label="Pista de la ronda">
+                        <span>Pista</span>
+                        <strong>@MobileRoomClient.PrivateState!.Room.Clue</strong>
+                    </div>
+
+                    <p class="mobile-status">Selecciona una carta de tu mano para entregarla a la ronda.</p>
+
+                    <div class="hand-grid" aria-label="Cartas de tu mano">
+                        @foreach (var card in MobileRoomClient.PrivateState!.Player.Hand)
+                        {
+                            <button type="button"
+                                    class="card-choice @(card.CardId == _selectedGuessCardId ? "selected" : null)"
+                                    aria-pressed="@(card.CardId == _selectedGuessCardId)"
+                                    @onclick="() => SelectGuessCard(card.CardId)">
+                                <span>Carta</span>
+                                <strong>@card.CardId</strong>
+                            </button>
+                        }
+                    </div>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@(!CanSubmitGuessCard)"
+                            @onclick="SubmitGuessCardAsync">
+                        @(MobileRoomClient.IsSubmittingGuessCard ? "Enviando..." : "Enviar carta")
+                    </button>
+                </div>
+            }
             else
             {
                 <p class="mobile-status">@MobileStatusMessage</p>
@@ -113,6 +146,7 @@
     private bool _isJoining;
     private string? _errorMessage;
     private string? _selectedStorytellerCardId;
+    private string? _selectedGuessCardId;
     private string _storytellerClue = string.Empty;
 
     private bool HasRoomCodeFromUrl => !string.IsNullOrWhiteSpace(RoomCode);
@@ -124,7 +158,9 @@
             var privateState = MobileRoomClient.PrivateState;
             if (privateState?.Room.Phase == RoomPhase.GuessersSubmitting)
             {
-                return "Pista enviada. Esperando a que el resto elija su carta.";
+                return privateState.Player.IsCurrentStoryteller
+                    ? "Pista enviada. Esperando a que el resto elija su carta."
+                    : "Carta enviada. Esperando a que el resto termine.";
             }
 
             if (privateState is not null &&
@@ -147,11 +183,26 @@
         }
     }
 
+    private bool ShowsGuesserSubmissionAction
+    {
+        get
+        {
+            var privateState = MobileRoomClient.PrivateState;
+            return privateState?.Room.Phase == RoomPhase.GuessersSubmitting &&
+                !privateState.Player.IsCurrentStoryteller;
+        }
+    }
+
     private bool CanSubmitStorytellerCard =>
         ShowsStorytellerAction &&
         !MobileRoomClient.IsChoosingStorytellerCard &&
         !string.IsNullOrWhiteSpace(_selectedStorytellerCardId) &&
         !string.IsNullOrWhiteSpace(_storytellerClue);
+
+    private bool CanSubmitGuessCard =>
+        ShowsGuesserSubmissionAction &&
+        !MobileRoomClient.IsSubmittingGuessCard &&
+        !string.IsNullOrWhiteSpace(_selectedGuessCardId);
 
     protected override void OnParametersSet()
     {
@@ -210,12 +261,22 @@
             _storytellerClue = string.Empty;
         }
 
+        if (MobileRoomClient.PrivateState?.Room.Phase != RoomPhase.GuessersSubmitting)
+        {
+            _selectedGuessCardId = null;
+        }
+
         _ = InvokeAsync(StateHasChanged);
     }
 
     private void SelectStorytellerCard(string cardId)
     {
         _selectedStorytellerCardId = cardId;
+    }
+
+    private void SelectGuessCard(string cardId)
+    {
+        _selectedGuessCardId = cardId;
     }
 
     private async Task SubmitStorytellerCardAsync()
@@ -228,6 +289,16 @@
         await MobileRoomClient.ChooseStorytellerCardAsync(
             _selectedStorytellerCardId,
             _storytellerClue);
+    }
+
+    private async Task SubmitGuessCardAsync()
+    {
+        if (!CanSubmitGuessCard || _selectedGuessCardId is null)
+        {
+            return;
+        }
+
+        await MobileRoomClient.SubmitGuessCardAsync(_selectedGuessCardId);
     }
 
     public async ValueTask DisposeAsync()

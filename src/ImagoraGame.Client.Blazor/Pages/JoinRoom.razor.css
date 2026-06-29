@@ -111,13 +111,35 @@ label {
     line-height: 1.45;
 }
 
-.storyteller-action {
+.player-action {
     display: grid;
     gap: 1rem;
 }
 
-.storyteller-action .mobile-status {
+.player-action .mobile-status {
     font-size: 1rem;
+}
+
+.round-clue {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid rgba(36, 26, 59, 0.14);
+    border-radius: 0.45rem;
+    background: #fffaf0;
+}
+
+.round-clue span {
+    color: #6f657c;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.round-clue strong {
+    overflow-wrap: anywhere;
+    font-size: 1.25rem;
 }
 
 .hand-grid {

@@ -149,6 +149,13 @@ h2 {
     justify-content: center;
 }
 
+.round-clue {
+    overflow-wrap: anywhere;
+    color: #ffcf70;
+    font-size: clamp(2.4rem, 4.8vw, 4.75rem);
+    line-height: 1.02;
+}
+
 .start-button {
     width: 100%;
     margin-top: 1.5rem;
