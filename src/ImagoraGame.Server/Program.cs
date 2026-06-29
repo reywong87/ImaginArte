@@ -95,18 +95,11 @@ app.MapPost("/rooms/{roomCode}/start", async (
                 cancellationToken);
             var response = result.Room.ToHttpResponse();
 
-            await realtimePublisher.PublishRoomUpdatedAsync(response, cancellationToken);
-
-            foreach (var player in response.Players)
-            {
-                var privateState = await getPlayerPrivateState.HandleAsync(
-                    new GetPlayerPrivateStateQuery(response.RoomCode, player.PlayerId),
-                    cancellationToken);
-
-                await realtimePublisher.PublishPlayerStateUpdatedAsync(
-                    privateState.ToHttpResponse(),
-                    cancellationToken);
-            }
+            await PublishRoomAndPlayerStatesAsync(
+                response,
+                getPlayerPrivateState,
+                realtimePublisher,
+                cancellationToken);
 
             return response;
         },
@@ -117,16 +110,30 @@ app.MapPost("/rooms/{roomCode}/storyteller-card", async (
     string roomCode,
     ChooseStorytellerCardRequest request,
     ChooseStorytellerCardHandler handler,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
-        async () => (await handler.HandleAsync(
-            new ChooseStorytellerCardCommand(
-                roomCode,
-                request.PlayerId,
-                request.CardId,
-                request.Clue),
-            cancellationToken)).Room.ToHttpResponse(),
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new ChooseStorytellerCardCommand(
+                    roomCode,
+                    request.PlayerId,
+                    request.CardId,
+                    request.Clue),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await PublishRoomAndPlayerStatesAsync(
+                response,
+                getPlayerPrivateState,
+                realtimePublisher,
+                cancellationToken);
+
+            return response;
+        },
         Results.Ok);
 });
 
@@ -134,15 +141,29 @@ app.MapPost("/rooms/{roomCode}/guess-cards", async (
     string roomCode,
     SubmitGuessCardRequest request,
     SubmitGuessCardHandler handler,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
-        async () => (await handler.HandleAsync(
-            new SubmitGuessCardCommand(
-                roomCode,
-                request.PlayerId,
-                request.CardId),
-            cancellationToken)).Room.ToHttpResponse(),
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new SubmitGuessCardCommand(
+                    roomCode,
+                    request.PlayerId,
+                    request.CardId),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await PublishRoomAndPlayerStatesAsync(
+                response,
+                getPlayerPrivateState,
+                realtimePublisher,
+                cancellationToken);
+
+            return response;
+        },
         Results.Ok);
 });
 
@@ -150,51 +171,107 @@ app.MapPost("/rooms/{roomCode}/votes", async (
     string roomCode,
     CastVoteRequest request,
     CastVoteHandler handler,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
-        async () => (await handler.HandleAsync(
-            new CastVoteCommand(
-                roomCode,
-                request.PlayerId,
-                request.VotingCardId),
-            cancellationToken)).Room.ToHttpResponse(),
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new CastVoteCommand(
+                    roomCode,
+                    request.PlayerId,
+                    request.VotingCardId),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await PublishRoomAndPlayerStatesAsync(
+                response,
+                getPlayerPrivateState,
+                realtimePublisher,
+                cancellationToken);
+
+            return response;
+        },
         Results.Ok);
 });
 
 app.MapPost("/rooms/{roomCode}/score", async (
     string roomCode,
     ScoreRoundHandler handler,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
-        async () => (await handler.HandleAsync(
-            new ScoreRoundCommand(roomCode),
-            cancellationToken)).Room.ToHttpResponse(),
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new ScoreRoundCommand(roomCode),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await PublishRoomAndPlayerStatesAsync(
+                response,
+                getPlayerPrivateState,
+                realtimePublisher,
+                cancellationToken);
+
+            return response;
+        },
         Results.Ok);
 });
 
 app.MapPost("/rooms/{roomCode}/complete-round", async (
     string roomCode,
     CompleteRoundHandler handler,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
-        async () => (await handler.HandleAsync(
-            new CompleteRoundCommand(roomCode),
-            cancellationToken)).Room.ToHttpResponse(),
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new CompleteRoundCommand(roomCode),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await PublishRoomAndPlayerStatesAsync(
+                response,
+                getPlayerPrivateState,
+                realtimePublisher,
+                cancellationToken);
+
+            return response;
+        },
         Results.Ok);
 });
 
 app.MapPost("/rooms/{roomCode}/advance-round", async (
     string roomCode,
     AdvanceRoundHandler handler,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
-        async () => (await handler.HandleAsync(
-            new AdvanceRoundCommand(roomCode),
-            cancellationToken)).Room.ToHttpResponse(),
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new AdvanceRoundCommand(roomCode),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await PublishRoomAndPlayerStatesAsync(
+                response,
+                getPlayerPrivateState,
+                realtimePublisher,
+                cancellationToken);
+
+            return response;
+        },
         Results.Ok);
 });
 
@@ -251,6 +328,26 @@ static async Task<IResult> HandleRoomRequestAsync<TResponse>(
     catch (DomainRuleViolationException exception)
     {
         return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+    }
+}
+
+static async Task PublishRoomAndPlayerStatesAsync(
+    RoomStateResponse room,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
+    CancellationToken cancellationToken)
+{
+    await realtimePublisher.PublishRoomUpdatedAsync(room, cancellationToken);
+
+    foreach (var player in room.Players)
+    {
+        var privateState = await getPlayerPrivateState.HandleAsync(
+            new GetPlayerPrivateStateQuery(room.RoomCode, player.PlayerId),
+            cancellationToken);
+
+        await realtimePublisher.PublishPlayerStateUpdatedAsync(
+            privateState.ToHttpResponse(),
+            cancellationToken);
     }
 }
 
