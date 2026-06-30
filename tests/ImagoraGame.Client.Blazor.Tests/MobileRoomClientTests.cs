@@ -227,6 +227,87 @@ public sealed class MobileRoomClientTests
         Assert.False(client.IsSubmittingGuessCard);
     }
 
+    [Fact]
+    public async Task CastVoteAsync_PostsToExpectedEndpointAndUsesRequest()
+    {
+        var playerId = Guid.NewGuid();
+        var updatedRoom = CreateRoom("ABC123", playerId, "Bob", RoomPhase.Voting);
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(updatedRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+        realtime.Publish(new PlayerStateUpdatedEvent(CreatePrivateState(
+            "ABC123",
+            playerId,
+            "Bob",
+            RoomPhase.Voting,
+            isCurrentStoryteller: false,
+            votingCards:
+            [
+                new VotingCardStateResponse("vote-1", "card-1", 1)
+            ])));
+
+        await client.CastVoteAsync("vote-1");
+
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal(
+            "http://localhost:5080/rooms/ABC123/votes",
+            request.RequestUri?.ToString());
+
+        var voteRequest = await request.Content!.ReadFromJsonAsync<CastVoteRequest>();
+        Assert.Equal(playerId, voteRequest!.PlayerId);
+        Assert.Equal("vote-1", voteRequest.VotingCardId);
+        Assert.Equal(RoomPhase.Voting, client.PrivateState!.Room.Phase);
+        Assert.Null(client.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task CastVoteAsync_WhenServerRejectsOperation_ExposesProblemDetail()
+    {
+        var playerId = Guid.NewGuid();
+        var handler = new RecordingHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = JsonContent.Create(new
+                {
+                    Detail = "No puedes votar tu propia carta."
+                })
+            });
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+
+        await client.CastVoteAsync("vote-1");
+
+        Assert.Equal("No puedes votar tu propia carta.", client.ErrorMessage);
+        Assert.False(client.IsCastingVote);
+    }
+
+    [Fact]
+    public async Task CastVoteAsync_SetsSendingStateWhileRequestIsInFlight()
+    {
+        var playerId = Guid.NewGuid();
+        var responseSource = new TaskCompletionSource<HttpResponseMessage>();
+        var handler = new RecordingHttpMessageHandler(_ => responseSource.Task);
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+
+        var voteTask = client.CastVoteAsync("vote-1");
+
+        Assert.True(client.IsCastingVote);
+
+        responseSource.SetResult(JsonResponse(CreateRoom(
+            "ABC123",
+            playerId,
+            "Bob",
+            RoomPhase.Voting)));
+        await voteTask;
+
+        Assert.False(client.IsCastingVote);
+    }
+
     private static MobileRoomClient CreateClient(FakeRoomRealtimeConnection realtime)
     {
         return CreateClient(
@@ -288,7 +369,8 @@ public sealed class MobileRoomClientTests
         string playerName,
         RoomPhase phase = RoomPhase.WaitingForPlayers,
         bool isCurrentStoryteller = false,
-        IReadOnlyCollection<CardStateResponse>? hand = null)
+        IReadOnlyCollection<CardStateResponse>? hand = null,
+        IReadOnlyCollection<VotingCardStateResponse>? votingCards = null)
     {
         var player = new PlayerStateResponse(playerId, playerName);
         var room = new RoomStateResponse(
@@ -302,7 +384,7 @@ public sealed class MobileRoomClientTests
             ExpectedSubmissionCount: 0,
             VoteCount: 0,
             ExpectedVoteCount: 0,
-            VotingCards: [],
+            VotingCards: votingCards ?? [],
             RevealedCards: [],
             RoundScores: [],
             Scoreboard: [],

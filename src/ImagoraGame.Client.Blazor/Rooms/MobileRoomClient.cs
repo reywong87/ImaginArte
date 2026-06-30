@@ -39,6 +39,8 @@ public sealed class MobileRoomClient : IAsyncDisposable
 
     public bool IsSubmittingGuessCard { get; private set; }
 
+    public bool IsCastingVote { get; private set; }
+
     public async Task ConnectAsync(
         MobileLobbyState lobby,
         CancellationToken cancellationToken = default)
@@ -172,6 +174,54 @@ public sealed class MobileRoomClient : IAsyncDisposable
         finally
         {
             IsSubmittingGuessCard = false;
+            NotifyStateChanged();
+        }
+    }
+
+    public async Task CastVoteAsync(
+        string votingCardId,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_lobby is null || IsCastingVote)
+        {
+            return;
+        }
+
+        IsCastingVote = true;
+        ErrorMessage = null;
+        NotifyStateChanged();
+
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                $"rooms/{Uri.EscapeDataString(_lobby.RoomCode.Trim())}/votes",
+                new CastVoteRequest(
+                    _lobby.PlayerId,
+                    votingCardId),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw await CreateRequestExceptionAsync(response, cancellationToken);
+            }
+
+            var room = await response.Content.ReadFromJsonAsync<RoomStateResponse>(
+                cancellationToken: cancellationToken)
+                ?? throw new HttpRequestException("El servidor devolvió una respuesta vacía.");
+
+            if (PrivateState is not null)
+            {
+                PrivateState = PrivateState with { Room = room };
+            }
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = await ToUserMessageAsync(exception);
+        }
+        finally
+        {
+            IsCastingVote = false;
             NotifyStateChanged();
         }
     }

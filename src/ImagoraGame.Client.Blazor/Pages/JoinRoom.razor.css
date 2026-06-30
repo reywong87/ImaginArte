@@ -177,3 +177,12 @@ label {
     border-color: #6d5efc;
     background: #f0eeff;
 }
+
+.voting-card-choice {
+    min-height: 8rem;
+}
+
+.voting-card-choice span {
+    color: #241a3b;
+    font-size: 1.1rem;
+}

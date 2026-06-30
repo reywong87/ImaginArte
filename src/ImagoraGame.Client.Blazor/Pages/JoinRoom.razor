@@ -123,6 +123,39 @@
                     </button>
                 </div>
             }
+            else if (ShowsVotingAction)
+            {
+                <div class="player-action" aria-labelledby="voting-action-title">
+                    <h2 id="voting-action-title">Vota una carta</h2>
+
+                    <div class="round-clue" aria-label="Pista de la ronda">
+                        <span>Pista</span>
+                        <strong>@MobileRoomClient.PrivateState!.Room.Clue</strong>
+                    </div>
+
+                    <p class="mobile-status">Elige la carta que crees que pertenece al narrador.</p>
+
+                    <div class="hand-grid" aria-label="Cartas públicas para votar">
+                        @foreach (var card in MobileRoomClient.PrivateState!.Room.VotingCards.OrderBy(card => card.DisplayNumber))
+                        {
+                            <button type="button"
+                                    class="card-choice voting-card-choice @(card.VotingCardId == _selectedVotingCardId ? "selected" : null)"
+                                    aria-pressed="@(card.VotingCardId == _selectedVotingCardId)"
+                                    @onclick="() => SelectVotingCard(card.VotingCardId)">
+                                <span>Carta @card.DisplayNumber</span>
+                                <strong>@card.CardId</strong>
+                            </button>
+                        }
+                    </div>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@(!CanCastVote)"
+                            @onclick="CastVoteAsync">
+                        @(MobileRoomClient.IsCastingVote ? "Votando..." : "Votar")
+                    </button>
+                </div>
+            }
             else
             {
                 <p class="mobile-status">@MobileStatusMessage</p>
@@ -147,6 +180,8 @@
     private string? _errorMessage;
     private string? _selectedStorytellerCardId;
     private string? _selectedGuessCardId;
+    private string? _selectedVotingCardId;
+    private bool _hasCastVoteInCurrentVotingPhase;
     private string _storytellerClue = string.Empty;
 
     private bool HasRoomCodeFromUrl => !string.IsNullOrWhiteSpace(RoomCode);
@@ -161,6 +196,13 @@
                 return privateState.Player.IsCurrentStoryteller
                     ? "Pista enviada. Esperando a que el resto elija su carta."
                     : "Carta enviada. Esperando a que el resto termine.";
+            }
+
+            if (privateState?.Room.Phase == RoomPhase.Voting)
+            {
+                return privateState.Player.IsCurrentStoryteller
+                    ? "Esperando a que el resto vote."
+                    : "Voto enviado. Esperando a que el resto termine.";
             }
 
             if (privateState is not null &&
@@ -193,6 +235,17 @@
         }
     }
 
+    private bool ShowsVotingAction
+    {
+        get
+        {
+            var privateState = MobileRoomClient.PrivateState;
+            return privateState?.Room.Phase == RoomPhase.Voting &&
+                !privateState.Player.IsCurrentStoryteller &&
+                !_hasCastVoteInCurrentVotingPhase;
+        }
+    }
+
     private bool CanSubmitStorytellerCard =>
         ShowsStorytellerAction &&
         !MobileRoomClient.IsChoosingStorytellerCard &&
@@ -203,6 +256,11 @@
         ShowsGuesserSubmissionAction &&
         !MobileRoomClient.IsSubmittingGuessCard &&
         !string.IsNullOrWhiteSpace(_selectedGuessCardId);
+
+    private bool CanCastVote =>
+        ShowsVotingAction &&
+        !MobileRoomClient.IsCastingVote &&
+        !string.IsNullOrWhiteSpace(_selectedVotingCardId);
 
     protected override void OnParametersSet()
     {
@@ -266,6 +324,12 @@
             _selectedGuessCardId = null;
         }
 
+        if (MobileRoomClient.PrivateState?.Room.Phase != RoomPhase.Voting)
+        {
+            _selectedVotingCardId = null;
+            _hasCastVoteInCurrentVotingPhase = false;
+        }
+
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -277,6 +341,11 @@
     private void SelectGuessCard(string cardId)
     {
         _selectedGuessCardId = cardId;
+    }
+
+    private void SelectVotingCard(string votingCardId)
+    {
+        _selectedVotingCardId = votingCardId;
     }
 
     private async Task SubmitStorytellerCardAsync()
@@ -299,6 +368,21 @@
         }
 
         await MobileRoomClient.SubmitGuessCardAsync(_selectedGuessCardId);
+    }
+
+    private async Task CastVoteAsync()
+    {
+        if (!CanCastVote || _selectedVotingCardId is null)
+        {
+            return;
+        }
+
+        await MobileRoomClient.CastVoteAsync(_selectedVotingCardId);
+        if (MobileRoomClient.ErrorMessage is null)
+        {
+            _selectedVotingCardId = null;
+            _hasCastVoteInCurrentVotingPhase = true;
+        }
     }
 
     public async ValueTask DisposeAsync()
