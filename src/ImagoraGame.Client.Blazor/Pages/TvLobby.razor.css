@@ -156,12 +156,14 @@ h2 {
     line-height: 1.02;
 }
 
-.reveal-content {
+.reveal-content,
+.scoring-content {
     display: grid;
     gap: clamp(1.5rem, 3vw, 3rem);
 }
 
-.reveal-heading {
+.reveal-heading,
+.scoring-heading {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -177,13 +179,15 @@ h2 {
     margin-bottom: 0;
 }
 
-.reveal-controls {
+.reveal-controls,
+.scoring-controls {
     display: grid;
     gap: 1rem;
     width: min(100%, 22rem);
 }
 
-.reveal-status {
+.reveal-status,
+.scoring-status {
     margin-bottom: 0;
     color: #d5caef;
     font-size: clamp(1.2rem, 1.9vw, 1.7rem);
@@ -191,8 +195,78 @@ h2 {
     text-align: right;
 }
 
-.reveal-controls .start-button {
+.reveal-controls .start-button,
+.scoring-controls .start-button {
     margin-top: 0;
+}
+
+.scoring-heading h2 {
+    margin-bottom: 0.5rem;
+    color: #ffcf70;
+}
+
+.scoring-clue {
+    margin-bottom: 0;
+    color: #d5caef;
+    font-size: clamp(1.25rem, 2vw, 1.75rem);
+}
+
+.score-panels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1.5rem, 3vw, 3rem);
+}
+
+.score-panel {
+    padding: clamp(1.75rem, 3vw, 3rem);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 2rem;
+    background: rgba(255, 255, 255, 0.055);
+    box-shadow: 0 1.5rem 5rem rgba(0, 0, 0, 0.18);
+}
+
+.score-panel h3 {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    line-height: 1.05;
+}
+
+.score-list {
+    display: grid;
+    gap: 0.85rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.score-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    min-height: 4.8rem;
+    padding: 1rem 1.25rem;
+    border-radius: 1.2rem;
+    background: rgba(255, 255, 255, 0.075);
+}
+
+.score-player {
+    overflow-wrap: anywhere;
+    font-size: clamp(1.35rem, 2.2vw, 2rem);
+    font-weight: 800;
+}
+
+.score-points {
+    min-width: 4.5rem;
+    color: #ffcf70;
+    font-size: clamp(1.8rem, 3vw, 2.7rem);
+    font-weight: 900;
+    line-height: 1;
+    text-align: right;
+}
+
+.total-score-list .score-points {
+    color: #5ee29b;
 }
 
 .revealed-card-grid {
@@ -363,17 +437,20 @@ h2 {
 
     .lobby-header,
     .section-heading,
-    .reveal-heading {
+    .reveal-heading,
+    .scoring-heading {
         align-items: flex-start;
         flex-direction: column;
     }
 
-    .reveal-status {
+    .reveal-status,
+    .scoring-status {
         max-width: none;
         text-align: left;
     }
 
-    .player-list {
+    .player-list,
+    .score-panels {
         grid-template-columns: 1fr;
     }
 }

@@ -104,6 +104,88 @@
                 }
             </section>
         }
+        else if (room.Phase == RoomPhase.Scoring)
+        {
+            <section class="scoring-content" aria-labelledby="scoring-title">
+                <div class="scoring-heading">
+                    <div>
+                        <p class="eyebrow">Puntuación de la ronda</p>
+                        <h2 id="scoring-title">Marcador actualizado</h2>
+                        @if (!string.IsNullOrWhiteSpace(room.Clue))
+                        {
+                            <p class="scoring-clue">Pista: <strong>@room.Clue</strong></p>
+                        }
+                    </div>
+                    <div class="scoring-controls">
+                        <p class="scoring-status">Puntos calculados por el servidor</p>
+                        <button class="start-button"
+                                disabled="@RoomClient.IsCompletingRound"
+                                @onclick="CompleteRoundAsync">
+                            @(RoomClient.IsCompletingRound ? "Cerrando…" : "Cerrar ronda")
+                        </button>
+                    </div>
+                </div>
+
+                <div class="score-panels">
+                    <section class="score-panel" aria-labelledby="round-scores-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Esta ronda</p>
+                                <h3 id="round-scores-title">Puntos ganados</h3>
+                            </div>
+                        </div>
+
+                        @if (room.RoundScores.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay puntos de ronda.</p>
+                        }
+                        else
+                        {
+                            <ol class="score-list">
+                                @foreach (var score in room.RoundScores)
+                                {
+                                    <li @key="score.PlayerId">
+                                        <span class="score-player">@score.PlayerName</span>
+                                        <strong class="score-points">+@score.PointsAwarded</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+
+                    <section class="score-panel" aria-labelledby="scoreboard-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Total</p>
+                                <h3 id="scoreboard-title">Marcador</h3>
+                            </div>
+                        </div>
+
+                        @if (room.Scoreboard.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay marcador.</p>
+                        }
+                        else
+                        {
+                            <ol class="score-list total-score-list">
+                                @foreach (var score in room.Scoreboard)
+                                {
+                                    <li @key="score.PlayerId">
+                                        <span class="score-player">@score.PlayerName</span>
+                                        <strong class="score-points">@score.TotalPoints</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+                </div>
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </section>
+        }
         else
         {
             <section class="lobby-content">
@@ -211,6 +293,11 @@
     private Task ScoreRoundAsync()
     {
         return RoomClient.ScoreRoundAsync();
+    }
+
+    private Task CompleteRoundAsync()
+    {
+        return RoomClient.CompleteRoundAsync();
     }
 
     private void HandleStateChanged()

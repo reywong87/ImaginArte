@@ -169,6 +169,86 @@ public sealed class RoomClientTests
     }
 
     [Fact]
+    public async Task CompleteRound_PostsToExpectedEndpointAndUsesReturnedSnapshot()
+    {
+        var scoringRoom = CreateScoringRoomWithScores("ABC123");
+        var roundCompleteRoom = scoringRoom with
+        {
+            Phase = RoomPhase.RoundComplete
+        };
+        var handler = new RecordingHttpMessageHandler(request =>
+            request.Method == HttpMethod.Get
+                ? JsonResponse(scoringRoom)
+                : JsonResponse(roundCompleteRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        await client.CompleteRoundAsync();
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(HttpMethod.Post, handler.Requests[1].Method);
+        Assert.Equal(
+            "http://localhost:5080/rooms/ABC123/complete-round",
+            handler.Requests[1].RequestUri?.ToString());
+        Assert.Equal(RoomPhase.RoundComplete, client.Room?.Phase);
+        Assert.Equal(scoringRoom.RoundScores, client.Room?.RoundScores);
+        Assert.Equal(scoringRoom.Scoreboard, client.Room?.Scoreboard);
+    }
+
+    [Fact]
+    public async Task CompleteRound_WhenServerRejectsOperation_ExposesProblemDetail()
+    {
+        var scoringRoom = CreateScoringRoomWithScores("ABC123");
+        var handler = new RecordingHttpMessageHandler(request =>
+            request.Method == HttpMethod.Get
+                ? JsonResponse(scoringRoom)
+                : new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = JsonContent.Create(new
+                    {
+                        Detail = "La ronda aún no se puede cerrar."
+                    })
+                });
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        await client.CompleteRoundAsync();
+
+        Assert.Equal("La ronda aún no se puede cerrar.", client.ErrorMessage);
+        Assert.False(client.IsCompletingRound);
+        Assert.Equal(RoomPhase.Scoring, client.Room?.Phase);
+    }
+
+    [Fact]
+    public async Task CompleteRound_TracksSendingStateWhileRequestIsPending()
+    {
+        var scoringRoom = CreateScoringRoomWithScores("ABC123");
+        var roundCompleteRoom = scoringRoom with
+        {
+            Phase = RoomPhase.RoundComplete
+        };
+        var handler = new BlockingCompleteRoundHttpMessageHandler(
+            scoringRoom,
+            JsonResponse(roundCompleteRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        var completeRoundTask = client.CompleteRoundAsync();
+        await handler.CompleteRoundRequestStarted.Task;
+
+        Assert.True(client.IsCompletingRound);
+
+        handler.CompleteRoundRequest();
+        await completeRoundTask;
+
+        Assert.False(client.IsCompletingRound);
+        Assert.Equal(RoomPhase.RoundComplete, client.Room?.Phase);
+    }
+
+    [Fact]
     public async Task Dispose_DisposesRealtimeConnectionAndListener()
     {
         var handler = new RecordingHttpMessageHandler(_ =>
@@ -319,6 +399,42 @@ public sealed class RoomClientTests
             []);
     }
 
+    private static RoomStateResponse CreateScoringRoomWithScores(string roomCode)
+    {
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+
+        return new RoomStateResponse(
+            roomCode,
+            RoomPhase.Scoring,
+            25,
+            [
+                new PlayerStateResponse(aliceId, "Alice"),
+                new PlayerStateResponse(bobId, "Bob"),
+                new PlayerStateResponse(carlaId, "Carla")
+            ],
+            new PlayerStateResponse(aliceId, "Alice"),
+            "Un faro en la niebla",
+            2,
+            2,
+            2,
+            2,
+            [],
+            [],
+            [
+                new RoundScoreStateResponse(aliceId, "Alice", 3),
+                new RoundScoreStateResponse(bobId, "Bob", 4),
+                new RoundScoreStateResponse(carlaId, "Carla", 0)
+            ],
+            [
+                new ScoreboardEntryStateResponse(aliceId, "Alice", 3),
+                new ScoreboardEntryStateResponse(bobId, "Bob", 4),
+                new ScoreboardEntryStateResponse(carlaId, "Carla", 0)
+            ],
+            []);
+    }
+
     private sealed class RecordingHttpMessageHandler(
         Func<HttpRequestMessage, HttpResponseMessage> responseFactory)
         : HttpMessageHandler
@@ -362,6 +478,37 @@ public sealed class RoomClientTests
             ScoreRequestStarted.SetResult();
             await _completeScoreRequest.Task.WaitAsync(cancellationToken);
             return scoreResponse;
+        }
+    }
+
+    private sealed class BlockingCompleteRoundHttpMessageHandler(
+        RoomStateResponse initialRoom,
+        HttpResponseMessage completeRoundResponse)
+        : HttpMessageHandler
+    {
+        private readonly TaskCompletionSource _completeRoundRequest =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource CompleteRoundRequestStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void CompleteRoundRequest()
+        {
+            _completeRoundRequest.SetResult();
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return JsonResponse(initialRoom);
+            }
+
+            CompleteRoundRequestStarted.SetResult();
+            await _completeRoundRequest.Task.WaitAsync(cancellationToken);
+            return completeRoundResponse;
         }
     }
 
