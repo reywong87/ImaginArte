@@ -137,6 +137,57 @@ public sealed class RoomClientTests
         Assert.Equal("Alice", RoomLobbyPresentation.StorytellerName(room));
     }
 
+    [Fact]
+    public void LobbyPresentation_RevealedCardsForDisplayOrdersByDisplayNumber()
+    {
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var room = new RoomStateResponse(
+            "ABC123",
+            RoomPhase.Reveal,
+            25,
+            [
+                new PlayerStateResponse(aliceId, "Alice"),
+                new PlayerStateResponse(bobId, "Bob")
+            ],
+            new PlayerStateResponse(aliceId, "Alice"),
+            "Un faro en la niebla",
+            0,
+            0,
+            0,
+            0,
+            [],
+            [
+                new RevealCardStateResponse(
+                    "vote-3",
+                    "card-c",
+                    3,
+                    bobId,
+                    "Bob",
+                    false,
+                    []),
+                new RevealCardStateResponse(
+                    "vote-1",
+                    "card-a",
+                    1,
+                    aliceId,
+                    "Alice",
+                    true,
+                    [
+                        new RevealedVoteStateResponse(bobId, "Bob")
+                    ])
+            ],
+            [],
+            [],
+            []);
+
+        var cards = RoomLobbyPresentation.RevealedCardsForDisplay(room).ToArray();
+
+        Assert.Equal([1, 3], cards.Select(card => card.DisplayNumber));
+        Assert.True(cards[0].IsStorytellerCard);
+        Assert.Equal("Bob", Assert.Single(cards[0].Votes).VoterName);
+    }
+
     private static RoomClient CreateClient(
         HttpMessageHandler handler,
         FakeRoomRealtimeConnection realtime)

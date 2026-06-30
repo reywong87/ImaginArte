@@ -35,76 +35,141 @@
             </div>
         </header>
 
-        <section class="lobby-content">
-            <div class="players-panel">
-                <div class="section-heading">
+        @if (room.Phase == RoomPhase.Reveal)
+        {
+            <section class="reveal-content" aria-labelledby="reveal-title">
+                <div class="reveal-heading">
                     <div>
-                        <p class="eyebrow">Jugadores conectados</p>
-                        <h2>@room.Players.Count @(room.Players.Count == 1 ? "jugador" : "jugadores")</h2>
+                        <p class="eyebrow">Pista de la ronda</p>
+                        <h2 id="reveal-title" class="round-clue">@room.Clue</h2>
                     </div>
-                    @if (room.Phase == RoomPhase.WaitingForPlayers)
-                    {
-                        <p class="waiting-copy">Esperando a la familia…</p>
-                    }
+                    <p class="reveal-status">Cartas reveladas y votos recibidos</p>
                 </div>
 
-                @if (room.Players.Count == 0)
+                @if (room.RevealedCards.Count == 0)
                 {
-                    <p class="empty-state">Aún no se ha unido ningún jugador.</p>
+                    <p class="empty-state">Aún no hay cartas reveladas.</p>
                 }
                 else
                 {
-                    <ol class="player-list">
-                        @foreach (var player in room.Players)
+                    <ol class="revealed-card-grid" aria-label="Cartas reveladas">
+                        @foreach (var card in RoomLobbyPresentation.RevealedCardsForDisplay(room))
                         {
-                            <li @key="player.PlayerId">
-                                <span class="player-number">@(room.Players.TakeWhile(item => item.PlayerId != player.PlayerId).Count() + 1)</span>
-                                <span>@player.Name</span>
+                            <li @key="card.VotingCardId" class="revealed-card @(card.IsStorytellerCard ? "storyteller-card" : null)">
+                                <div class="revealed-card-topline">
+                                    <span class="card-number" aria-label="Carta @card.DisplayNumber">@card.DisplayNumber</span>
+                                    @if (card.IsStorytellerCard)
+                                    {
+                                        <strong class="storyteller-badge">Carta del narrador</strong>
+                                    }
+                                </div>
+
+                                <strong class="revealed-card-id">@card.CardId</strong>
+                                <p class="card-owner">De @card.OwnerName</p>
+
+                                <div class="vote-results">
+                                    <p>
+                                        <strong>@card.Votes.Count</strong>
+                                        @(card.Votes.Count == 1 ? "voto" : "votos")
+                                    </p>
+                                    @if (card.Votes.Count == 0)
+                                    {
+                                        <span class="no-votes">Sin votos</span>
+                                    }
+                                    else
+                                    {
+                                        <ul class="vote-list" aria-label="Votos de la carta @card.DisplayNumber">
+                                            @foreach (var vote in card.Votes)
+                                            {
+                                                <li @key="vote.VoterPlayerId">@vote.VoterName</li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
                             </li>
                         }
                     </ol>
-                }
-            </div>
-
-            <aside class="action-panel">
-                @if (room.Phase == RoomPhase.StorytellerChoosing)
-                {
-                    <p class="eyebrow">La partida ha comenzado</p>
-                    <h2>Turno de @RoomLobbyPresentation.StorytellerName(room)</h2>
-                    <p>El narrador está eligiendo una carta y una pista.</p>
-                }
-                else if (room.Phase == RoomPhase.GuessersSubmitting)
-                {
-                    <p class="eyebrow">Pista de la ronda</p>
-                    <h2 class="round-clue">@room.Clue</h2>
-                    <p>
-                        Esperando cartas:
-                        @room.SubmissionCount / @room.ExpectedSubmissionCount
-                    </p>
-                }
-                else if (RoomLobbyPresentation.ShowsStartButton(room))
-                {
-                    <p class="eyebrow">Control de TV</p>
-                    <h2>Todo listo para imaginar</h2>
-                    <p>Se necesitan al menos @RoomLobbyPresentation.MinimumPlayersToStart jugadores.</p>
-                    <button class="start-button"
-                            disabled="@(!RoomLobbyPresentation.CanStart(room, RoomClient.IsStarting))"
-                            @onclick="StartGameAsync">
-                        @(RoomClient.IsStarting ? "Iniciando…" : "Iniciar partida")
-                    </button>
-                }
-                else
-                {
-                    <p class="eyebrow">Partida en curso</p>
-                    <h2>@PhaseLabel(room.Phase)</h2>
                 }
 
                 @if (RoomClient.ErrorMessage is not null)
                 {
                     <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
                 }
-            </aside>
-        </section>
+            </section>
+        }
+        else
+        {
+            <section class="lobby-content">
+                <div class="players-panel">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">Jugadores conectados</p>
+                            <h2>@room.Players.Count @(room.Players.Count == 1 ? "jugador" : "jugadores")</h2>
+                        </div>
+                        @if (room.Phase == RoomPhase.WaitingForPlayers)
+                        {
+                            <p class="waiting-copy">Esperando a la familia…</p>
+                        }
+                    </div>
+
+                    @if (room.Players.Count == 0)
+                    {
+                        <p class="empty-state">Aún no se ha unido ningún jugador.</p>
+                    }
+                    else
+                    {
+                        <ol class="player-list">
+                            @foreach (var player in room.Players)
+                            {
+                                <li @key="player.PlayerId">
+                                    <span class="player-number">@(room.Players.TakeWhile(item => item.PlayerId != player.PlayerId).Count() + 1)</span>
+                                    <span>@player.Name</span>
+                                </li>
+                            }
+                        </ol>
+                    }
+                </div>
+
+                <aside class="action-panel">
+                    @if (room.Phase == RoomPhase.StorytellerChoosing)
+                    {
+                        <p class="eyebrow">La partida ha comenzado</p>
+                        <h2>Turno de @RoomLobbyPresentation.StorytellerName(room)</h2>
+                        <p>El narrador está eligiendo una carta y una pista.</p>
+                    }
+                    else if (room.Phase == RoomPhase.GuessersSubmitting)
+                    {
+                        <p class="eyebrow">Pista de la ronda</p>
+                        <h2 class="round-clue">@room.Clue</h2>
+                        <p>
+                            Esperando cartas:
+                            @room.SubmissionCount / @room.ExpectedSubmissionCount
+                        </p>
+                    }
+                    else if (RoomLobbyPresentation.ShowsStartButton(room))
+                    {
+                        <p class="eyebrow">Control de TV</p>
+                        <h2>Todo listo para imaginar</h2>
+                        <p>Se necesitan al menos @RoomLobbyPresentation.MinimumPlayersToStart jugadores.</p>
+                        <button class="start-button"
+                                disabled="@(!RoomLobbyPresentation.CanStart(room, RoomClient.IsStarting))"
+                                @onclick="StartGameAsync">
+                            @(RoomClient.IsStarting ? "Iniciando…" : "Iniciar partida")
+                        </button>
+                    }
+                    else
+                    {
+                        <p class="eyebrow">Partida en curso</p>
+                        <h2>@PhaseLabel(room.Phase)</h2>
+                    }
+
+                    @if (RoomClient.ErrorMessage is not null)
+                    {
+                        <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                    }
+                </aside>
+            </section>
+        }
     }
 </div>
 

@@ -24,4 +24,9 @@ public static class RoomLobbyPresentation
             ? room.CurrentStoryteller?.Name
             : null;
     }
+
+    public static IEnumerable<RevealCardStateResponse> RevealedCardsForDisplay(RoomStateResponse room)
+    {
+        return room.RevealedCards.OrderBy(card => card.DisplayNumber);
+    }
 }
