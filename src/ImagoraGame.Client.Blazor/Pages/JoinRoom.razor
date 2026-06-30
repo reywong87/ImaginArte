@@ -195,7 +195,9 @@
             {
                 return privateState.Player.IsCurrentStoryteller
                     ? "Pista enviada. Esperando a que el resto elija su carta."
-                    : "Carta enviada. Esperando a que el resto termine.";
+                    : MobileRoomClient.HasSubmittedGuessCard
+                        ? "Carta enviada. Esperando a que el resto termine."
+                        : "Selecciona una carta de tu mano para entregarla a la ronda.";
             }
 
             if (privateState?.Room.Phase == RoomPhase.Voting)
@@ -231,7 +233,8 @@
         {
             var privateState = MobileRoomClient.PrivateState;
             return privateState?.Room.Phase == RoomPhase.GuessersSubmitting &&
-                !privateState.Player.IsCurrentStoryteller;
+                !privateState.Player.IsCurrentStoryteller &&
+                !MobileRoomClient.HasSubmittedGuessCard;
         }
     }
 

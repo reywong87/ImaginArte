@@ -916,6 +916,7 @@ public sealed class RoomEndpointTests
         Assert.Equal(bobId, snapshot.Player.PlayerId);
         Assert.Equal("Bob", snapshot.Player.Name);
         Assert.False(snapshot.Player.IsCurrentStoryteller);
+        Assert.False(snapshot.Player.HasSubmittedGuessCard);
         Assert.Collection(
             snapshot.Player.Hand,
             card => Assert.Equal("TEMP-007", card.CardId),

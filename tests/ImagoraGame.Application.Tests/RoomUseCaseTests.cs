@@ -159,6 +159,7 @@ public sealed class RoomUseCaseTests
         Assert.Equal(bobId, result.Player.PlayerId);
         Assert.Equal("Bob", result.Player.Name);
         Assert.False(result.Player.IsCurrentStoryteller);
+        Assert.False(result.Player.HasSubmittedGuessCard);
         Assert.Collection(
             result.Player.Hand,
             card => Assert.Equal("TEMP-007", card.CardId),
@@ -388,6 +389,8 @@ public sealed class RoomUseCaseTests
         var bobCardId = bobState.Player.Hand.First().CardId;
 
         var result = await submitGuessCard.HandleAsync(new SubmitGuessCardCommand("abc123", bobId, bobCardId));
+        var bobStateAfterSubmission = await getPlayerPrivateState.HandleAsync(
+            new GetPlayerPrivateStateQuery("ABC123", bobId));
 
         Assert.Equal("ABC123", result.Room.RoomCode);
         Assert.Equal(GamePhase.GuessersSubmitting, result.Room.Phase);
@@ -395,6 +398,7 @@ public sealed class RoomUseCaseTests
         Assert.Equal(2, result.Room.ExpectedSubmissionCount);
         Assert.Empty(result.Room.VotingCards);
         Assert.Empty(result.Room.RevealedCards);
+        Assert.True(bobStateAfterSubmission.Player.HasSubmittedGuessCard);
     }
 
     [Fact]

@@ -41,6 +41,25 @@ public sealed class MobileRoomClientTests
     }
 
     [Fact]
+    public async Task PlayerStateUpdated_WhenGuesserHasSubmittedCard_ExposesWaitingState()
+    {
+        var playerId = Guid.NewGuid();
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+
+        realtime.Publish(new PlayerStateUpdatedEvent(CreatePrivateState(
+            "ABC123",
+            playerId,
+            "Bob",
+            RoomPhase.GuessersSubmitting,
+            isCurrentStoryteller: false,
+            hasSubmittedGuessCard: true)));
+
+        Assert.True(client.HasSubmittedGuessCard);
+    }
+
+    [Fact]
     public async Task Reconnected_ResubscribesAsPlayer()
     {
         var playerId = Guid.NewGuid();
@@ -85,7 +104,7 @@ public sealed class MobileRoomClientTests
             "Alice",
             RoomPhase.StorytellerChoosing,
             isCurrentStoryteller: true,
-            [new CardStateResponse("card-1")])));
+            hand: [new CardStateResponse("card-1")])));
 
         await client.ChooseStorytellerCardAsync("card-1", "  Una pista  ");
 
@@ -164,7 +183,7 @@ public sealed class MobileRoomClientTests
             "Bob",
             RoomPhase.GuessersSubmitting,
             isCurrentStoryteller: false,
-            [new CardStateResponse("card-2")])));
+            hand: [new CardStateResponse("card-2")])));
 
         await client.SubmitGuessCardAsync("card-2");
 
@@ -369,6 +388,7 @@ public sealed class MobileRoomClientTests
         string playerName,
         RoomPhase phase = RoomPhase.WaitingForPlayers,
         bool isCurrentStoryteller = false,
+        bool hasSubmittedGuessCard = false,
         IReadOnlyCollection<CardStateResponse>? hand = null,
         IReadOnlyCollection<VotingCardStateResponse>? votingCards = null)
     {
@@ -396,7 +416,8 @@ public sealed class MobileRoomClientTests
                 playerId,
                 playerName,
                 Hand: hand ?? [],
-                IsCurrentStoryteller: isCurrentStoryteller));
+                IsCurrentStoryteller: isCurrentStoryteller,
+                HasSubmittedGuessCard: hasSubmittedGuessCard));
     }
 
     private sealed class RecordingHttpMessageHandler(

@@ -733,6 +733,9 @@ public sealed class RoomHubTests
         Assert.Equal(
             expectedIsCurrentStoryteller,
             playerEvent.State.Player.IsCurrentStoryteller);
+        Assert.Equal(
+            expectedState.Player.HasSubmittedGuessCard,
+            playerEvent.State.Player.HasSubmittedGuessCard);
     }
 
     private static Task SubscribeToRoomAsync(

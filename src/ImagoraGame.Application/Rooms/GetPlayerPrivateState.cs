@@ -10,7 +10,8 @@ public sealed record PlayerPrivateState(
     Guid PlayerId,
     string Name,
     IReadOnlyCollection<CardState> Hand,
-    bool IsCurrentStoryteller);
+    bool IsCurrentStoryteller,
+    bool HasSubmittedGuessCard);
 
 public sealed record CardState(string CardId);
 
@@ -52,7 +53,8 @@ public sealed class GetPlayerPrivateStateHandler
             player.Id.Value,
             player.Name,
             hand,
-            room.CurrentStorytellerId == player.Id);
+            room.CurrentStorytellerId == player.Id,
+            room.GuessCardSubmissions.Any(submission => submission.PlayerId == player.Id));
 
         return new GetPlayerPrivateStateResult(
             RoomState.FromRoom(room),

@@ -27,7 +27,8 @@ public sealed record PlayerPrivateStateResponse(
     Guid PlayerId,
     string Name,
     IReadOnlyCollection<CardStateResponse> Hand,
-    bool IsCurrentStoryteller);
+    bool IsCurrentStoryteller,
+    bool HasSubmittedGuessCard);
 
 public sealed record CardStateResponse(string CardId);
 
