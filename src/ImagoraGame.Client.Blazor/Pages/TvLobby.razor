@@ -43,7 +43,14 @@
                         <p class="eyebrow">Pista de la ronda</p>
                         <h2 id="reveal-title" class="round-clue">@room.Clue</h2>
                     </div>
-                    <p class="reveal-status">Cartas reveladas y votos recibidos</p>
+                    <div class="reveal-controls">
+                        <p class="reveal-status">Cartas reveladas y votos recibidos</p>
+                        <button class="start-button"
+                                disabled="@RoomClient.IsScoringRound"
+                                @onclick="ScoreRoundAsync">
+                            @(RoomClient.IsScoringRound ? "Calculando…" : "Calcular puntos")
+                        </button>
+                    </div>
                 </div>
 
                 @if (room.RevealedCards.Count == 0)
@@ -199,6 +206,11 @@
     private Task StartGameAsync()
     {
         return RoomClient.StartGameAsync();
+    }
+
+    private Task ScoreRoundAsync()
+    {
+        return RoomClient.ScoreRoundAsync();
     }
 
     private void HandleStateChanged()

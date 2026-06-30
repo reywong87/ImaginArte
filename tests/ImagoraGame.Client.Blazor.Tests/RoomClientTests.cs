@@ -99,6 +99,76 @@ public sealed class RoomClientTests
     }
 
     [Fact]
+    public async Task ScoreRound_PostsToExpectedEndpointAndUsesReturnedSnapshot()
+    {
+        var revealRoom = CreateRoom("ABC123", RoomPhase.Reveal, "Alice", "Alice", "Bob", "Carla");
+        var scoringRoom = CreateRoom("ABC123", RoomPhase.Scoring, "Alice", "Alice", "Bob", "Carla");
+        var handler = new RecordingHttpMessageHandler(request =>
+            request.Method == HttpMethod.Get
+                ? JsonResponse(revealRoom)
+                : JsonResponse(scoringRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        await client.ScoreRoundAsync();
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(HttpMethod.Post, handler.Requests[1].Method);
+        Assert.Equal(
+            "http://localhost:5080/rooms/ABC123/score",
+            handler.Requests[1].RequestUri?.ToString());
+        Assert.Equal(RoomPhase.Scoring, client.Room?.Phase);
+    }
+
+    [Fact]
+    public async Task ScoreRound_WhenServerRejectsOperation_ExposesProblemDetail()
+    {
+        var revealRoom = CreateRoom("ABC123", RoomPhase.Reveal, "Alice", "Alice", "Bob", "Carla");
+        var handler = new RecordingHttpMessageHandler(request =>
+            request.Method == HttpMethod.Get
+                ? JsonResponse(revealRoom)
+                : new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = JsonContent.Create(new
+                    {
+                        Detail = "La ronda aún no se puede puntuar."
+                    })
+                });
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        await client.ScoreRoundAsync();
+
+        Assert.Equal("La ronda aún no se puede puntuar.", client.ErrorMessage);
+        Assert.False(client.IsScoringRound);
+        Assert.Equal(RoomPhase.Reveal, client.Room?.Phase);
+    }
+
+    [Fact]
+    public async Task ScoreRound_TracksSendingStateWhileRequestIsPending()
+    {
+        var revealRoom = CreateRoom("ABC123", RoomPhase.Reveal, "Alice", "Alice", "Bob", "Carla");
+        var scoringRoom = CreateRoom("ABC123", RoomPhase.Scoring, "Alice", "Alice", "Bob", "Carla");
+        var handler = new BlockingScoreHttpMessageHandler(revealRoom, JsonResponse(scoringRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        var scoreTask = client.ScoreRoundAsync();
+        await handler.ScoreRequestStarted.Task;
+
+        Assert.True(client.IsScoringRound);
+
+        handler.CompleteScoreRequest();
+        await scoreTask;
+
+        Assert.False(client.IsScoringRound);
+        Assert.Equal(RoomPhase.Scoring, client.Room?.Phase);
+    }
+
+    [Fact]
     public async Task Dispose_DisposesRealtimeConnectionAndListener()
     {
         var handler = new RecordingHttpMessageHandler(_ =>
@@ -261,6 +331,37 @@ public sealed class RoomClientTests
         {
             Requests.Add(request);
             return Task.FromResult(responseFactory(request));
+        }
+    }
+
+    private sealed class BlockingScoreHttpMessageHandler(
+        RoomStateResponse initialRoom,
+        HttpResponseMessage scoreResponse)
+        : HttpMessageHandler
+    {
+        private readonly TaskCompletionSource _completeScoreRequest =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource ScoreRequestStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void CompleteScoreRequest()
+        {
+            _completeScoreRequest.SetResult();
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return JsonResponse(initialRoom);
+            }
+
+            ScoreRequestStarted.SetResult();
+            await _completeScoreRequest.Task.WaitAsync(cancellationToken);
+            return scoreResponse;
         }
     }
 
