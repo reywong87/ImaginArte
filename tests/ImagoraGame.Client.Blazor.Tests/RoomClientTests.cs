@@ -423,6 +423,66 @@ public sealed class RoomClientTests
         Assert.Equal("Bob", Assert.Single(cards[0].Votes).VoterName);
     }
 
+    [Fact]
+    public void LobbyPresentation_GameCompleteUsesSnapshotWinnersAndScoreboard()
+    {
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+        var room = new RoomStateResponse(
+            "ABC123",
+            RoomPhase.GameComplete,
+            25,
+            [
+                new PlayerStateResponse(aliceId, "Alice"),
+                new PlayerStateResponse(bobId, "Bob"),
+                new PlayerStateResponse(carlaId, "Carla")
+            ],
+            null,
+            "Un faro en la niebla",
+            2,
+            2,
+            2,
+            2,
+            [],
+            [],
+            [
+                new RoundScoreStateResponse(aliceId, "Alice", 3),
+                new RoundScoreStateResponse(bobId, "Bob", 3),
+                new RoundScoreStateResponse(carlaId, "Carla", 0)
+            ],
+            [
+                new ScoreboardEntryStateResponse(aliceId, "Alice", 25),
+                new ScoreboardEntryStateResponse(bobId, "Bob", 25),
+                new ScoreboardEntryStateResponse(carlaId, "Carla", 12)
+            ],
+            [
+                new WinningPlayerStateResponse(aliceId, "Alice", 25),
+                new WinningPlayerStateResponse(bobId, "Bob", 25)
+            ]);
+
+        var winners = RoomLobbyPresentation.WinnersForDisplay(room).ToArray();
+        var scoreboard = RoomLobbyPresentation.FinalScoreboardForDisplay(room).ToArray();
+
+        Assert.Equal(25, room.TargetScore);
+        Assert.Collection(
+            winners,
+            winner =>
+            {
+                Assert.Equal(aliceId, winner.PlayerId);
+                Assert.Equal("Alice", winner.PlayerName);
+                Assert.Equal(25, winner.TotalPoints);
+            },
+            winner =>
+            {
+                Assert.Equal(bobId, winner.PlayerId);
+                Assert.Equal("Bob", winner.PlayerName);
+                Assert.Equal(25, winner.TotalPoints);
+            });
+        Assert.Equal(["Alice", "Bob", "Carla"], scoreboard.Select(score => score.PlayerName));
+        Assert.Equal([25, 25, 12], scoreboard.Select(score => score.TotalPoints));
+    }
+
     private static RoomClient CreateClient(
         HttpMessageHandler handler,
         FakeRoomRealtimeConnection realtime)

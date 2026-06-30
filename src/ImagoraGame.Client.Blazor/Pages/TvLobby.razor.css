@@ -157,13 +157,15 @@ h2 {
 }
 
 .reveal-content,
-.scoring-content {
+.scoring-content,
+.game-complete-content {
     display: grid;
     gap: clamp(1.5rem, 3vw, 3rem);
 }
 
 .reveal-heading,
-.scoring-heading {
+.scoring-heading,
+.game-complete-heading {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -205,10 +207,32 @@ h2 {
     color: #ffcf70;
 }
 
+.game-complete-heading h2 {
+    margin-bottom: 0;
+    color: #ffcf70;
+}
+
 .scoring-clue {
     margin-bottom: 0;
     color: #d5caef;
     font-size: clamp(1.25rem, 2vw, 1.75rem);
+}
+
+.target-score {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 12rem;
+    margin-bottom: 0;
+    color: #d5caef;
+    font-size: clamp(1.15rem, 1.8vw, 1.5rem);
+    font-weight: 800;
+    text-align: right;
+}
+
+.target-score strong {
+    color: #5ee29b;
+    font-size: clamp(2.4rem, 4vw, 3.75rem);
+    line-height: 1;
 }
 
 .score-panels {
@@ -267,6 +291,46 @@ h2 {
 
 .total-score-list .score-points {
     color: #5ee29b;
+}
+
+.winner-panel {
+    border-color: rgba(255, 207, 112, 0.45);
+    background: rgba(255, 207, 112, 0.08);
+}
+
+.winner-list {
+    display: grid;
+    gap: 1rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.winner-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    min-height: 5.5rem;
+    padding: 1rem 1.25rem;
+    border-radius: 1.2rem;
+    background: rgba(255, 207, 112, 0.15);
+}
+
+.winner-name {
+    overflow-wrap: anywhere;
+    color: #ffcf70;
+    font-size: clamp(1.65rem, 2.7vw, 2.5rem);
+    font-weight: 900;
+}
+
+.winner-points {
+    min-width: 4.5rem;
+    color: #5ee29b;
+    font-size: clamp(2rem, 3.5vw, 3.25rem);
+    font-weight: 900;
+    line-height: 1;
+    text-align: right;
 }
 
 .revealed-card-grid {
@@ -438,13 +502,15 @@ h2 {
     .lobby-header,
     .section-heading,
     .reveal-heading,
-    .scoring-heading {
+    .scoring-heading,
+    .game-complete-heading {
         align-items: flex-start;
         flex-direction: column;
     }
 
     .reveal-status,
-    .scoring-status {
+    .scoring-status,
+    .target-score {
         max-width: none;
         text-align: left;
     }

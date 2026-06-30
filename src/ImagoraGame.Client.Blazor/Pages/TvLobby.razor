@@ -268,6 +268,82 @@
                 }
             </section>
         }
+        else if (room.Phase == RoomPhase.GameComplete)
+        {
+            <section class="game-complete-content" aria-labelledby="game-complete-title">
+                <div class="game-complete-heading">
+                    <div>
+                        <p class="eyebrow">Partida terminada</p>
+                        <h2 id="game-complete-title">Ganadores</h2>
+                    </div>
+                    <p class="target-score">
+                        Objetivo:
+                        <strong>@room.TargetScore</strong>
+                    </p>
+                </div>
+
+                <div class="score-panels">
+                    <section class="score-panel winner-panel" aria-labelledby="winners-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Resultado final</p>
+                                <h3 id="winners-title">
+                                    @(room.Winners.Count == 1 ? "Ganador" : "Ganadores")
+                                </h3>
+                            </div>
+                        </div>
+
+                        @if (room.Winners.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay ganadores en el snapshot.</p>
+                        }
+                        else
+                        {
+                            <ol class="winner-list">
+                                @foreach (var winner in RoomLobbyPresentation.WinnersForDisplay(room))
+                                {
+                                    <li @key="winner.PlayerId">
+                                        <span class="winner-name">@winner.PlayerName</span>
+                                        <strong class="winner-points">@winner.TotalPoints</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+
+                    <section class="score-panel" aria-labelledby="final-scoreboard-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Total</p>
+                                <h3 id="final-scoreboard-title">Marcador final</h3>
+                            </div>
+                        </div>
+
+                        @if (room.Scoreboard.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay marcador.</p>
+                        }
+                        else
+                        {
+                            <ol class="score-list total-score-list">
+                                @foreach (var score in RoomLobbyPresentation.FinalScoreboardForDisplay(room))
+                                {
+                                    <li @key="score.PlayerId">
+                                        <span class="score-player">@score.PlayerName</span>
+                                        <strong class="score-points">@score.TotalPoints</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+                </div>
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </section>
+        }
         else
         {
             <section class="lobby-content">
