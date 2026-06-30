@@ -249,6 +249,91 @@ public sealed class RoomClientTests
     }
 
     [Fact]
+    public async Task AdvanceRound_PostsToExpectedEndpointAndUsesReturnedSnapshot()
+    {
+        var roundCompleteRoom = CreateRoundCompleteRoomWithScores("ABC123");
+        var nextRoundRoom = CreateRoom(
+            "ABC123",
+            RoomPhase.StorytellerChoosing,
+            "Bob",
+            "Alice",
+            "Bob",
+            "Carla");
+        var handler = new RecordingHttpMessageHandler(request =>
+            request.Method == HttpMethod.Get
+                ? JsonResponse(roundCompleteRoom)
+                : JsonResponse(nextRoundRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        await client.AdvanceRoundAsync();
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(HttpMethod.Post, handler.Requests[1].Method);
+        Assert.Equal(
+            "http://localhost:5080/rooms/ABC123/advance-round",
+            handler.Requests[1].RequestUri?.ToString());
+        Assert.Equal(RoomPhase.StorytellerChoosing, client.Room?.Phase);
+        Assert.Equal("Bob", client.Room?.CurrentStoryteller?.Name);
+    }
+
+    [Fact]
+    public async Task AdvanceRound_WhenServerRejectsOperation_ExposesProblemDetail()
+    {
+        var roundCompleteRoom = CreateRoundCompleteRoomWithScores("ABC123");
+        var handler = new RecordingHttpMessageHandler(request =>
+            request.Method == HttpMethod.Get
+                ? JsonResponse(roundCompleteRoom)
+                : new HttpResponseMessage(HttpStatusCode.BadRequest)
+                {
+                    Content = JsonContent.Create(new
+                    {
+                        Detail = "La siguiente ronda aún no se puede iniciar."
+                    })
+                });
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        await client.AdvanceRoundAsync();
+
+        Assert.Equal("La siguiente ronda aún no se puede iniciar.", client.ErrorMessage);
+        Assert.False(client.IsAdvancingRound);
+        Assert.Equal(RoomPhase.RoundComplete, client.Room?.Phase);
+    }
+
+    [Fact]
+    public async Task AdvanceRound_TracksSendingStateWhileRequestIsPending()
+    {
+        var roundCompleteRoom = CreateRoundCompleteRoomWithScores("ABC123");
+        var nextRoundRoom = CreateRoom(
+            "ABC123",
+            RoomPhase.StorytellerChoosing,
+            "Bob",
+            "Alice",
+            "Bob",
+            "Carla");
+        var handler = new BlockingAdvanceRoundHttpMessageHandler(
+            roundCompleteRoom,
+            JsonResponse(nextRoundRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        var advanceRoundTask = client.AdvanceRoundAsync();
+        await handler.AdvanceRoundRequestStarted.Task;
+
+        Assert.True(client.IsAdvancingRound);
+
+        handler.CompleteAdvanceRoundRequest();
+        await advanceRoundTask;
+
+        Assert.False(client.IsAdvancingRound);
+        Assert.Equal(RoomPhase.StorytellerChoosing, client.Room?.Phase);
+    }
+
+    [Fact]
     public async Task Dispose_DisposesRealtimeConnectionAndListener()
     {
         var handler = new RecordingHttpMessageHandler(_ =>
@@ -435,6 +520,14 @@ public sealed class RoomClientTests
             []);
     }
 
+    private static RoomStateResponse CreateRoundCompleteRoomWithScores(string roomCode)
+    {
+        return CreateScoringRoomWithScores(roomCode) with
+        {
+            Phase = RoomPhase.RoundComplete
+        };
+    }
+
     private sealed class RecordingHttpMessageHandler(
         Func<HttpRequestMessage, HttpResponseMessage> responseFactory)
         : HttpMessageHandler
@@ -509,6 +602,37 @@ public sealed class RoomClientTests
             CompleteRoundRequestStarted.SetResult();
             await _completeRoundRequest.Task.WaitAsync(cancellationToken);
             return completeRoundResponse;
+        }
+    }
+
+    private sealed class BlockingAdvanceRoundHttpMessageHandler(
+        RoomStateResponse initialRoom,
+        HttpResponseMessage advanceRoundResponse)
+        : HttpMessageHandler
+    {
+        private readonly TaskCompletionSource _completeAdvanceRoundRequest =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource AdvanceRoundRequestStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public void CompleteAdvanceRoundRequest()
+        {
+            _completeAdvanceRoundRequest.SetResult();
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return JsonResponse(initialRoom);
+            }
+
+            AdvanceRoundRequestStarted.SetResult();
+            await _completeAdvanceRoundRequest.Task.WaitAsync(cancellationToken);
+            return advanceRoundResponse;
         }
     }
 

@@ -39,6 +39,8 @@ public sealed class RoomClient : IAsyncDisposable
 
     public bool IsCompletingRound { get; private set; }
 
+    public bool IsAdvancingRound { get; private set; }
+
     public async Task InitializeAsync(string roomCode, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -186,6 +188,45 @@ public sealed class RoomClient : IAsyncDisposable
         finally
         {
             IsCompletingRound = false;
+            NotifyStateChanged();
+        }
+    }
+
+    public async Task AdvanceRoundAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (Room is null || _roomCode is null || IsAdvancingRound)
+        {
+            return;
+        }
+
+        IsAdvancingRound = true;
+        ErrorMessage = null;
+        NotifyStateChanged();
+
+        try
+        {
+            using var response = await _httpClient.PostAsync(
+                $"rooms/{Uri.EscapeDataString(_roomCode.Trim())}/advance-round",
+                content: null,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw await CreateRequestExceptionAsync(response, cancellationToken);
+            }
+
+            Room = await response.Content.ReadFromJsonAsync<RoomStateResponse>(
+                cancellationToken: cancellationToken)
+                ?? throw new HttpRequestException("El servidor devolvió una respuesta vacía.");
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = await ToUserMessageAsync(exception);
+        }
+        finally
+        {
+            IsAdvancingRound = false;
             NotifyStateChanged();
         }
     }
