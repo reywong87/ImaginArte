@@ -35,6 +35,7 @@ builder.Services.AddTransient<CastVoteHandler>();
 builder.Services.AddTransient<ScoreRoundHandler>();
 builder.Services.AddTransient<CompleteRoundHandler>();
 builder.Services.AddTransient<AdvanceRoundHandler>();
+builder.Services.AddTransient<StartNextRoundHandler>();
 builder.Services.AddTransient<GetRoomStateHandler>();
 builder.Services.AddTransient<GetPlayerPrivateStateHandler>();
 builder.Services.AddTransient<RoomRealtimePublisher>();
@@ -261,6 +262,32 @@ app.MapPost("/rooms/{roomCode}/advance-round", async (
         {
             var result = await handler.HandleAsync(
                 new AdvanceRoundCommand(roomCode),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await PublishRoomAndPlayerStatesAsync(
+                response,
+                getPlayerPrivateState,
+                realtimePublisher,
+                cancellationToken);
+
+            return response;
+        },
+        Results.Ok);
+});
+
+app.MapPost("/rooms/{roomCode}/next-round", async (
+    string roomCode,
+    StartNextRoundHandler handler,
+    GetPlayerPrivateStateHandler getPlayerPrivateState,
+    RoomRealtimePublisher realtimePublisher,
+    CancellationToken cancellationToken) =>
+{
+    return await HandleRoomRequestAsync(
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new StartNextRoundCommand(roomCode),
                 cancellationToken);
             var response = result.Room.ToHttpResponse();
 

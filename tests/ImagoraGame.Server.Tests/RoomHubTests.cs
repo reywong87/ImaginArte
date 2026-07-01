@@ -604,6 +604,111 @@ public sealed class RoomHubTests
         Assert.Equal(bobId, nextRoundResponse.CurrentStoryteller?.PlayerId);
     }
 
+    [Fact]
+    public async Task PostNextRound_BroadcastsFinalPublicStateAndEachPlayersPrivateState()
+    {
+        using var application = CreateApplication();
+        using var httpClient = application.CreateClient();
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+
+        await CreateRoomAsync(httpClient, "ABC123");
+        await JoinPlayerAsync(httpClient, "ABC123", aliceId, "Alice");
+        await JoinPlayerAsync(httpClient, "ABC123", bobId, "Bob");
+        await JoinPlayerAsync(httpClient, "ABC123", carlaId, "Carla");
+        await StartRoomAsync(httpClient, "ABC123");
+
+        var aliceStarted = await GetPlayerPrivateStateAsync(httpClient, "ABC123", aliceId);
+        var bobStarted = await GetPlayerPrivateStateAsync(httpClient, "ABC123", bobId);
+        var carlaStarted = await GetPlayerPrivateStateAsync(httpClient, "ABC123", carlaId);
+        var storytellerCardId = aliceStarted.Player.Hand.First().CardId;
+        var bobCardId = bobStarted.Player.Hand.First().CardId;
+        var carlaCardId = carlaStarted.Player.Hand.First().CardId;
+
+        var storytellerResponse = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/storyteller-card",
+            new ChooseStorytellerCardRequest(
+                aliceId,
+                storytellerCardId,
+                "A strange doorway"));
+        storytellerResponse.EnsureSuccessStatusCode();
+
+        var bobSubmissionResponse = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/guess-cards",
+            new SubmitGuessCardRequest(bobId, bobCardId));
+        bobSubmissionResponse.EnsureSuccessStatusCode();
+
+        var votingResponseMessage = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/guess-cards",
+            new SubmitGuessCardRequest(carlaId, carlaCardId));
+        votingResponseMessage.EnsureSuccessStatusCode();
+        var votingResponse = await votingResponseMessage.Content.ReadFromJsonAsync<RoomStateResponse>();
+        Assert.NotNull(votingResponse);
+
+        var storytellerVotingCardId = votingResponse.VotingCards
+            .Single(card => card.CardId == storytellerCardId)
+            .VotingCardId;
+        var bobVotingCardId = votingResponse.VotingCards
+            .Single(card => card.CardId == bobCardId)
+            .VotingCardId;
+
+        var firstVoteResponse = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(bobId, storytellerVotingCardId));
+        firstVoteResponse.EnsureSuccessStatusCode();
+
+        var revealResponse = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(carlaId, bobVotingCardId));
+        revealResponse.EnsureSuccessStatusCode();
+
+        var scoringResponse = await httpClient.PostAsync("/rooms/ABC123/score", content: null);
+        scoringResponse.EnsureSuccessStatusCode();
+
+        await using var tvConnection = CreateHubConnection(application);
+        await using var aliceConnection = CreateHubConnection(application);
+        await using var bobConnection = CreateHubConnection(application);
+        await using var carlaConnection = CreateHubConnection(application);
+
+        var initialTvEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var initialAliceEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            aliceConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var initialBobEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            bobConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+        var initialCarlaEvent = WaitForEvent<PlayerStateUpdatedEvent>(
+            carlaConnection,
+            RoomRealtimeEventNames.PlayerStateUpdated);
+
+        await Task.WhenAll(
+            tvConnection.StartAsync(),
+            aliceConnection.StartAsync(),
+            bobConnection.StartAsync(),
+            carlaConnection.StartAsync());
+        await SubscribeToRoomAsync(tvConnection, "ABC123");
+        await SubscribeAsPlayerAsync(aliceConnection, "ABC123", aliceId);
+        await SubscribeAsPlayerAsync(bobConnection, "ABC123", bobId);
+        await SubscribeAsPlayerAsync(carlaConnection, "ABC123", carlaId);
+        await Task.WhenAll(
+            initialTvEvent,
+            initialAliceEvent,
+            initialBobEvent,
+            initialCarlaEvent).WaitAsync(TimeSpan.FromSeconds(5));
+
+        var nextRoundResponse = await PostAndAssertRealtimeUpdateAsync(
+            httpClient,
+            tvConnection,
+            [aliceConnection, bobConnection, carlaConnection],
+            () => httpClient.PostAsync("/rooms/ABC123/next-round", content: null));
+
+        Assert.Equal(RoomPhase.StorytellerChoosing, nextRoundResponse.Phase);
+        Assert.Equal(bobId, nextRoundResponse.CurrentStoryteller?.PlayerId);
+    }
+
     private static HubConnection CreateHubConnection(
         WebApplicationFactory<Program> application)
     {

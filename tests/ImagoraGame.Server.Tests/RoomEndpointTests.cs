@@ -865,6 +865,91 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
+    public async Task PostNextRound_WithScoringRoom_StartsNextRoundAndRefillsPrivateHands()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var revealRoom = await PrepareRevealRoomAsync(client, "ABC123");
+        var aliceBefore = await GetPlayerPrivateStateAsync(client, "ABC123", revealRoom.AliceId);
+        var bobBefore = await GetPlayerPrivateStateAsync(client, "ABC123", revealRoom.BobId);
+        var carlaBefore = await GetPlayerPrivateStateAsync(client, "ABC123", revealRoom.CarlaId);
+
+        var scoreResponse = await client.PostAsync(
+            "/rooms/ABC123/score",
+            content: null);
+        scoreResponse.EnsureSuccessStatusCode();
+        var scoringState = await ReadPublicRoomStateAsync(scoreResponse);
+
+        var response = await client.PostAsync(
+            "/rooms/abc123/next-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var state = ReadPublicRoomState(responseBody);
+
+        Assert.Equal(RoomPhase.StorytellerChoosing, state.Phase);
+        Assert.Equal(revealRoom.BobId, state.CurrentStoryteller?.PlayerId);
+        Assert.Equal("Bob", state.CurrentStoryteller?.Name);
+        Assert.Null(state.Clue);
+        Assert.Equal(0, state.SubmissionCount);
+        Assert.Equal(0, state.VoteCount);
+        Assert.Empty(state.VotingCards);
+        Assert.Empty(state.RevealedCards);
+        Assert.Empty(state.RoundScores);
+        Assert.Equal(
+            scoringState.Scoreboard.Select(score => (score.PlayerId, score.PlayerName, score.TotalPoints)),
+            state.Scoreboard.Select(score => (score.PlayerId, score.PlayerName, score.TotalPoints)));
+        Assert.DoesNotContain("\"hand\"", responseBody, StringComparison.OrdinalIgnoreCase);
+
+        var aliceAfter = await GetPlayerPrivateStateAsync(client, "ABC123", revealRoom.AliceId);
+        var bobAfter = await GetPlayerPrivateStateAsync(client, "ABC123", revealRoom.BobId);
+        var carlaAfter = await GetPlayerPrivateStateAsync(client, "ABC123", revealRoom.CarlaId);
+
+        AssertRefilledHand(aliceBefore, aliceAfter, revealRoom.StorytellerCardId);
+        AssertRefilledHand(bobBefore, bobAfter, revealRoom.BobCardId);
+        AssertRefilledHand(carlaBefore, carlaAfter, revealRoom.CarlaCardId);
+        Assert.False(aliceAfter.Player.IsCurrentStoryteller);
+        Assert.True(bobAfter.Player.IsCurrentStoryteller);
+        Assert.False(carlaAfter.Player.IsCurrentStoryteller);
+    }
+
+    [Fact]
+    public async Task PostNextRound_WhenRoomDoesNotExist_ReturnsNotFound()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        var response = await client.PostAsync(
+            "/rooms/missing/next-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostNextRound_BeforeScoring_ReturnsBadRequest()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+
+        await CreateRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsync(
+            "/rooms/ABC123/next-round",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.BadRequest, problem.Status);
+    }
+
+    [Fact]
     public async Task GetRoom_ReturnsPublicRoomStateWithoutPrivateHands()
     {
         using var application = new WebApplicationFactory<Program>();

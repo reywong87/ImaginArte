@@ -119,9 +119,9 @@
                     <div class="scoring-controls">
                         <p class="scoring-status">Puntos calculados por el servidor</p>
                         <button class="start-button"
-                                disabled="@RoomClient.IsCompletingRound"
-                                @onclick="CompleteRoundAsync">
-                            @(RoomClient.IsCompletingRound ? "Cerrando…" : "Cerrar ronda")
+                                disabled="@RoomClient.IsStartingNextRound"
+                                @onclick="StartNextRoundAsync">
+                            @(RoomClient.IsStartingNextRound ? "Iniciando…" : "Iniciar nueva ronda")
                         </button>
                     </div>
                 </div>
@@ -456,6 +456,11 @@
     private Task CompleteRoundAsync()
     {
         return RoomClient.CompleteRoundAsync();
+    }
+
+    private Task StartNextRoundAsync()
+    {
+        return RoomClient.StartNextRoundAsync();
     }
 
     private Task AdvanceRoundAsync()
