@@ -15,7 +15,8 @@ internal static class RoomHttpMappings
                     .Select(card => new CardStateResponse(card.CardId))
                     .ToArray(),
                 result.Player.IsCurrentStoryteller,
-                result.Player.HasSubmittedGuessCard));
+                result.Player.HasSubmittedGuessCard,
+                result.Player.SubmittedVotingCardId));
     }
 
     public static RoomStateResponse ToHttpResponse(this RoomState room)

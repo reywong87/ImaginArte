@@ -178,6 +178,23 @@ label {
     background: #f0eeff;
 }
 
+.card-choice.disabled {
+    cursor: not-allowed;
+}
+
+.card-choice.own-card {
+    border-color: rgba(36, 26, 59, 0.16);
+    background: #ece8df;
+    color: #6f657c;
+}
+
+.card-choice.own-card em {
+    color: #8d3f2f;
+    font-size: 0.82rem;
+    font-style: normal;
+    font-weight: 800;
+}
+
 .voting-card-choice {
     min-height: 8rem;
 }

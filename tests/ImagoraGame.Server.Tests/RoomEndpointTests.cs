@@ -1018,6 +1018,38 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
+    public async Task GetPlayerPrivateState_InVoting_ReturnsSubmittedVotingCardIdWithoutPublicOwnership()
+    {
+        using var application = new WebApplicationFactory<Program>();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+        var bobVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.BobCardId)
+            .VotingCardId;
+
+        var response = await client.GetAsync($"/rooms/abc123/players/{room.BobId}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        var snapshot = ReadRequiredJson<GetPlayerPrivateStateResponse>(responseBody);
+
+        Assert.Equal(RoomPhase.Voting, snapshot.Room.Phase);
+        Assert.Equal(bobVotingCardId, snapshot.Player.SubmittedVotingCardId);
+
+        using var json = JsonDocument.Parse(responseBody);
+        Assert.Equal(
+            bobVotingCardId,
+            json.RootElement.GetProperty("player").GetProperty("submittedVotingCardId").GetString());
+
+        foreach (var votingCard in json.RootElement.GetProperty("room").GetProperty("votingCards").EnumerateArray())
+        {
+            Assert.False(votingCard.TryGetProperty("ownerPlayerId", out _));
+            Assert.False(votingCard.TryGetProperty("ownerName", out _));
+        }
+    }
+
+    [Fact]
     public async Task GetPlayerPrivateState_WhenPlayerDoesNotExist_ReturnsNotFound()
     {
         using var application = new WebApplicationFactory<Program>();

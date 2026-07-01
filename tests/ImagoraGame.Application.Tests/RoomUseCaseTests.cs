@@ -193,6 +193,20 @@ public sealed class RoomUseCaseTests
     }
 
     [Fact]
+    public async Task GetPlayerPrivateState_InVoting_ContainsSubmittedVotingCardId()
+    {
+        var repository = new InMemoryRoomRepository();
+        var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
+        var (_, bobId, _, _) = await CreateRoomWaitingForVotingAsync(repository);
+        var bobVotingCardId = await GetVotingCardIdForOwnerAsync(repository, bobId);
+
+        var result = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", bobId));
+
+        Assert.Equal(GamePhase.Voting, result.Room.Phase);
+        Assert.Equal(bobVotingCardId, result.Player.SubmittedVotingCardId);
+    }
+
+    [Fact]
     public async Task GetPlayerPrivateState_WhenRoomDoesNotExist_Throws()
     {
         var repository = new InMemoryRoomRepository();

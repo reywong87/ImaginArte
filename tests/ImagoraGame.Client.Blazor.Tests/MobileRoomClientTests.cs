@@ -60,6 +60,33 @@ public sealed class MobileRoomClientTests
     }
 
     [Fact]
+    public async Task PlayerStateUpdated_WhenVoting_IdentifiesOwnSubmittedCardAsNotVotable()
+    {
+        var playerId = Guid.NewGuid();
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+
+        realtime.Publish(new PlayerStateUpdatedEvent(CreatePrivateState(
+            "ABC123",
+            playerId,
+            "Bob",
+            RoomPhase.Voting,
+            isCurrentStoryteller: false,
+            submittedVotingCardId: "vote-2",
+            votingCards:
+            [
+                new VotingCardStateResponse("vote-1", "card-1", 1),
+                new VotingCardStateResponse("vote-2", "card-2", 2)
+            ])));
+
+        Assert.False(client.IsOwnSubmittedVotingCard("vote-1"));
+        Assert.True(client.CanVoteForCard("vote-1"));
+        Assert.True(client.IsOwnSubmittedVotingCard("vote-2"));
+        Assert.False(client.CanVoteForCard("vote-2"));
+    }
+
+    [Fact]
     public async Task Reconnected_ResubscribesAsPlayer()
     {
         var playerId = Guid.NewGuid();
@@ -415,6 +442,7 @@ public sealed class MobileRoomClientTests
         RoomPhase phase = RoomPhase.WaitingForPlayers,
         bool isCurrentStoryteller = false,
         bool hasSubmittedGuessCard = false,
+        string? submittedVotingCardId = null,
         IReadOnlyCollection<CardStateResponse>? hand = null,
         IReadOnlyCollection<VotingCardStateResponse>? votingCards = null)
     {
@@ -443,7 +471,8 @@ public sealed class MobileRoomClientTests
                 playerName,
                 Hand: hand ?? [],
                 IsCurrentStoryteller: isCurrentStoryteller,
-                HasSubmittedGuessCard: hasSubmittedGuessCard));
+                HasSubmittedGuessCard: hasSubmittedGuessCard,
+                SubmittedVotingCardId: submittedVotingCardId));
     }
 
     private sealed class RecordingHttpMessageHandler(

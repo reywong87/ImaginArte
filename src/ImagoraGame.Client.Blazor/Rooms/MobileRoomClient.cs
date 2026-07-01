@@ -44,6 +44,17 @@ public sealed class MobileRoomClient : IAsyncDisposable
     public bool HasSubmittedGuessCard =>
         PrivateState?.Player.HasSubmittedGuessCard == true;
 
+    public bool IsOwnSubmittedVotingCard(string votingCardId)
+    {
+        return PrivateState?.Player.SubmittedVotingCardId == votingCardId;
+    }
+
+    public bool CanVoteForCard(string votingCardId)
+    {
+        return !string.IsNullOrWhiteSpace(votingCardId) &&
+            !IsOwnSubmittedVotingCard(votingCardId);
+    }
+
     public async Task ConnectAsync(
         MobileLobbyState lobby,
         CancellationToken cancellationToken = default)

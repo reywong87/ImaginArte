@@ -138,12 +138,18 @@
                     <div class="hand-grid" aria-label="Cartas públicas para votar">
                         @foreach (var card in MobileRoomClient.PrivateState!.Room.VotingCards.OrderBy(card => card.DisplayNumber))
                         {
+                            var isOwnCard = MobileRoomClient.IsOwnSubmittedVotingCard(card.VotingCardId);
                             <button type="button"
-                                    class="card-choice voting-card-choice @(card.VotingCardId == _selectedVotingCardId ? "selected" : null)"
+                                    class="@GetVotingCardChoiceClass(card.VotingCardId)"
+                                    disabled="@isOwnCard"
                                     aria-pressed="@(card.VotingCardId == _selectedVotingCardId)"
                                     @onclick="() => SelectVotingCard(card.VotingCardId)">
                                 <span>Carta @card.DisplayNumber</span>
                                 <strong>@card.CardId</strong>
+                                @if (isOwnCard)
+                                {
+                                    <em>Tu carta</em>
+                                }
                             </button>
                         }
                     </div>
@@ -263,7 +269,8 @@
     private bool CanCastVote =>
         ShowsVotingAction &&
         !MobileRoomClient.IsCastingVote &&
-        !string.IsNullOrWhiteSpace(_selectedVotingCardId);
+        _selectedVotingCardId is not null &&
+        MobileRoomClient.CanVoteForCard(_selectedVotingCardId);
 
     protected override void OnParametersSet()
     {
@@ -348,7 +355,29 @@
 
     private void SelectVotingCard(string votingCardId)
     {
+        if (!MobileRoomClient.CanVoteForCard(votingCardId))
+        {
+            return;
+        }
+
         _selectedVotingCardId = votingCardId;
+    }
+
+    private string GetVotingCardChoiceClass(string votingCardId)
+    {
+        var classes = "card-choice voting-card-choice";
+
+        if (votingCardId == _selectedVotingCardId)
+        {
+            classes += " selected";
+        }
+
+        if (MobileRoomClient.IsOwnSubmittedVotingCard(votingCardId))
+        {
+            classes += " own-card disabled";
+        }
+
+        return classes;
     }
 
     private async Task SubmitStorytellerCardAsync()
