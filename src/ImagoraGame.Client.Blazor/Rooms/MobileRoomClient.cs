@@ -167,7 +167,11 @@ public sealed class MobileRoomClient : IAsyncDisposable
 
             if (PrivateState is not null)
             {
-                PrivateState = PrivateState with { Room = room };
+                PrivateState = PrivateState with
+                {
+                    Room = room,
+                    Player = PrivateState.Player with { HasSubmittedGuessCard = true }
+                };
             }
         }
         catch (Exception exception)

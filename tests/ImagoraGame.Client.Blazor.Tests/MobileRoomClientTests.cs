@@ -201,6 +201,32 @@ public sealed class MobileRoomClientTests
     }
 
     [Fact]
+    public async Task SubmitGuessCardAsync_WhenRoomRemainsGuessersSubmitting_MarksPlayerAsSubmitted()
+    {
+        var playerId = Guid.NewGuid();
+        var updatedRoom = CreateRoom("ABC123", playerId, "Bob", RoomPhase.GuessersSubmitting);
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(updatedRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.ConnectAsync(new MobileLobbyState("ABC123", playerId, "Bob"));
+        realtime.Publish(new PlayerStateUpdatedEvent(CreatePrivateState(
+            "ABC123",
+            playerId,
+            "Bob",
+            RoomPhase.GuessersSubmitting,
+            isCurrentStoryteller: false,
+            hasSubmittedGuessCard: false,
+            hand: [new CardStateResponse("card-2")])));
+
+        await client.SubmitGuessCardAsync("card-2");
+
+        Assert.Equal(RoomPhase.GuessersSubmitting, client.PrivateState!.Room.Phase);
+        Assert.True(client.HasSubmittedGuessCard);
+        Assert.True(client.PrivateState.Player.HasSubmittedGuessCard);
+        Assert.Null(client.ErrorMessage);
+    }
+
+    [Fact]
     public async Task SubmitGuessCardAsync_WhenServerRejectsOperation_ExposesProblemDetail()
     {
         var playerId = Guid.NewGuid();
