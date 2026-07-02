@@ -571,6 +571,15 @@ public sealed class RoomHubTests
                 new CastVoteRequest(bobId, storytellerVotingCardId)));
         Assert.Equal(RoomPhase.Voting, firstVoteResponse.Phase);
         Assert.Equal(1, firstVoteResponse.VoteCount);
+        var votedCard = firstVoteResponse.VotingCards.Single(
+            card => card.VotingCardId == storytellerVotingCardId);
+        Assert.Collection(
+            votedCard.Votes,
+            vote =>
+            {
+                Assert.Equal(bobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
+            });
 
         var revealResponse = await PostAndAssertRealtimeUpdateAsync(
             httpClient,

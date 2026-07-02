@@ -55,7 +55,12 @@ public sealed record PlayerStateResponse(Guid PlayerId, string Name);
 public sealed record VotingCardStateResponse(
     string VotingCardId,
     string CardId,
-    int DisplayNumber);
+    int DisplayNumber,
+    IReadOnlyCollection<VotingCardVoteStateResponse> Votes);
+
+public sealed record VotingCardVoteStateResponse(
+    Guid VoterPlayerId,
+    string VoterName);
 
 public sealed record RevealedVoteStateResponse(
     Guid VoterPlayerId,

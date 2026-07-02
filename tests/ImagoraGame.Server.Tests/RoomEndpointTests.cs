@@ -374,11 +374,39 @@ public sealed class RoomEndpointTests
         Assert.Equal(1, state.VoteCount);
         Assert.Equal(2, state.ExpectedVoteCount);
         Assert.Empty(state.RevealedCards);
-        Assert.DoesNotContain("voterPlayerId", responseBody, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("voterName", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ownerPlayerId", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ownerName", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("isStorytellerCard", responseBody, StringComparison.OrdinalIgnoreCase);
+
+        var votedCard = state.VotingCards.Single(card => card.VotingCardId == storytellerVotingCardId);
+        Assert.Collection(
+            votedCard.Votes,
+            vote =>
+            {
+                Assert.Equal(room.BobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
+            });
+        Assert.All(
+            state.VotingCards.Where(card => card.VotingCardId != storytellerVotingCardId),
+            card => Assert.Empty(card.Votes));
+
+        using var json = JsonDocument.Parse(responseBody);
+        foreach (var votingCard in json.RootElement.GetProperty("votingCards").EnumerateArray())
+        {
+            Assert.True(votingCard.TryGetProperty("votes", out var votes));
+            Assert.False(votingCard.TryGetProperty("ownerPlayerId", out _));
+            Assert.False(votingCard.TryGetProperty("ownerName", out _));
+            Assert.False(votingCard.TryGetProperty("isStorytellerCard", out _));
+
+            foreach (var vote in votes.EnumerateArray())
+            {
+                Assert.True(vote.TryGetProperty("voterPlayerId", out _));
+                Assert.True(vote.TryGetProperty("voterName", out _));
+                Assert.False(vote.TryGetProperty("ownerPlayerId", out _));
+                Assert.False(vote.TryGetProperty("ownerName", out _));
+                Assert.False(vote.TryGetProperty("isStorytellerCard", out _));
+            }
+        }
     }
 
     [Fact]

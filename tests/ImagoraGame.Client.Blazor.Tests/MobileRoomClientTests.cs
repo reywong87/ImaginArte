@@ -76,8 +76,8 @@ public sealed class MobileRoomClientTests
             submittedVotingCardId: "vote-2",
             votingCards:
             [
-                new VotingCardStateResponse("vote-1", "card-1", 1),
-                new VotingCardStateResponse("vote-2", "card-2", 2)
+                new VotingCardStateResponse("vote-1", "card-1", 1, []),
+                new VotingCardStateResponse("vote-2", "card-2", 2, [])
             ])));
 
         Assert.False(client.IsOwnSubmittedVotingCard("vote-1"));
@@ -316,7 +316,7 @@ public sealed class MobileRoomClientTests
             isCurrentStoryteller: false,
             votingCards:
             [
-                new VotingCardStateResponse("vote-1", "card-1", 1)
+                new VotingCardStateResponse("vote-1", "card-1", 1, [])
             ])));
 
         await client.CastVoteAsync("vote-1");

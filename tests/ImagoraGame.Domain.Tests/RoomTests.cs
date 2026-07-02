@@ -594,6 +594,30 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void VotingCards_AfterVote_IncludeVisibleVoterNameOnVotedCard()
+    {
+        var (room, _, bobId, _) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room
+            .VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+
+        var votedCard = room.VotingCards.Single(card => card.VotingCardId == storytellerVotingCardId);
+        Assert.Collection(
+            votedCard.Votes,
+            vote =>
+            {
+                Assert.Equal(bobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
+            });
+        Assert.All(
+            room.VotingCards.Where(card => card.VotingCardId != storytellerVotingCardId),
+            card => Assert.Empty(card.Votes));
+    }
+
+    [Fact]
     public void CastVote_WhenPlayerIsStoryteller_Throws()
     {
         var (room, aliceId, _, _) = CreateRoomWaitingForVoting();

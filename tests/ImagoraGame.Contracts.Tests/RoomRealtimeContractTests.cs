@@ -30,6 +30,7 @@ public sealed class RoomRealtimeContractTests
             typeof(RoomStateResponse),
             typeof(PlayerStateResponse),
             typeof(VotingCardStateResponse),
+            typeof(VotingCardVoteStateResponse),
             typeof(RevealCardStateResponse),
             typeof(RevealedVoteStateResponse),
             typeof(RoundScoreStateResponse),

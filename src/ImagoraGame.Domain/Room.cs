@@ -49,7 +49,20 @@ public sealed class Room
 
     public IReadOnlyCollection<VotingCard> VotingCards => Phase == GamePhase.Voting
         ? _votingCardOwnerships
-            .Select((card, index) => new VotingCard(card.VotingCardId, card.CardId, index + 1))
+            .Select((card, index) =>
+            {
+                var votes = _votes
+                    .Where(vote => vote.VotingCardId == card.VotingCardId)
+                    .Select(vote =>
+                    {
+                        var voter = _players.Single(player => player.Id == vote.VoterId);
+
+                        return new VotingCardVote(voter.Id, voter.Name);
+                    })
+                    .ToArray();
+
+                return new VotingCard(card.VotingCardId, card.CardId, index + 1, votes);
+            })
             .ToArray()
         : Array.Empty<VotingCard>();
 

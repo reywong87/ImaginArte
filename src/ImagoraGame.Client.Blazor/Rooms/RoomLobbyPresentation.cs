@@ -30,6 +30,11 @@ public static class RoomLobbyPresentation
         return room.RevealedCards.OrderBy(card => card.DisplayNumber);
     }
 
+    public static IEnumerable<VotingCardStateResponse> VotingCardsForDisplay(RoomStateResponse room)
+    {
+        return room.VotingCards.OrderBy(card => card.DisplayNumber);
+    }
+
     public static IEnumerable<WinningPlayerStateResponse> WinnersForDisplay(RoomStateResponse room)
     {
         return room.Winners;

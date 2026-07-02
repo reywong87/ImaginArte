@@ -462,6 +462,20 @@ public sealed class RoomUseCaseTests
     }
 
     [Fact]
+    public void VotingCardVoteState_ExposesVoterButDoesNotExposeCardOwnership()
+    {
+        var publicPropertyNames = typeof(VotingCardVoteState)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.Contains(nameof(VotingCardVoteState.VoterPlayerId), publicPropertyNames);
+        Assert.Contains(nameof(VotingCardVoteState.VoterName), publicPropertyNames);
+        Assert.DoesNotContain(publicPropertyNames, name => name.Contains("Owner", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(publicPropertyNames, name => name.Contains("Storyteller", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task SubmitGuessCard_WhenRoomDoesNotExist_Throws()
     {
         var repository = new InMemoryRoomRepository();
@@ -584,7 +598,7 @@ public sealed class RoomUseCaseTests
     }
 
     [Fact]
-    public async Task CastVote_RoomStateDoesNotExposeVotersOrVotingCardOwners()
+    public async Task CastVote_ReturnsVotingCardsWithVisibleVotesWithoutVotingCardOwners()
     {
         var repository = new InMemoryRoomRepository();
         var castVote = new CastVoteHandler(repository);
@@ -597,19 +611,25 @@ public sealed class RoomUseCaseTests
         Assert.Equal(2, result.Room.ExpectedVoteCount);
         Assert.DoesNotContain(
             typeof(RoomState).GetProperties(),
-            property => property.Name.Contains("Voter", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(
-            typeof(RoomState).GetProperties(),
-            property => property.Name.Equals("Votes", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(
-            typeof(RoomState).GetProperties(),
             property => property.Name.Contains("Owner", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(
             typeof(VotingCardState).GetProperties(),
             property => property.Name.Contains("Owner", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(
             typeof(VotingCardState).GetProperties(),
-            property => property.Name.Contains("Player", StringComparison.OrdinalIgnoreCase));
+            property => property.Name.Contains("Storyteller", StringComparison.OrdinalIgnoreCase));
+
+        var votedCard = result.Room.VotingCards.Single(card => card.VotingCardId == storytellerVotingCardId);
+        Assert.Collection(
+            votedCard.Votes,
+            vote =>
+            {
+                Assert.Equal(bobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
+            });
+        Assert.All(
+            result.Room.VotingCards.Where(card => card.VotingCardId != storytellerVotingCardId),
+            card => Assert.Empty(card.Votes));
     }
 
     [Fact]

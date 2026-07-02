@@ -7,7 +7,12 @@ public sealed record PlayerState(Guid PlayerId, string Name);
 public sealed record VotingCardState(
     string VotingCardId,
     string CardId,
-    int DisplayNumber);
+    int DisplayNumber,
+    IReadOnlyCollection<VotingCardVoteState> Votes);
+
+public sealed record VotingCardVoteState(
+    Guid VoterPlayerId,
+    string VoterName);
 
 public sealed record RevealedVoteState(
     Guid VoterPlayerId,
@@ -66,7 +71,10 @@ public sealed record RoomState(
             .Select(card => new VotingCardState(
                 card.VotingCardId.Value,
                 card.CardId.Value,
-                card.DisplayNumber))
+                card.DisplayNumber,
+                card.Votes
+                    .Select(vote => new VotingCardVoteState(vote.VoterPlayerId.Value, vote.VoterName))
+                    .ToArray()))
             .ToArray();
         var revealedCards = room.RevealedVotingCards
             .Select(card => new RevealCardState(

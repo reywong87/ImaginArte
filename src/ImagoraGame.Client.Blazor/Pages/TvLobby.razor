@@ -35,7 +35,66 @@
             </div>
         </header>
 
-        @if (room.Phase == RoomPhase.Reveal)
+        @if (room.Phase == RoomPhase.Voting)
+        {
+            <section class="voting-content" aria-labelledby="voting-title">
+                <div class="voting-heading">
+                    <div>
+                        <p class="eyebrow">Pista de la ronda</p>
+                        <h2 id="voting-title" class="round-clue">@room.Clue</h2>
+                    </div>
+                    <p class="voting-status">
+                        Votos:
+                        <strong>@room.VoteCount / @room.ExpectedVoteCount</strong>
+                    </p>
+                </div>
+
+                @if (room.VotingCards.Count == 0)
+                {
+                    <p class="empty-state">Preparando las cartas para votar.</p>
+                }
+                else
+                {
+                    <ol class="voting-card-grid" aria-label="Cartas para votar">
+                        @foreach (var card in RoomLobbyPresentation.VotingCardsForDisplay(room))
+                        {
+                            <li @key="card.VotingCardId" class="voting-card">
+                                <div class="voting-card-topline">
+                                    <span class="card-number" aria-label="Carta @card.DisplayNumber">@card.DisplayNumber</span>
+                                    <span class="vote-count">
+                                        @card.Votes.Count @(card.Votes.Count == 1 ? "voto" : "votos")
+                                    </span>
+                                </div>
+
+                                <strong class="voting-card-id">@card.CardId</strong>
+
+                                <div class="voting-token-area" aria-label="Votos sobre la carta @card.DisplayNumber">
+                                    @if (card.Votes.Count == 0)
+                                    {
+                                        <span class="waiting-votes">Sin fichas todavía</span>
+                                    }
+                                    else
+                                    {
+                                        <ul class="voting-token-list">
+                                            @foreach (var vote in card.Votes)
+                                            {
+                                                <li @key="vote.VoterPlayerId">@vote.VoterName</li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ol>
+                }
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </section>
+        }
+        else if (room.Phase == RoomPhase.Reveal)
         {
             <section class="reveal-content" aria-labelledby="reveal-title">
                 <div class="reveal-heading">

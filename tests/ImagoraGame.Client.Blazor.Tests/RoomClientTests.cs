@@ -46,6 +46,61 @@ public sealed class RoomClientTests
     }
 
     [Fact]
+    public async Task RoomUpdated_WhenVoting_UpdatesVisibleVotes()
+    {
+        var bobId = Guid.NewGuid();
+        var initialRoom = new RoomStateResponse(
+            "ABC123",
+            RoomPhase.Voting,
+            25,
+            [
+                new PlayerStateResponse(Guid.NewGuid(), "Alice"),
+                new PlayerStateResponse(bobId, "Bob")
+            ],
+            null,
+            "Un faro en la niebla",
+            2,
+            2,
+            0,
+            1,
+            [
+                new VotingCardStateResponse("vote-1", "card-1", 1, []),
+                new VotingCardStateResponse("vote-2", "card-2", 2, [])
+            ],
+            [],
+            [],
+            [],
+            []);
+        var updatedRoom = initialRoom with
+        {
+            VoteCount = 1,
+            VotingCards =
+            [
+                new VotingCardStateResponse(
+                    "vote-1",
+                    "card-1",
+                    1,
+                    [
+                        new VotingCardVoteStateResponse(bobId, "Bob")
+                    ]),
+                new VotingCardStateResponse("vote-2", "card-2", 2, [])
+            ]
+        };
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(initialRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+        await client.InitializeAsync("ABC123");
+
+        realtime.Publish(new RoomUpdatedEvent(updatedRoom));
+
+        Assert.Equal(1, client.Room?.VoteCount);
+        var votedCard = Assert.Single(
+            client.Room!.VotingCards,
+            card => card.VotingCardId == "vote-1");
+        Assert.Equal("Bob", Assert.Single(votedCard.Votes).VoterName);
+    }
+
+    [Fact]
     public async Task StartGame_PostsToExpectedEndpointAndUsesReturnedSnapshot()
     {
         var waitingRoom = CreateRoom("ABC123", "Alice", "Bob", "Carla");

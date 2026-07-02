@@ -40,7 +40,12 @@ internal static class RoomHttpMappings
                 .Select(card => new VotingCardStateResponse(
                     card.VotingCardId,
                     card.CardId,
-                    card.DisplayNumber))
+                    card.DisplayNumber,
+                    card.Votes
+                        .Select(vote => new VotingCardVoteStateResponse(
+                            vote.VoterPlayerId,
+                            vote.VoterName))
+                        .ToArray()))
                 .ToArray(),
             room.RevealedCards
                 .Select(card => new RevealCardStateResponse(
