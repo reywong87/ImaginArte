@@ -564,7 +564,7 @@ public sealed class RoomClientTests
     }
 
     [Fact]
-    public void LobbyPresentation_GameCompleteUsesSnapshotWinnersAndScoreboard()
+    public void LobbyPresentation_GameCompleteUsesSnapshotWinnersAndDisplayScoreboard()
     {
         var aliceId = Guid.NewGuid();
         var bobId = Guid.NewGuid();
@@ -602,7 +602,7 @@ public sealed class RoomClientTests
             ]);
 
         var winners = RoomLobbyPresentation.WinnersForDisplay(room).ToArray();
-        var scoreboard = RoomLobbyPresentation.FinalScoreboardForDisplay(room).ToArray();
+        var scoreboard = RoomLobbyPresentation.ScoreboardForDisplay(room).ToArray();
 
         Assert.Equal(25, room.TargetScore);
         Assert.Collection(
@@ -621,6 +621,51 @@ public sealed class RoomClientTests
             });
         Assert.Equal(["Alice", "Bob", "Carla"], scoreboard.Select(score => score.PlayerName));
         Assert.Equal([25, 25, 12], scoreboard.Select(score => score.TotalPoints));
+    }
+
+    [Fact]
+    public void LobbyPresentation_ScoreboardForDisplayOrdersByTotalPointsDescending()
+    {
+        var room = CreateRoomWithScoreboard(
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Alice", 3),
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Bob", 8),
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Carla", 5));
+
+        var scoreboard = RoomLobbyPresentation.ScoreboardForDisplay(room).ToArray();
+
+        Assert.Equal(["Bob", "Carla", "Alice"], scoreboard.Select(score => score.PlayerName));
+        Assert.Equal([8, 5, 3], scoreboard.Select(score => score.TotalPoints));
+    }
+
+    [Fact]
+    public void LobbyPresentation_ScoreboardForDisplayBreaksTiesByPlayerName()
+    {
+        var room = CreateRoomWithScoreboard(
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Carla", 8),
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Alice", 8),
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Bob", 8));
+
+        var scoreboard = RoomLobbyPresentation.ScoreboardForDisplay(room).ToArray();
+
+        Assert.Equal(["Alice", "Bob", "Carla"], scoreboard.Select(score => score.PlayerName));
+        Assert.Equal([8, 8, 8], scoreboard.Select(score => score.TotalPoints));
+    }
+
+    [Fact]
+    public void LobbyPresentation_ScoreboardForDisplayDoesNotModifyOriginalScoreboard()
+    {
+        var originalScoreboard = new[]
+        {
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Alice", 3),
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Bob", 8),
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Carla", 5)
+        };
+        var room = CreateRoomWithScoreboard(originalScoreboard);
+
+        _ = RoomLobbyPresentation.ScoreboardForDisplay(room).ToArray();
+
+        Assert.Equal(["Alice", "Bob", "Carla"], room.Scoreboard.Select(score => score.PlayerName));
+        Assert.Equal(originalScoreboard, room.Scoreboard);
     }
 
     private static RoomClient CreateClient(
@@ -726,6 +771,29 @@ public sealed class RoomClientTests
         {
             Phase = RoomPhase.RoundComplete
         };
+    }
+
+    private static RoomStateResponse CreateRoomWithScoreboard(
+        params ScoreboardEntryStateResponse[] scoreboard)
+    {
+        return new RoomStateResponse(
+            "ABC123",
+            RoomPhase.Scoring,
+            25,
+            scoreboard
+                .Select(score => new PlayerStateResponse(score.PlayerId, score.PlayerName))
+                .ToArray(),
+            null,
+            "Un faro en la niebla",
+            0,
+            0,
+            0,
+            0,
+            [],
+            [],
+            [],
+            scoreboard,
+            []);
     }
 
     private sealed class RecordingHttpMessageHandler(

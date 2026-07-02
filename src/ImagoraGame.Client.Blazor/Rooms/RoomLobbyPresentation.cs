@@ -40,9 +40,11 @@ public static class RoomLobbyPresentation
         return room.Winners;
     }
 
-    public static IEnumerable<ScoreboardEntryStateResponse> FinalScoreboardForDisplay(
+    public static IEnumerable<ScoreboardEntryStateResponse> ScoreboardForDisplay(
         RoomStateResponse room)
     {
-        return room.Scoreboard;
+        return room.Scoreboard
+            .OrderByDescending(score => score.TotalPoints)
+            .ThenBy(score => score.PlayerName, StringComparer.Ordinal);
     }
 }

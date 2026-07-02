@@ -227,7 +227,7 @@
                         else
                         {
                             <ol class="score-list total-score-list">
-                                @foreach (var score in room.Scoreboard)
+                                @foreach (var score in RoomLobbyPresentation.ScoreboardForDisplay(room))
                                 {
                                     <li @key="score.PlayerId">
                                         <span class="score-player">@score.PlayerName</span>
@@ -309,7 +309,7 @@
                         else
                         {
                             <ol class="score-list total-score-list">
-                                @foreach (var score in room.Scoreboard)
+                                @foreach (var score in RoomLobbyPresentation.ScoreboardForDisplay(room))
                                 {
                                     <li @key="score.PlayerId">
                                         <span class="score-player">@score.PlayerName</span>
@@ -385,7 +385,7 @@
                         else
                         {
                             <ol class="score-list total-score-list">
-                                @foreach (var score in RoomLobbyPresentation.FinalScoreboardForDisplay(room))
+                                @foreach (var score in RoomLobbyPresentation.ScoreboardForDisplay(room))
                                 {
                                     <li @key="score.PlayerId">
                                         <span class="score-player">@score.PlayerName</span>
