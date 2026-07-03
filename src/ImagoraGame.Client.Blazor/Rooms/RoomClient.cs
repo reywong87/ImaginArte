@@ -43,6 +43,50 @@ public sealed class RoomClient : IAsyncDisposable
 
     public bool IsStartingNextRound { get; private set; }
 
+    public bool IsCreatingRoom { get; private set; }
+
+    public async Task<RoomStateResponse?> CreateRoomAsync(
+        string roomCode,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (IsCreatingRoom)
+        {
+            return null;
+        }
+
+        IsCreatingRoom = true;
+        ErrorMessage = null;
+        NotifyStateChanged();
+
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                "rooms",
+                new CreateRoomRequest(roomCode),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw await CreateRequestExceptionAsync(response, cancellationToken);
+            }
+
+            return await response.Content.ReadFromJsonAsync<RoomStateResponse>(
+                cancellationToken: cancellationToken)
+                ?? throw new HttpRequestException("El servidor devolvió una respuesta vacía.");
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = await ToUserMessageAsync(exception);
+            return null;
+        }
+        finally
+        {
+            IsCreatingRoom = false;
+            NotifyStateChanged();
+        }
+    }
+
     public async Task InitializeAsync(string roomCode, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

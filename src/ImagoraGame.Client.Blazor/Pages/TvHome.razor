@@ -1,0 +1,54 @@
+@page "/tv"
+@layout TvLayout
+@implements IDisposable
+@using ImagoraGame.Client.Blazor.Rooms
+@inject RoomClient RoomClient
+@inject NavigationManager Navigation
+
+<PageTitle>Crear sala TV</PageTitle>
+
+<main class="tv-home">
+    <section class="create-room-panel" aria-labelledby="create-room-title">
+        <p class="eyebrow">ImagoraGame TV</p>
+        <h1 id="create-room-title">Crear una sala</h1>
+        <p class="intro-copy">Prepara la pantalla compartida para que los jugadores se unan desde sus móviles.</p>
+
+        <button class="create-room-button"
+                type="button"
+                disabled="@RoomClient.IsCreatingRoom"
+                @onclick="CreateRoomAsync">
+            @(RoomClient.IsCreatingRoom ? "Creando sala..." : "Crear sala")
+        </button>
+
+        @if (RoomClient.ErrorMessage is not null)
+        {
+            <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+        }
+    </section>
+</main>
+
+@code {
+    protected override void OnInitialized()
+    {
+        RoomClient.StateChanged += HandleStateChanged;
+    }
+
+    private async Task CreateRoomAsync()
+    {
+        var room = await RoomClient.CreateRoomAsync(TvRoomCreationPresentation.CreateRoomCode());
+        if (room is not null)
+        {
+            Navigation.NavigateTo(TvRoomCreationPresentation.CreateLobbyPath(room));
+        }
+    }
+
+    private void HandleStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        RoomClient.StateChanged -= HandleStateChanged;
+    }
+}

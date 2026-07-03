@@ -8,6 +8,47 @@ namespace ImagoraGame.Client.Blazor.Tests;
 public sealed class RoomClientTests
 {
     [Fact]
+    public async Task CreateRoom_PostsToRoomsEndpointAndReturnsCreatedSnapshot()
+    {
+        var createdRoom = CreateRoom("ABC123");
+        var handler = new RecordingHttpMessageHandler(_ => JsonResponse(createdRoom));
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+
+        var room = await client.CreateRoomAsync("ABC123");
+
+        Assert.NotNull(room);
+        Assert.Equal("ABC123", room.RoomCode);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.Equal("http://localhost:5080/rooms", request.RequestUri?.ToString());
+
+        var body = await request.Content!.ReadFromJsonAsync<CreateRoomRequest>();
+        Assert.Equal("ABC123", body!.RoomCode);
+    }
+
+    [Fact]
+    public async Task CreateRoom_WhenServerRejectsOperation_ExposesProblemDetail()
+    {
+        var handler = new RecordingHttpMessageHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.Conflict)
+            {
+                Content = JsonContent.Create(new
+                {
+                    Detail = "Ya existe una sala con ese código."
+                })
+            });
+        var realtime = new FakeRoomRealtimeConnection();
+        await using var client = CreateClient(handler, realtime);
+
+        var room = await client.CreateRoomAsync("ABC123");
+
+        Assert.Null(room);
+        Assert.Equal("Ya existe una sala con ese código.", client.ErrorMessage);
+        Assert.False(client.IsCreatingRoom);
+    }
+
+    [Fact]
     public async Task Initialize_LoadsHttpSnapshotAndSubscribesToRoom()
     {
         var initialRoom = CreateRoom("ABC123", "Alice");
@@ -666,6 +707,25 @@ public sealed class RoomClientTests
 
         Assert.Equal(["Alice", "Bob", "Carla"], room.Scoreboard.Select(score => score.PlayerName));
         Assert.Equal(originalScoreboard, room.Scoreboard);
+    }
+
+    [Fact]
+    public void TvRoomCreationPresentation_CreatesLobbyPathFromCreatedRoom()
+    {
+        var room = CreateRoom("FAMILY ROOM");
+
+        var path = TvRoomCreationPresentation.CreateLobbyPath(room);
+
+        Assert.Equal("/tv/FAMILY%20ROOM", path);
+    }
+
+    [Fact]
+    public void TvRoomCreationPresentation_CreatesReadableSixCharacterCode()
+    {
+        var roomCode = TvRoomCreationPresentation.CreateRoomCode();
+
+        Assert.Equal(6, roomCode.Length);
+        Assert.Matches("^[A-Z2-9]+$", roomCode);
     }
 
     private static RoomClient CreateClient(
