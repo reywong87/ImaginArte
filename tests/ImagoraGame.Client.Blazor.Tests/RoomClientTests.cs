@@ -728,6 +728,42 @@ public sealed class RoomClientTests
         Assert.Matches("^[A-Z2-9]+$", roomCode);
     }
 
+    [Fact]
+    public void TvRoomJoinPresentation_CreatesMobileJoinUrlForRoom()
+    {
+        var room = CreateRoom("ABC123");
+
+        var joinUrl = TvRoomJoinPresentation.CreateMobileJoinUrl(
+            room,
+            new Uri("https://imagora.example/"));
+
+        Assert.Equal("https://imagora.example/join/ABC123", joinUrl);
+    }
+
+    [Fact]
+    public void TvRoomJoinPresentation_EscapesRoomCodeInMobileJoinUrl()
+    {
+        var room = CreateRoom("FAMILY ROOM/1+2");
+
+        var joinUrl = TvRoomJoinPresentation.CreateMobileJoinUrl(
+            room,
+            new Uri("https://imagora.example/game/"));
+
+        Assert.Equal("https://imagora.example/game/join/FAMILY%20ROOM%2F1%2B2", joinUrl);
+    }
+
+    [Fact]
+    public void TvRoomJoinPresentation_CreatesNonEmptySvgQrForMobileJoinUrl()
+    {
+        var svg = TvRoomJoinPresentation.CreateMobileJoinQrSvg(
+            "https://imagora.example/join/ABC123");
+
+        Assert.False(string.IsNullOrWhiteSpace(svg));
+        Assert.Contains("<svg", svg, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("viewBox", svg, StringComparison.Ordinal);
+        Assert.Contains("</svg>", svg, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static RoomClient CreateClient(
         HttpMessageHandler handler,
         FakeRoomRealtimeConnection realtime)

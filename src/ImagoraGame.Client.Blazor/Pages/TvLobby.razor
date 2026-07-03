@@ -3,7 +3,9 @@
 @implements IAsyncDisposable
 @using ImagoraGame.Client.Blazor.Rooms
 @using ImagoraGame.Contracts.Rooms
+@inject NavigationManager Navigation
 @inject RoomClient RoomClient
+@inject RoomClientOptions RoomClientOptions
 
 <PageTitle>Lobby @DisplayRoomCode</PageTitle>
 
@@ -454,6 +456,15 @@
                     }
                     else if (RoomLobbyPresentation.ShowsStartButton(room))
                     {
+                        var mobileJoinUrl = TvRoomJoinPresentation.CreateMobileJoinUrl(
+                            room,
+                            RoomClientOptions.MobileJoinBaseUri ?? new Uri(Navigation.BaseUri));
+                        var mobileJoinQrSvg = TvRoomJoinPresentation.CreateMobileJoinQrSvg(mobileJoinUrl);
+
+                        <div class="join-qr" aria-label="QR para entrar en la sala desde el móvil">
+                            @((MarkupString)mobileJoinQrSvg)
+                        </div>
+                        <p class="join-url">@mobileJoinUrl</p>
                         <p class="eyebrow">Control de TV</p>
                         <h2>Todo listo para imaginar</h2>
                         <p>Se necesitan al menos @RoomLobbyPresentation.MinimumPlayersToStart jugadores.</p>
