@@ -3,7 +3,7 @@
 @implements IAsyncDisposable
 @using ImagoraGame.Client.Blazor.Rooms
 @using ImagoraGame.Contracts.Rooms
-@inject MobileJoinClient JoinClient
+@inject MobileJoinCoordinator JoinCoordinator
 @inject MobileRoomClient MobileRoomClient
 
 <PageTitle>Unirse a sala</PageTitle>
@@ -180,9 +180,9 @@
     public string? RoomCode { get; set; }
 
     private readonly JoinRoomForm _form = new();
-    private readonly Guid _playerId = Guid.NewGuid();
     private MobileLobbyState? _lobby;
     private bool _isJoining;
+    private string? _resumeAttemptedRoomCode;
     private string? _errorMessage;
     private string? _selectedStorytellerCardId;
     private string? _selectedGuessCardId;
@@ -272,11 +272,12 @@
         _selectedVotingCardId is not null &&
         MobileRoomClient.CanVoteForCard(_selectedVotingCardId);
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         if (HasRoomCodeFromUrl)
         {
             _form.RoomCode = RoomCode!.Trim().ToUpperInvariant();
+            await TryResumeExistingSessionAsync(_form.RoomCode);
         }
     }
 
@@ -292,11 +293,18 @@
 
         try
         {
-            _lobby = await JoinClient.JoinAsync(
+            var existingSession = await JoinCoordinator.TryResumeAsync(_form.RoomCode);
+            if (existingSession is not null)
+            {
+                await ConnectAsync(existingSession);
+                return;
+            }
+
+            var result = await JoinCoordinator.JoinNewAsync(
                 _form.RoomCode,
-                _form.PlayerName,
-                _playerId);
-            await MobileRoomClient.ConnectAsync(_lobby);
+                _form.PlayerName);
+
+            await ConnectAsync(result);
         }
         catch (HttpRequestException exception)
         {
@@ -314,6 +322,52 @@
         {
             _isJoining = false;
         }
+    }
+
+    private async Task TryResumeExistingSessionAsync(string roomCode)
+    {
+        var normalizedRoomCode = roomCode.Trim().ToUpperInvariant();
+        if (_lobby is not null ||
+            _isJoining ||
+            string.Equals(_resumeAttemptedRoomCode, normalizedRoomCode, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _resumeAttemptedRoomCode = normalizedRoomCode;
+        _isJoining = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await JoinCoordinator.TryResumeAsync(normalizedRoomCode);
+            if (result is not null)
+            {
+                await ConnectAsync(result);
+            }
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            _errorMessage = "La operación fue cancelada.";
+        }
+        catch
+        {
+            _errorMessage = "No se pudo recuperar la sesión local. Puedes entrar de nuevo.";
+        }
+        finally
+        {
+            _isJoining = false;
+        }
+    }
+
+    private async Task ConnectAsync(MobileJoinSessionResult result)
+    {
+        _lobby = result.Lobby;
+        await MobileRoomClient.ConnectAsync(result.Lobby, result.PrivateState);
     }
 
     protected override void OnInitialized()

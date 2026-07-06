@@ -22,8 +22,11 @@ var mobileJoinBaseUri = string.IsNullOrWhiteSpace(mobileJoinBaseUrl)
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = apiBaseUri });
 builder.Services.AddSingleton(new RoomClientOptions(apiBaseUri, mobileJoinBaseUri));
 builder.Services.AddSingleton<IRoomRealtimeConnectionFactory, SignalRRoomRealtimeConnectionFactory>();
+builder.Services.AddScoped<IBrowserStorage, LocalStorageBrowserStorage>();
+builder.Services.AddScoped<IMobilePlayerSessionStore, MobilePlayerSessionStore>();
 builder.Services.AddTransient<RoomClient>();
 builder.Services.AddTransient<MobileJoinClient>();
+builder.Services.AddTransient<MobileJoinCoordinator>();
 builder.Services.AddTransient<MobileRoomClient>();
 
 await builder.Build().RunAsync();

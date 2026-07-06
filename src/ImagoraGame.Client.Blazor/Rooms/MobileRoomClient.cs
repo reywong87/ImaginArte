@@ -57,6 +57,7 @@ public sealed class MobileRoomClient : IAsyncDisposable
 
     public async Task ConnectAsync(
         MobileLobbyState lobby,
+        GetPlayerPrivateStateResponse? initialPrivateState = null,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -66,7 +67,7 @@ public sealed class MobileRoomClient : IAsyncDisposable
         }
 
         _lobby = lobby;
-        PrivateState = null;
+        PrivateState = initialPrivateState;
         ErrorMessage = null;
         SetStatus(RoomConnectionStatus.Loading);
 

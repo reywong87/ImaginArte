@@ -36,6 +36,27 @@ public sealed class MobileJoinClient(HttpClient httpClient)
             joinedPlayer?.Name ?? normalizedPlayerName);
     }
 
+    public async Task<GetPlayerPrivateStateResponse> GetPrivateStateAsync(
+        string roomCode,
+        Guid playerId,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedRoomCode = roomCode.Trim().ToUpperInvariant();
+
+        using var response = await httpClient.GetAsync(
+            $"rooms/{Uri.EscapeDataString(normalizedRoomCode)}/players/{playerId:D}",
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw await CreateRequestExceptionAsync(response, cancellationToken);
+        }
+
+        return await response.Content.ReadFromJsonAsync<GetPlayerPrivateStateResponse>(
+            cancellationToken: cancellationToken)
+            ?? throw new HttpRequestException("El servidor devolvió una respuesta vacía.");
+    }
+
     private static async Task<HttpRequestException> CreateRequestExceptionAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
