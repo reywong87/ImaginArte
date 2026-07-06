@@ -37,6 +37,70 @@
             </div>
         </header>
 
+        @if (ShowsScoreboardBoard(room))
+        {
+            var board = RoomBoardPresentation.FromRoom(room);
+
+            <section class="scoreboard-board" aria-labelledby="scoreboard-board-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Tablero</p>
+                        <h2 id="scoreboard-board-title">Camino de puntos</h2>
+                    </div>
+                    <p class="board-range">
+                        0-@board.MaxVisualPoints
+                    </p>
+                </div>
+
+                <ol class="board-track" aria-label="Casillas del tablero de puntuación">
+                    @foreach (var position in board.Track)
+                    {
+                        var tokensAtPosition = board.Tokens
+                            .Where(token => token.VisualPosition == position.Position)
+                            .ToArray();
+
+                        <li class="board-cell @(tokensAtPosition.Length > 0 ? "has-token" : null)">
+                            <span class="board-cell-number">@position.Position</span>
+                            @if (tokensAtPosition.Length > 0)
+                            {
+                                <ul class="board-token-list" aria-label="Jugadores en la casilla @position.Position">
+                                    @foreach (var token in tokensAtPosition)
+                                    {
+                                        <li @key="token.PlayerId"
+                                            class="board-token"
+                                            title="@($"{token.PlayerName}: {token.TotalPoints} puntos")">
+                                            <span aria-hidden="true">@token.Label</span>
+                                            <span class="visually-hidden">
+                                                @token.PlayerName, @token.TotalPoints puntos
+                                            </span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </li>
+                    }
+                </ol>
+
+                @if (board.Tokens.Count == 0)
+                {
+                    <p class="empty-state">Aún no hay marcador para colocar fichas.</p>
+                }
+                else
+                {
+                    <ol class="board-legend" aria-label="Puntuación total por jugador">
+                        @foreach (var token in board.Tokens.OrderByDescending(token => token.TotalPoints).ThenBy(token => token.PlayerName, StringComparer.Ordinal))
+                        {
+                            <li @key="token.PlayerId">
+                                <span class="board-legend-token">@token.Label</span>
+                                <span class="board-legend-name">@token.PlayerName</span>
+                                <strong>@token.TotalPoints</strong>
+                            </li>
+                        }
+                    </ol>
+                }
+            </section>
+        }
+
         @if (room.Phase == RoomPhase.Voting)
         {
             <section class="voting-content" aria-labelledby="voting-title">
@@ -553,6 +617,14 @@
         RoomPhase.GameComplete => "Partida terminada",
         _ => "La partida continúa"
     };
+
+    private static bool ShowsScoreboardBoard(RoomStateResponse room)
+    {
+        return room.Phase is RoomPhase.WaitingForPlayers
+            or RoomPhase.Scoring
+            or RoomPhase.RoundComplete
+            or RoomPhase.GameComplete;
+    }
 
     public async ValueTask DisposeAsync()
     {

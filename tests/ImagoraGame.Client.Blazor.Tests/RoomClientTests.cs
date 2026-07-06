@@ -710,6 +710,80 @@ public sealed class RoomClientTests
     }
 
     [Fact]
+    public void BoardPresentation_BuildsTokenPositionsFromScoreboardTotals()
+    {
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+        var room = CreateRoomWithScoreboard(
+            new ScoreboardEntryStateResponse(aliceId, "Alice", 0),
+            new ScoreboardEntryStateResponse(bobId, "Bob", 5),
+            new ScoreboardEntryStateResponse(carlaId, "Carla", 12));
+
+        var board = RoomBoardPresentation.FromRoom(room);
+
+        Assert.Equal(RoomBoardPresentation.DefaultMaxVisualPoints + 1, board.Track.Count);
+        Assert.Collection(
+            board.Tokens,
+            token =>
+            {
+                Assert.Equal(aliceId, token.PlayerId);
+                Assert.Equal("Alice", token.PlayerName);
+                Assert.Equal("A", token.Label);
+                Assert.Equal(0, token.TotalPoints);
+                Assert.Equal(0, token.VisualPosition);
+            },
+            token =>
+            {
+                Assert.Equal(bobId, token.PlayerId);
+                Assert.Equal("Bob", token.PlayerName);
+                Assert.Equal("B", token.Label);
+                Assert.Equal(5, token.TotalPoints);
+                Assert.Equal(5, token.VisualPosition);
+            },
+            token =>
+            {
+                Assert.Equal(carlaId, token.PlayerId);
+                Assert.Equal("Carla", token.PlayerName);
+                Assert.Equal("C", token.Label);
+                Assert.Equal(12, token.TotalPoints);
+                Assert.Equal(12, token.VisualPosition);
+            });
+    }
+
+    [Fact]
+    public void BoardPresentation_ClampsTokenPositionsButKeepsRealTotals()
+    {
+        var room = CreateRoomWithScoreboard(
+            new ScoreboardEntryStateResponse(Guid.NewGuid(), "Alice", 31));
+
+        var board = RoomBoardPresentation.FromRoom(room, maxVisualPoints: 30);
+
+        var token = Assert.Single(board.Tokens);
+        Assert.Equal(31, token.TotalPoints);
+        Assert.Equal(30, token.VisualPosition);
+    }
+
+    [Fact]
+    public void BoardPresentation_OrdersSharedPositionTokensByPlayerNameThenPlayerId()
+    {
+        var bobId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var carlaId = Guid.Parse("00000000-0000-0000-0000-000000000003");
+        var aliceId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var room = CreateRoomWithScoreboard(
+            new ScoreboardEntryStateResponse(bobId, "Bob", 8),
+            new ScoreboardEntryStateResponse(carlaId, "Alice", 8),
+            new ScoreboardEntryStateResponse(aliceId, "Alice", 8));
+
+        var board = RoomBoardPresentation.FromRoom(room);
+
+        Assert.Equal(
+            [aliceId, carlaId, bobId],
+            board.Tokens.Select(token => token.PlayerId));
+        Assert.Equal([0, 1, 2], board.Tokens.Select(token => token.StackIndex));
+    }
+
+    [Fact]
     public void TvRoomCreationPresentation_CreatesLobbyPathFromCreatedRoom()
     {
         var room = CreateRoom("FAMILY ROOM");
