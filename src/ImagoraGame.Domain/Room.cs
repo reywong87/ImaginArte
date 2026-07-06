@@ -159,6 +159,64 @@ public sealed class Room
         return new Room(code, targetScore, randomNumberGenerator ?? new SharedRandomNumberGenerator());
     }
 
+    public RoomSnapshot ToSnapshot()
+    {
+        return new RoomSnapshot(
+            Code,
+            Phase,
+            TargetScore,
+            CurrentStorytellerId,
+            StorytellerCardId,
+            Clue,
+            _players
+                .Select(player => new PlayerSnapshot(player.Id, player.Name, player.Hand.ToArray()))
+                .ToArray(),
+            _availableDeck.ToArray(),
+            _discardPile.ToArray(),
+            _guessCardSubmissions.ToArray(),
+            _votingCardOwnerships.ToArray(),
+            _votes.ToArray(),
+            _scoreboard.ToArray(),
+            _roundScoreResult?.PlayerScores.ToArray() ?? Array.Empty<PlayerRoundScore>());
+    }
+
+    public static Room Restore(
+        RoomSnapshot snapshot,
+        IRandomNumberGenerator? randomNumberGenerator = null)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        var room = new Room(
+            snapshot.Code,
+            snapshot.TargetScore,
+            randomNumberGenerator ?? new SharedRandomNumberGenerator())
+        {
+            Phase = snapshot.Phase,
+            CurrentStorytellerId = snapshot.CurrentStorytellerId,
+            StorytellerCardId = snapshot.StorytellerCardId,
+            Clue = snapshot.Clue
+        };
+
+        foreach (var playerSnapshot in snapshot.Players)
+        {
+            var player = new Player(playerSnapshot.Id, playerSnapshot.Name);
+            player.DealInitialHand(playerSnapshot.Hand);
+            room._players.Add(player);
+        }
+
+        room._availableDeck.AddRange(snapshot.AvailableDeck);
+        room._discardPile.AddRange(snapshot.DiscardPile);
+        room._guessCardSubmissions.AddRange(snapshot.GuessCardSubmissions);
+        room._votingCardOwnerships.AddRange(snapshot.VotingCardOwnerships);
+        room._votes.AddRange(snapshot.Votes);
+        room._scoreboard.AddRange(snapshot.Scoreboard);
+        room._roundScoreResult = snapshot.RoundScores.Count > 0
+            ? new RoundScoreResult(snapshot.RoundScores.ToArray())
+            : null;
+
+        return room;
+    }
+
     public Player Join(PlayerId playerId, string playerName)
     {
         if (Phase != GamePhase.WaitingForPlayers)

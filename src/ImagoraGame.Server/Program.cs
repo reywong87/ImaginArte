@@ -25,7 +25,20 @@ builder.Services.AddCors(options =>
     });
 });
 builder.Services.AddSingleton(typeof(CancellationToken), CancellationToken.None);
-builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
+builder.Services.AddSingleton<IRoomRepository>(_ =>
+{
+    var provider = builder.Configuration["Persistence:Provider"] ?? "InMemory";
+
+    return provider.ToUpperInvariant() switch
+    {
+        "SQLITE" => new SqliteRoomRepository(
+            builder.Configuration["Persistence:ConnectionString"]
+                ?? "Data Source=imagora.db"),
+        "INMEMORY" => new InMemoryRoomRepository(),
+        _ => throw new InvalidOperationException(
+            $"Unsupported persistence provider '{provider}'.")
+    };
+});
 builder.Services.AddTransient<CreateRoomHandler>();
 builder.Services.AddTransient<JoinRoomHandler>();
 builder.Services.AddTransient<StartGameHandler>();

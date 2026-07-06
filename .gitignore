@@ -5,6 +5,11 @@ obj/
 # Local .NET CLI home used by Codex commands in this workspace
 .dotnet/
 
+# Local SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
 # IDE/user files
 .vs/
 .vscode/

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ImagoraGame.Contracts.Rooms;
 using ImagoraGame.Domain;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -13,7 +14,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostRooms_CreatesRoomAndNormalizesRoomCode()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         var response = await client.PostAsJsonAsync("/rooms", new
@@ -33,7 +34,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostRooms_WithDuplicateRoomCode_ReturnsConflict()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         await CreateRoomAsync(client, "ABC123");
@@ -52,7 +53,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostPlayers_JoinsPlayerAndReturnsUpdatedRoomState()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var playerId = Guid.NewGuid();
 
@@ -81,7 +82,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostStart_WithFewerThanThreePlayers_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         await CreateRoomAsync(client, "ABC123");
@@ -99,7 +100,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostStart_WithThreePlayers_MovesRoomToStorytellerChoosing()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var aliceId = Guid.NewGuid();
 
@@ -121,7 +122,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostStorytellerCard_WithValidRequest_ReturnsUpdatedPublicRoomState()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var aliceId = Guid.NewGuid();
 
@@ -151,7 +152,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostStorytellerCard_WhenRoomDoesNotExist_ReturnsNotFound()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         var response = await client.PostAsJsonAsync(
@@ -170,7 +171,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostStorytellerCard_WhenPlayerIsNotStoryteller_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var aliceId = Guid.NewGuid();
         var bobId = Guid.NewGuid();
@@ -194,7 +195,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostStorytellerCard_WithEmptyClue_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var aliceId = Guid.NewGuid();
 
@@ -217,7 +218,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostGuessCards_WithFirstValidSubmission_ReturnsPublicSubmittingState()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareGuessSubmissionRoomAsync(client, "ABC123");
 
@@ -239,7 +240,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostGuessCards_WithLastSubmission_MovesToVotingWithoutRevealingCardOwnership()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareGuessSubmissionRoomAsync(client, "ABC123");
 
@@ -283,7 +284,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostGuessCards_WhenRoomDoesNotExist_ReturnsNotFound()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         var response = await client.PostAsJsonAsync(
@@ -299,7 +300,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostGuessCards_WhenStorytellerSubmits_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareGuessSubmissionRoomAsync(client, "ABC123");
 
@@ -316,7 +317,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostGuessCards_WhenGuesserSubmitsTwice_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareGuessSubmissionRoomAsync(client, "ABC123");
 
@@ -338,7 +339,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostGuessCards_WhenCardIsNotInPlayerHand_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareGuessSubmissionRoomAsync(client, "ABC123");
 
@@ -355,7 +356,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostVotes_WithFirstValidVote_ReturnsPrivateVotingState()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareVotingRoomAsync(client, "ABC123");
         var storytellerVotingCardId = room.VotingState.VotingCards
@@ -412,7 +413,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostVotes_WithLastVote_MovesToRevealAndRevealsVoteDetails()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareVotingRoomAsync(client, "ABC123");
         var storytellerVotingCardId = room.VotingState.VotingCards
@@ -479,7 +480,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostVotes_WhenRoomDoesNotExist_ReturnsNotFound()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         var response = await client.PostAsJsonAsync(
@@ -495,7 +496,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostVotes_WhenStorytellerVotes_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareVotingRoomAsync(client, "ABC123");
 
@@ -511,7 +512,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostVotes_WhenPlayerVotesTwice_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareVotingRoomAsync(client, "ABC123");
         var storytellerVotingCardId = room.VotingState.VotingCards
@@ -536,7 +537,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostVotes_WhenPlayerVotesForOwnCard_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareVotingRoomAsync(client, "ABC123");
         var bobVotingCardId = room.VotingState.VotingCards
@@ -553,7 +554,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostVotes_WhenVotingCardDoesNotExist_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareVotingRoomAsync(client, "ABC123");
 
@@ -567,7 +568,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostVotes_WhenRoomIsNotInVoting_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareGuessSubmissionRoomAsync(client, "ABC123");
 
@@ -581,7 +582,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostScore_WithRevealRoom_ReturnsScoringStateAndPreservesRevealDetails()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareRevealRoomAsync(client, "ABC123");
 
@@ -641,7 +642,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostScore_WhenRoomDoesNotExist_ReturnsNotFound()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         var response = await client.PostAsync("/rooms/missing/score", content: null);
@@ -655,7 +656,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostScore_WhenNotInRevealOrAlreadyScored_ReturnsBadRequestWithoutDuplicatingPoints()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         await CreateRoomAsync(client, "NOT-READY");
@@ -690,7 +691,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostCompleteRound_WithScoringRoom_ReturnsRoundCompleteAndPreservesRoundResults()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var scoringState = await PrepareScoringRoomAsync(client, "ABC123");
 
@@ -714,7 +715,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostCompleteRound_WhenRoomDoesNotExist_ReturnsNotFound()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         var response = await client.PostAsync(
@@ -730,7 +731,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostCompleteRound_BeforeScoringOrTwice_ReturnsBadRequestWithoutChangingScores()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         await CreateRoomAsync(client, "NOT-READY");
@@ -765,7 +766,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostAdvanceRound_WithRoundCompleteRoom_StartsNextRoundAndRefillsPrivateHands()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareRoundCompleteRoomAsync(client, "ABC123");
 
@@ -819,7 +820,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostAdvanceRound_WhenRoomDoesNotExist_ReturnsNotFound()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         var response = await client.PostAsync(
@@ -835,7 +836,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostAdvanceRound_BeforeRoundComplete_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         await CreateRoomAsync(client, "ABC123");
@@ -853,7 +854,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostAdvanceRound_Twice_ReturnsBadRequestWithoutAdvancingAgain()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareRoundCompleteRoomAsync(client, "ABC123");
 
@@ -895,7 +896,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostNextRound_WithScoringRoom_StartsNextRoundAndRefillsPrivateHands()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var revealRoom = await PrepareRevealRoomAsync(client, "ABC123");
         var aliceBefore = await GetPlayerPrivateStateAsync(client, "ABC123", revealRoom.AliceId);
@@ -946,7 +947,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostNextRound_WhenRoomDoesNotExist_ReturnsNotFound()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         var response = await client.PostAsync(
@@ -962,7 +963,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task PostNextRound_BeforeScoring_ReturnsBadRequest()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         await CreateRoomAsync(client, "ABC123");
@@ -980,7 +981,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task GetRoom_ReturnsPublicRoomStateWithoutPrivateHands()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         await CreateRoomAsync(client, "ABC123");
@@ -1006,7 +1007,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task GetPlayerPrivateState_ReturnsPublicRoomAndPrivatePlayerSnapshot()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var bobId = Guid.NewGuid();
 
@@ -1048,7 +1049,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task GetPlayerPrivateState_InVoting_ReturnsSubmittedVotingCardIdWithoutPublicOwnership()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
         var room = await PrepareVotingRoomAsync(client, "ABC123");
         var bobVotingCardId = room.VotingState.VotingCards
@@ -1080,7 +1081,7 @@ public sealed class RoomEndpointTests
     [Fact]
     public async Task GetPlayerPrivateState_WhenPlayerDoesNotExist_ReturnsNotFound()
     {
-        using var application = new WebApplicationFactory<Program>();
+        using var application = CreateApplication();
         using var client = application.CreateClient();
 
         await CreateRoomAsync(client, "ABC123");
@@ -1354,6 +1355,13 @@ public sealed class RoomEndpointTests
     {
         Assert.DoesNotContain("\"hand\"", responseBody, StringComparison.OrdinalIgnoreCase);
         return ReadRequiredJson<RoomStateResponse>(responseBody);
+    }
+
+    private static WebApplicationFactory<Program> CreateApplication()
+    {
+        return new WebApplicationFactory<Program>()
+            .WithWebHostBuilder(builder =>
+                builder.UseSetting("Persistence:Provider", "InMemory"));
     }
 
     private sealed record VotingRoom(

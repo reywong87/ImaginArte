@@ -6,6 +6,7 @@ using ImagoraGame.Application.Rooms;
 using ImagoraGame.Contracts.Rooms;
 using ImagoraGame.Domain;
 using ImagoraGame.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -735,9 +736,12 @@ public sealed class RoomHubTests
     {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("Persistence:Provider", "InMemory");
                 builder.ConfigureServices(services =>
                     services.Configure<HubOptions>(
-                        options => options.EnableDetailedErrors = true)));
+                        options => options.EnableDetailedErrors = true));
+            });
     }
 
     private static WebApplicationFactory<Program> CreateApplication(
@@ -745,13 +749,16 @@ public sealed class RoomHubTests
     {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("Persistence:Provider", "InMemory");
                 builder.ConfigureServices(services =>
                 {
                     services.RemoveAll<IRoomRepository>();
                     services.AddSingleton(repository);
                     services.Configure<HubOptions>(
                         options => options.EnableDetailedErrors = true);
-                }));
+                });
+            });
     }
 
     private static Task<TEvent> WaitForEvent<TEvent>(
