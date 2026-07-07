@@ -157,6 +157,7 @@ public sealed class SqliteRoomRepositoryTests
             "ImagoraGame.Infrastructure",
             "Microsoft.Data.Sqlite",
             "Microsoft.EntityFrameworkCore",
+            "Npgsql",
             "SQLitePCLRaw"
         };
         var assemblies = new[]

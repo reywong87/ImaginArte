@@ -40,7 +40,7 @@ public sealed class RoomCleanupBackgroundService : BackgroundService
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "SQLite room cleanup failed.");
+            _logger.LogError(exception, "Room cleanup failed.");
         }
     }
 }

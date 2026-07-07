@@ -27,7 +27,7 @@ public sealed class RoomCleanupRunner
         var deletedRooms = await _rooms.DeleteInactiveRoomsAsync(cutoffUtc, cancellationToken);
 
         _logger.LogInformation(
-            "Deleted {DeletedRooms} inactive SQLite rooms older than {CutoffUtc}.",
+            "Deleted {DeletedRooms} inactive rooms older than {CutoffUtc}.",
             deletedRooms,
             cutoffUtc);
 

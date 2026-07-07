@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ImagoraGame.Application.Rooms;
+using ImagoraGame.Infrastructure.Persistence;
 
 namespace ImagoraGame.Server.Tests;
 
@@ -56,10 +58,41 @@ public sealed class RoomCleanupRegistrationTests
         Assert.Null(application.Services.GetService<RoomCleanupRunner>());
     }
 
+    [Fact]
+    public void PostgreSQLProvider_RegistersPostgresRoomRepository()
+    {
+        using var application = CreateApplication(
+            "PostgreSQL",
+            cleanupEnabled: false,
+            connectionString: "Host=localhost;Database=imagora;Username=imagora;Password=imagora");
+
+        var roomRepository = application.Services.GetRequiredService<IRoomRepository>();
+        var cleanupRepository = application.Services.GetRequiredService<IRoomCleanupRepository>();
+
+        Assert.IsType<PostgresRoomRepository>(roomRepository);
+        Assert.Same(roomRepository, cleanupRepository);
+    }
+
+    [Fact]
+    public void PostgreSQLProvider_WithCleanupEnabled_RegistersCleanupServices()
+    {
+        using var application = CreateApplication(
+            "PostgreSQL",
+            cleanupEnabled: true,
+            connectionString: "Host=localhost;Database=imagora;Username=imagora;Password=imagora");
+
+        var hostedServices = application.Services.GetServices<IHostedService>();
+
+        Assert.Contains(
+            hostedServices,
+            service => service is RoomCleanupBackgroundService);
+        Assert.NotNull(application.Services.GetService<RoomCleanupRunner>());
+    }
+
     private static WebApplicationFactory<Program> CreateApplication(
         string persistenceProvider,
         bool cleanupEnabled,
-        string? sqliteConnectionString = null)
+        string? connectionString = null)
     {
         return new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -69,11 +102,11 @@ public sealed class RoomCleanupRegistrationTests
                 builder.UseSetting("RoomCleanup:InactiveRoomTtlHours", "12");
                 builder.UseSetting("RoomCleanup:IntervalMinutes", "30");
 
-                if (sqliteConnectionString is not null)
+                if (connectionString is not null)
                 {
                     builder.UseSetting(
                         "Persistence:ConnectionString",
-                        sqliteConnectionString);
+                        connectionString);
                 }
             });
     }

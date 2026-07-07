@@ -40,6 +40,16 @@ switch (persistenceProvider.ToUpperInvariant())
         builder.Services.AddSingleton<IRoomCleanupRepository>(
             services => services.GetRequiredService<SqliteRoomRepository>());
         break;
+    case "POSTGRESQL":
+        builder.Services.AddSingleton(_ => new PostgresRoomRepository(
+            builder.Configuration["Persistence:ConnectionString"]
+                ?? throw new InvalidOperationException(
+                    "PostgreSQL persistence requires Persistence:ConnectionString.")));
+        builder.Services.AddSingleton<IRoomRepository>(
+            services => services.GetRequiredService<PostgresRoomRepository>());
+        builder.Services.AddSingleton<IRoomCleanupRepository>(
+            services => services.GetRequiredService<PostgresRoomRepository>());
+        break;
     case "INMEMORY":
         builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
         break;
@@ -51,7 +61,8 @@ switch (persistenceProvider.ToUpperInvariant())
 var roomCleanupEnabled = builder.Configuration.GetValue<bool>(
     $"{RoomCleanupOptions.SectionName}:Enabled");
 if (roomCleanupEnabled
-    && persistenceProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase))
+    && (persistenceProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase)
+        || persistenceProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase)))
 {
     builder.Services.AddSingleton<RoomCleanupRunner>();
     builder.Services.AddHostedService<RoomCleanupBackgroundService>();
