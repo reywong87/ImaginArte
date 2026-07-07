@@ -117,6 +117,39 @@ public sealed class SqliteRoomRepositoryTests
     }
 
     [Fact]
+    public async Task DeleteInactiveRoomsAsync_DeletesOnlyRoomsOlderThanCutoff()
+    {
+        await using var database = TemporarySqliteDatabase.Create();
+        var repository = database.CreateRepository();
+        await repository.AddAsync(Room.Create(new RoomCode("OLD123")));
+        await repository.AddAsync(Room.Create(new RoomCode("NEW123")));
+        var cutoffUtc = DateTimeOffset.Parse("2026-01-02T00:00:00Z");
+        await database.SetUpdatedAtUtcAsync("OLD123", cutoffUtc.AddMinutes(-1));
+        await database.SetUpdatedAtUtcAsync("NEW123", cutoffUtc.AddMinutes(1));
+
+        var deletedRooms = await repository.DeleteInactiveRoomsAsync(cutoffUtc);
+
+        Assert.Equal(1, deletedRooms);
+        Assert.Null(await repository.GetByCodeAsync(new RoomCode("OLD123")));
+        Assert.NotNull(await repository.GetByCodeAsync(new RoomCode("NEW123")));
+    }
+
+    [Fact]
+    public async Task DeleteInactiveRoomsAsync_DoesNotDeleteRoomsNewerThanCutoff()
+    {
+        await using var database = TemporarySqliteDatabase.Create();
+        var repository = database.CreateRepository();
+        await repository.AddAsync(Room.Create(new RoomCode("NEW123")));
+        var cutoffUtc = DateTimeOffset.Parse("2026-01-02T00:00:00Z");
+        await database.SetUpdatedAtUtcAsync("NEW123", cutoffUtc);
+
+        var deletedRooms = await repository.DeleteInactiveRoomsAsync(cutoffUtc);
+
+        Assert.Equal(0, deletedRooms);
+        Assert.NotNull(await repository.GetByCodeAsync(new RoomCode("NEW123")));
+    }
+
+    [Fact]
     public void CoreAssemblies_DoNotDependOnPersistenceTechnologyOrInfrastructure()
     {
         var forbiddenDependencyNames = new[]
@@ -170,6 +203,25 @@ public sealed class SqliteRoomRepositoryTests
         public SqliteRoomRepository CreateRepository()
         {
             return new SqliteRoomRepository($"Data Source={Path}");
+        }
+
+        public async Task SetUpdatedAtUtcAsync(
+            string roomCode,
+            DateTimeOffset updatedAtUtc)
+        {
+            await using var connection = new Microsoft.Data.Sqlite.SqliteConnection(
+                $"Data Source={Path}");
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                UPDATE Rooms
+                SET UpdatedAtUtc = $updatedAtUtc
+                WHERE RoomCode = $roomCode;
+                """;
+            command.Parameters.AddWithValue("$updatedAtUtc", updatedAtUtc.ToString("O"));
+            command.Parameters.AddWithValue("$roomCode", roomCode);
+
+            await command.ExecuteNonQueryAsync();
         }
 
         public ValueTask DisposeAsync()

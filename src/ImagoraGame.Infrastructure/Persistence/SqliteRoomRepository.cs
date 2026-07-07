@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace ImagoraGame.Infrastructure.Persistence;
 
-public sealed class SqliteRoomRepository : IRoomRepository
+public sealed class SqliteRoomRepository : IRoomRepository, IRoomCleanupRepository
 {
     private const int SqliteConstraintErrorCode = 19;
     private readonly string _connectionString;
@@ -95,6 +95,22 @@ public sealed class SqliteRoomRepository : IRoomRepository
         {
             throw new RoomNotFoundException(room.Code.Value);
         }
+    }
+
+    public async Task<int> DeleteInactiveRoomsAsync(
+        DateTimeOffset cutoffUtc,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DELETE FROM Rooms
+            WHERE UpdatedAtUtc < $cutoffUtc;
+            """;
+        command.Parameters.AddWithValue("$cutoffUtc", cutoffUtc.ToString("O"));
+
+        return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private void EnsureDatabaseCreated()

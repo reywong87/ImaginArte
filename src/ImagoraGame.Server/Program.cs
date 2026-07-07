@@ -6,6 +6,9 @@ using ImagoraGame.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSignalR();
+builder.Services.Configure<RoomCleanupOptions>(
+    builder.Configuration.GetSection(RoomCleanupOptions.SectionName));
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("BlazorDevelopment", policy =>
@@ -25,20 +28,34 @@ builder.Services.AddCors(options =>
     });
 });
 builder.Services.AddSingleton(typeof(CancellationToken), CancellationToken.None);
-builder.Services.AddSingleton<IRoomRepository>(_ =>
+var persistenceProvider = builder.Configuration["Persistence:Provider"] ?? "InMemory";
+switch (persistenceProvider.ToUpperInvariant())
 {
-    var provider = builder.Configuration["Persistence:Provider"] ?? "InMemory";
-
-    return provider.ToUpperInvariant() switch
-    {
-        "SQLITE" => new SqliteRoomRepository(
+    case "SQLITE":
+        builder.Services.AddSingleton(_ => new SqliteRoomRepository(
             builder.Configuration["Persistence:ConnectionString"]
-                ?? "Data Source=imagora.db"),
-        "INMEMORY" => new InMemoryRoomRepository(),
-        _ => throw new InvalidOperationException(
-            $"Unsupported persistence provider '{provider}'.")
-    };
-});
+                ?? "Data Source=imagora.db"));
+        builder.Services.AddSingleton<IRoomRepository>(
+            services => services.GetRequiredService<SqliteRoomRepository>());
+        builder.Services.AddSingleton<IRoomCleanupRepository>(
+            services => services.GetRequiredService<SqliteRoomRepository>());
+        break;
+    case "INMEMORY":
+        builder.Services.AddSingleton<IRoomRepository, InMemoryRoomRepository>();
+        break;
+    default:
+        throw new InvalidOperationException(
+            $"Unsupported persistence provider '{persistenceProvider}'.");
+}
+
+var roomCleanupEnabled = builder.Configuration.GetValue<bool>(
+    $"{RoomCleanupOptions.SectionName}:Enabled");
+if (roomCleanupEnabled
+    && persistenceProvider.Equals("SQLite", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<RoomCleanupRunner>();
+    builder.Services.AddHostedService<RoomCleanupBackgroundService>();
+}
 builder.Services.AddTransient<CreateRoomHandler>();
 builder.Services.AddTransient<JoinRoomHandler>();
 builder.Services.AddTransient<StartGameHandler>();
