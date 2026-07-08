@@ -41,10 +41,15 @@ switch (persistenceProvider.ToUpperInvariant())
             services => services.GetRequiredService<SqliteRoomRepository>());
         break;
     case "POSTGRESQL":
-        builder.Services.AddSingleton(_ => new PostgresRoomRepository(
-            builder.Configuration["Persistence:ConnectionString"]
-                ?? throw new InvalidOperationException(
-                    "PostgreSQL persistence requires Persistence:ConnectionString.")));
+        var postgresConnectionString = builder.Configuration["Persistence:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(postgresConnectionString))
+        {
+            throw new InvalidOperationException(
+                "PostgreSQL persistence requires a non-empty Persistence:ConnectionString. "
+                + "Set Persistence__ConnectionString in the deployment environment.");
+        }
+
+        builder.Services.AddSingleton(_ => new PostgresRoomRepository(postgresConnectionString));
         builder.Services.AddSingleton<IRoomRepository>(
             services => services.GetRequiredService<PostgresRoomRepository>());
         builder.Services.AddSingleton<IRoomCleanupRepository>(
@@ -86,6 +91,7 @@ var app = builder.Build();
 app.UseCors("BlazorDevelopment");
 
 app.MapGet("/", () => "Hello World!");
+app.MapGet("/health", () => Results.Ok());
 app.MapHub<RoomHub>("/hubs/rooms");
 
 app.MapPost("/rooms", async (

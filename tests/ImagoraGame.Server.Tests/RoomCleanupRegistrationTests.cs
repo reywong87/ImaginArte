@@ -74,6 +74,25 @@ public sealed class RoomCleanupRegistrationTests
     }
 
     [Fact]
+    public void PostgreSQLProvider_WithEmptyConnectionString_FailsWithClearMessage()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+        {
+            using var application = CreateApplication(
+                "PostgreSQL",
+                cleanupEnabled: false,
+                connectionString: " ");
+
+            _ = application.Services;
+        });
+
+        Assert.Contains(
+            "PostgreSQL persistence requires a non-empty Persistence:ConnectionString",
+            exception.Message);
+        Assert.Contains("Persistence__ConnectionString", exception.Message);
+    }
+
+    [Fact]
     public void PostgreSQLProvider_WithCleanupEnabled_RegistersCleanupServices()
     {
         using var application = CreateApplication(
