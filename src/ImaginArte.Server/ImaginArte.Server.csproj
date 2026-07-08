@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\ImaginArte.Application\ImaginArte.Application.csproj" />
@@ -10,6 +10,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>3d61d7de-5275-4a50-bcab-e17c0556d131</UserSecretsId>
   </PropertyGroup>
 
 </Project>
