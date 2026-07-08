@@ -1,0 +1,494 @@
+@page "/join"
+@page "/join/{RoomCode}"
+@implements IAsyncDisposable
+@using ImaginArte.Client.Blazor.Rooms
+@using ImaginArte.Contracts.Rooms
+@inject MobileJoinCoordinator JoinCoordinator
+@inject MobileRoomClient MobileRoomClient
+
+<PageTitle>Unirse a sala</PageTitle>
+
+<main class="mobile-join">
+    @if (_lobby is null)
+    {
+        <section class="join-panel" aria-labelledby="join-title">
+            <p class="eyebrow">ImaginArte</p>
+            <h1 id="join-title">Unirse a sala</h1>
+
+            <EditForm Model="_form" OnValidSubmit="JoinRoomAsync" FormName="mobile-join">
+                <DataAnnotationsValidator />
+
+                <div class="field-group">
+                    <label for="room-code">Código de sala</label>
+                    <InputText id="room-code"
+                               class="text-input room-code-input"
+                               autocomplete="off"
+                               autocapitalize="characters"
+                               disabled="@HasRoomCodeFromUrl"
+                               @bind-Value="_form.RoomCode" />
+                    <ValidationMessage For="@(() => _form.RoomCode)" />
+                </div>
+
+                <div class="field-group">
+                    <label for="player-name">Tu nombre</label>
+                    <InputText id="player-name"
+                               class="text-input"
+                               autocomplete="name"
+                               @bind-Value="_form.PlayerName" />
+                    <ValidationMessage For="@(() => _form.PlayerName)" />
+                </div>
+
+                <button class="primary-action" type="submit" disabled="@_isJoining">
+                    @(_isJoining ? "Uniendo..." : "Entrar")
+                </button>
+
+                @if (_errorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@_errorMessage</p>
+                }
+            </EditForm>
+        </section>
+    }
+    else
+    {
+        <section class="lobby-panel" aria-labelledby="lobby-title">
+            <p class="eyebrow">Sala @_lobby.RoomCode</p>
+            <h1 id="lobby-title">@_lobby.PlayerName</h1>
+
+            @if (ShowsStorytellerAction)
+            {
+                <div class="player-action" aria-labelledby="storyteller-action-title">
+                    <h2 id="storyteller-action-title">Elige tu carta</h2>
+                    <p class="mobile-status">Selecciona una carta de tu mano y escribe la pista para la ronda.</p>
+
+                    <div class="hand-grid" aria-label="Cartas de tu mano">
+                        @foreach (var card in MobileRoomClient.PrivateState!.Player.Hand)
+                        {
+                            <button type="button"
+                                    class="card-choice @(card.CardId == _selectedStorytellerCardId ? "selected" : null)"
+                                    aria-pressed="@(card.CardId == _selectedStorytellerCardId)"
+                                    @onclick="() => SelectStorytellerCard(card.CardId)">
+                                <span>Carta</span>
+                                <strong>@card.CardId</strong>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="field-group">
+                        <label for="storyteller-clue">Pista</label>
+                        <InputText id="storyteller-clue"
+                                   class="text-input"
+                                   autocomplete="off"
+                                   @bind-Value="_storytellerClue" />
+                    </div>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@(!CanSubmitStorytellerCard)"
+                            @onclick="SubmitStorytellerCardAsync">
+                        @(MobileRoomClient.IsChoosingStorytellerCard ? "Enviando..." : "Enviar pista")
+                    </button>
+                </div>
+            }
+            else if (ShowsGuesserSubmissionAction)
+            {
+                <div class="player-action" aria-labelledby="guesser-submission-title">
+                    <h2 id="guesser-submission-title">Entrega tu carta</h2>
+
+                    <div class="round-clue" aria-label="Pista de la ronda">
+                        <span>Pista</span>
+                        <strong>@MobileRoomClient.PrivateState!.Room.Clue</strong>
+                    </div>
+
+                    <p class="mobile-status">Selecciona una carta de tu mano para entregarla a la ronda.</p>
+
+                    <div class="hand-grid" aria-label="Cartas de tu mano">
+                        @foreach (var card in MobileRoomClient.PrivateState!.Player.Hand)
+                        {
+                            <button type="button"
+                                    class="card-choice @(card.CardId == _selectedGuessCardId ? "selected" : null)"
+                                    aria-pressed="@(card.CardId == _selectedGuessCardId)"
+                                    @onclick="() => SelectGuessCard(card.CardId)">
+                                <span>Carta</span>
+                                <strong>@card.CardId</strong>
+                            </button>
+                        }
+                    </div>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@(!CanSubmitGuessCard)"
+                            @onclick="SubmitGuessCardAsync">
+                        @(MobileRoomClient.IsSubmittingGuessCard ? "Enviando..." : "Enviar carta")
+                    </button>
+                </div>
+            }
+            else if (ShowsVotingAction)
+            {
+                <div class="player-action" aria-labelledby="voting-action-title">
+                    <h2 id="voting-action-title">Vota una carta</h2>
+
+                    <div class="round-clue" aria-label="Pista de la ronda">
+                        <span>Pista</span>
+                        <strong>@MobileRoomClient.PrivateState!.Room.Clue</strong>
+                    </div>
+
+                    <p class="mobile-status">Elige la carta que crees que pertenece al narrador.</p>
+
+                    <div class="hand-grid" aria-label="Cartas públicas para votar">
+                        @foreach (var card in MobileRoomClient.PrivateState!.Room.VotingCards.OrderBy(card => card.DisplayNumber))
+                        {
+                            var isOwnCard = MobileRoomClient.IsOwnSubmittedVotingCard(card.VotingCardId);
+                            <button type="button"
+                                    class="@GetVotingCardChoiceClass(card.VotingCardId)"
+                                    disabled="@isOwnCard"
+                                    aria-pressed="@(card.VotingCardId == _selectedVotingCardId)"
+                                    @onclick="() => SelectVotingCard(card.VotingCardId)">
+                                <span>Carta @card.DisplayNumber</span>
+                                <strong>@card.CardId</strong>
+                                @if (isOwnCard)
+                                {
+                                    <em>Tu carta</em>
+                                }
+                            </button>
+                        }
+                    </div>
+
+                    <button class="primary-action"
+                            type="button"
+                            disabled="@(!CanCastVote)"
+                            @onclick="CastVoteAsync">
+                        @(MobileRoomClient.IsCastingVote ? "Votando..." : "Votar")
+                    </button>
+                </div>
+            }
+            else
+            {
+                <p class="mobile-status">@MobileStatusMessage</p>
+            }
+
+            @if (MobileRoomClient.ErrorMessage is not null)
+            {
+                <p class="error-message" role="alert">@MobileRoomClient.ErrorMessage</p>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    [Parameter]
+    public string? RoomCode { get; set; }
+
+    private readonly JoinRoomForm _form = new();
+    private MobileLobbyState? _lobby;
+    private bool _isJoining;
+    private string? _resumeAttemptedRoomCode;
+    private string? _errorMessage;
+    private string? _selectedStorytellerCardId;
+    private string? _selectedGuessCardId;
+    private string? _selectedVotingCardId;
+    private bool _hasCastVoteInCurrentVotingPhase;
+    private string _storytellerClue = string.Empty;
+
+    private bool HasRoomCodeFromUrl => !string.IsNullOrWhiteSpace(RoomCode);
+
+    private string MobileStatusMessage
+    {
+        get
+        {
+            var privateState = MobileRoomClient.PrivateState;
+            if (privateState?.Room.Phase == RoomPhase.GuessersSubmitting)
+            {
+                return privateState.Player.IsCurrentStoryteller
+                    ? "Pista enviada. Esperando a que el resto elija su carta."
+                    : MobileRoomClient.HasSubmittedGuessCard
+                        ? "Carta enviada. Esperando a que el resto termine."
+                        : "Selecciona una carta de tu mano para entregarla a la ronda.";
+            }
+
+            if (privateState?.Room.Phase == RoomPhase.Voting)
+            {
+                return privateState.Player.IsCurrentStoryteller
+                    ? "Esperando a que el resto vote."
+                    : "Voto enviado. Esperando a que el resto termine.";
+            }
+
+            if (privateState is not null &&
+                privateState.Room.Phase != RoomPhase.WaitingForPlayers)
+            {
+                return "La partida ha empezado. Mantén esta pantalla lista para tu próximo turno.";
+            }
+
+            return "Jugador unido. Esperando a que la TV inicie la partida.";
+        }
+    }
+
+    private bool ShowsStorytellerAction
+    {
+        get
+        {
+            var privateState = MobileRoomClient.PrivateState;
+            return privateState?.Room.Phase == RoomPhase.StorytellerChoosing &&
+                privateState.Player.IsCurrentStoryteller;
+        }
+    }
+
+    private bool ShowsGuesserSubmissionAction
+    {
+        get
+        {
+            var privateState = MobileRoomClient.PrivateState;
+            return privateState?.Room.Phase == RoomPhase.GuessersSubmitting &&
+                !privateState.Player.IsCurrentStoryteller &&
+                !MobileRoomClient.HasSubmittedGuessCard;
+        }
+    }
+
+    private bool ShowsVotingAction
+    {
+        get
+        {
+            var privateState = MobileRoomClient.PrivateState;
+            return privateState?.Room.Phase == RoomPhase.Voting &&
+                !privateState.Player.IsCurrentStoryteller &&
+                !_hasCastVoteInCurrentVotingPhase;
+        }
+    }
+
+    private bool CanSubmitStorytellerCard =>
+        ShowsStorytellerAction &&
+        !MobileRoomClient.IsChoosingStorytellerCard &&
+        !string.IsNullOrWhiteSpace(_selectedStorytellerCardId) &&
+        !string.IsNullOrWhiteSpace(_storytellerClue);
+
+    private bool CanSubmitGuessCard =>
+        ShowsGuesserSubmissionAction &&
+        !MobileRoomClient.IsSubmittingGuessCard &&
+        !string.IsNullOrWhiteSpace(_selectedGuessCardId);
+
+    private bool CanCastVote =>
+        ShowsVotingAction &&
+        !MobileRoomClient.IsCastingVote &&
+        _selectedVotingCardId is not null &&
+        MobileRoomClient.CanVoteForCard(_selectedVotingCardId);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (HasRoomCodeFromUrl)
+        {
+            _form.RoomCode = RoomCode!.Trim().ToUpperInvariant();
+            await TryResumeExistingSessionAsync(_form.RoomCode);
+        }
+    }
+
+    private async Task JoinRoomAsync()
+    {
+        if (_isJoining)
+        {
+            return;
+        }
+
+        _isJoining = true;
+        _errorMessage = null;
+
+        try
+        {
+            var existingSession = await JoinCoordinator.TryResumeAsync(_form.RoomCode);
+            if (existingSession is not null)
+            {
+                await ConnectAsync(existingSession);
+                return;
+            }
+
+            var result = await JoinCoordinator.JoinNewAsync(
+                _form.RoomCode,
+                _form.PlayerName);
+
+            await ConnectAsync(result);
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            _errorMessage = "La operación fue cancelada.";
+        }
+        catch
+        {
+            _errorMessage = "No se pudo unir a la sala. Comprueba que el servidor está disponible.";
+        }
+        finally
+        {
+            _isJoining = false;
+        }
+    }
+
+    private async Task TryResumeExistingSessionAsync(string roomCode)
+    {
+        var normalizedRoomCode = roomCode.Trim().ToUpperInvariant();
+        if (_lobby is not null ||
+            _isJoining ||
+            string.Equals(_resumeAttemptedRoomCode, normalizedRoomCode, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _resumeAttemptedRoomCode = normalizedRoomCode;
+        _isJoining = true;
+        _errorMessage = null;
+
+        try
+        {
+            var result = await JoinCoordinator.TryResumeAsync(normalizedRoomCode);
+            if (result is not null)
+            {
+                await ConnectAsync(result);
+            }
+        }
+        catch (HttpRequestException exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            _errorMessage = "La operación fue cancelada.";
+        }
+        catch
+        {
+            _errorMessage = "No se pudo recuperar la sesión local. Puedes entrar de nuevo.";
+        }
+        finally
+        {
+            _isJoining = false;
+        }
+    }
+
+    private async Task ConnectAsync(MobileJoinSessionResult result)
+    {
+        _lobby = result.Lobby;
+        await MobileRoomClient.ConnectAsync(result.Lobby, result.PrivateState);
+    }
+
+    protected override void OnInitialized()
+    {
+        MobileRoomClient.StateChanged += HandleMobileRoomChanged;
+    }
+
+    private void HandleMobileRoomChanged()
+    {
+        if (MobileRoomClient.PrivateState?.Room.Phase != RoomPhase.StorytellerChoosing)
+        {
+            _selectedStorytellerCardId = null;
+            _storytellerClue = string.Empty;
+        }
+
+        if (MobileRoomClient.PrivateState?.Room.Phase != RoomPhase.GuessersSubmitting)
+        {
+            _selectedGuessCardId = null;
+        }
+
+        if (MobileRoomClient.PrivateState?.Room.Phase != RoomPhase.Voting)
+        {
+            _selectedVotingCardId = null;
+            _hasCastVoteInCurrentVotingPhase = false;
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void SelectStorytellerCard(string cardId)
+    {
+        _selectedStorytellerCardId = cardId;
+    }
+
+    private void SelectGuessCard(string cardId)
+    {
+        _selectedGuessCardId = cardId;
+    }
+
+    private void SelectVotingCard(string votingCardId)
+    {
+        if (!MobileRoomClient.CanVoteForCard(votingCardId))
+        {
+            return;
+        }
+
+        _selectedVotingCardId = votingCardId;
+    }
+
+    private string GetVotingCardChoiceClass(string votingCardId)
+    {
+        var classes = "card-choice voting-card-choice";
+
+        if (votingCardId == _selectedVotingCardId)
+        {
+            classes += " selected";
+        }
+
+        if (MobileRoomClient.IsOwnSubmittedVotingCard(votingCardId))
+        {
+            classes += " own-card disabled";
+        }
+
+        return classes;
+    }
+
+    private async Task SubmitStorytellerCardAsync()
+    {
+        if (!CanSubmitStorytellerCard || _selectedStorytellerCardId is null)
+        {
+            return;
+        }
+
+        await MobileRoomClient.ChooseStorytellerCardAsync(
+            _selectedStorytellerCardId,
+            _storytellerClue);
+    }
+
+    private async Task SubmitGuessCardAsync()
+    {
+        if (!CanSubmitGuessCard || _selectedGuessCardId is null)
+        {
+            return;
+        }
+
+        await MobileRoomClient.SubmitGuessCardAsync(_selectedGuessCardId);
+    }
+
+    private async Task CastVoteAsync()
+    {
+        if (!CanCastVote || _selectedVotingCardId is null)
+        {
+            return;
+        }
+
+        await MobileRoomClient.CastVoteAsync(_selectedVotingCardId);
+        if (MobileRoomClient.ErrorMessage is null)
+        {
+            _selectedVotingCardId = null;
+            _hasCastVoteInCurrentVotingPhase = true;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        MobileRoomClient.StateChanged -= HandleMobileRoomChanged;
+        await MobileRoomClient.DisposeAsync();
+    }
+
+    private sealed class JoinRoomForm
+    {
+        [System.ComponentModel.DataAnnotations.Required(
+            ErrorMessage = "Introduce el código de sala.")]
+        public string RoomCode { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(
+            ErrorMessage = "Introduce tu nombre.")]
+        [System.ComponentModel.DataAnnotations.StringLength(
+            40,
+            MinimumLength = 1,
+            ErrorMessage = "El nombre debe tener entre 1 y 40 caracteres.")]
+        public string PlayerName { get; set; } = string.Empty;
+    }
+}

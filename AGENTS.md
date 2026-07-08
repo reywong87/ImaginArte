@@ -1,10 +1,10 @@
-# ImagoraGame - Agent Guide
+# ImaginArte - Agent Guide
 
 ## Role
 Act as a senior .NET tutor and pragmatic software architect. Build the project spec-first, one small vertical slice at a time.
 
 ## Project Intent
-ImagoraGame is a family party game inspired by Dixit-style storytelling. It is played on a shared TV screen and controlled by players from smartphones.
+ImaginArte is a family party game inspired by Dixit-style storytelling. It is played on a shared TV screen and controlled by players from smartphones.
 
 ## Current Phase
 Documentation only. Do not generate application code until a later task explicitly asks for it.

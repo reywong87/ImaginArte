@@ -1,0 +1,634 @@
+@page "/tv/{RoomCode}"
+@layout TvLayout
+@implements IAsyncDisposable
+@using ImaginArte.Client.Blazor.Rooms
+@using ImaginArte.Contracts.Rooms
+@inject NavigationManager Navigation
+@inject RoomClient RoomClient
+@inject RoomClientOptions RoomClientOptions
+
+<PageTitle>Lobby @DisplayRoomCode</PageTitle>
+
+<div class="tv-lobby">
+    @if (RoomClient.Room is null)
+    {
+        <section class="loading-panel" aria-live="polite">
+            <p class="eyebrow">ImaginArte</p>
+            <h1>Abriendo la sala</h1>
+            <p>@ConnectionLabel</p>
+            @if (RoomClient.ErrorMessage is not null)
+            {
+                <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+            }
+        </section>
+    }
+    else
+    {
+        var room = RoomClient.Room;
+
+        <header class="lobby-header">
+            <div>
+                <p class="eyebrow">Sala</p>
+                <h1>@room.RoomCode</h1>
+            </div>
+            <div class="connection-state connection-@RoomClient.ConnectionStatus.ToString().ToLowerInvariant()">
+                <span class="connection-dot" aria-hidden="true"></span>
+                @ConnectionLabel
+            </div>
+        </header>
+
+        @if (ShowsScoreboardBoard(room))
+        {
+            var board = RoomBoardPresentation.FromRoom(room);
+
+            <section class="scoreboard-board" aria-labelledby="scoreboard-board-title">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Tablero</p>
+                        <h2 id="scoreboard-board-title">Camino de puntos</h2>
+                    </div>
+                    <p class="board-range">
+                        0-@board.MaxVisualPoints
+                    </p>
+                </div>
+
+                <ol class="board-track" aria-label="Casillas del tablero de puntuación">
+                    @foreach (var position in board.Track)
+                    {
+                        var tokensAtPosition = board.Tokens
+                            .Where(token => token.VisualPosition == position.Position)
+                            .ToArray();
+
+                        <li class="board-cell @(tokensAtPosition.Length > 0 ? "has-token" : null)">
+                            <span class="board-cell-number">@position.Position</span>
+                            @if (tokensAtPosition.Length > 0)
+                            {
+                                <ul class="board-token-list" aria-label="Jugadores en la casilla @position.Position">
+                                    @foreach (var token in tokensAtPosition)
+                                    {
+                                        <li @key="token.PlayerId"
+                                            class="board-token"
+                                            title="@($"{token.PlayerName}: {token.TotalPoints} puntos")">
+                                            <span aria-hidden="true">@token.Label</span>
+                                            <span class="visually-hidden">
+                                                @token.PlayerName, @token.TotalPoints puntos
+                                            </span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </li>
+                    }
+                </ol>
+
+                @if (board.Tokens.Count == 0)
+                {
+                    <p class="empty-state">Aún no hay marcador para colocar fichas.</p>
+                }
+                else
+                {
+                    <ol class="board-legend" aria-label="Puntuación total por jugador">
+                        @foreach (var token in board.Tokens.OrderByDescending(token => token.TotalPoints).ThenBy(token => token.PlayerName, StringComparer.Ordinal))
+                        {
+                            <li @key="token.PlayerId">
+                                <span class="board-legend-token">@token.Label</span>
+                                <span class="board-legend-name">@token.PlayerName</span>
+                                <strong>@token.TotalPoints</strong>
+                            </li>
+                        }
+                    </ol>
+                }
+            </section>
+        }
+
+        @if (room.Phase == RoomPhase.Voting)
+        {
+            <section class="voting-content" aria-labelledby="voting-title">
+                <div class="voting-heading">
+                    <div>
+                        <p class="eyebrow">Pista de la ronda</p>
+                        <h2 id="voting-title" class="round-clue">@room.Clue</h2>
+                    </div>
+                    <p class="voting-status">
+                        Votos:
+                        <strong>@room.VoteCount / @room.ExpectedVoteCount</strong>
+                    </p>
+                </div>
+
+                @if (room.VotingCards.Count == 0)
+                {
+                    <p class="empty-state">Preparando las cartas para votar.</p>
+                }
+                else
+                {
+                    <ol class="voting-card-grid" aria-label="Cartas para votar">
+                        @foreach (var card in RoomLobbyPresentation.VotingCardsForDisplay(room))
+                        {
+                            <li @key="card.VotingCardId" class="voting-card">
+                                <div class="voting-card-topline">
+                                    <span class="card-number" aria-label="Carta @card.DisplayNumber">@card.DisplayNumber</span>
+                                    <span class="vote-count">
+                                        @card.Votes.Count @(card.Votes.Count == 1 ? "voto" : "votos")
+                                    </span>
+                                </div>
+
+                                <strong class="voting-card-id">@card.CardId</strong>
+
+                                <div class="voting-token-area" aria-label="Votos sobre la carta @card.DisplayNumber">
+                                    @if (card.Votes.Count == 0)
+                                    {
+                                        <span class="waiting-votes">Sin fichas todavía</span>
+                                    }
+                                    else
+                                    {
+                                        <ul class="voting-token-list">
+                                            @foreach (var vote in card.Votes)
+                                            {
+                                                <li @key="vote.VoterPlayerId">@vote.VoterName</li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ol>
+                }
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </section>
+        }
+        else if (room.Phase == RoomPhase.Reveal)
+        {
+            <section class="reveal-content" aria-labelledby="reveal-title">
+                <div class="reveal-heading">
+                    <div>
+                        <p class="eyebrow">Pista de la ronda</p>
+                        <h2 id="reveal-title" class="round-clue">@room.Clue</h2>
+                    </div>
+                    <div class="reveal-controls">
+                        <p class="reveal-status">Cartas reveladas y votos recibidos</p>
+                        <button class="start-button"
+                                disabled="@RoomClient.IsScoringRound"
+                                @onclick="ScoreRoundAsync">
+                            @(RoomClient.IsScoringRound ? "Calculando…" : "Calcular puntos")
+                        </button>
+                    </div>
+                </div>
+
+                @if (room.RevealedCards.Count == 0)
+                {
+                    <p class="empty-state">Aún no hay cartas reveladas.</p>
+                }
+                else
+                {
+                    <ol class="revealed-card-grid" aria-label="Cartas reveladas">
+                        @foreach (var card in RoomLobbyPresentation.RevealedCardsForDisplay(room))
+                        {
+                            <li @key="card.VotingCardId" class="revealed-card @(card.IsStorytellerCard ? "storyteller-card" : null)">
+                                <div class="revealed-card-topline">
+                                    <span class="card-number" aria-label="Carta @card.DisplayNumber">@card.DisplayNumber</span>
+                                    @if (card.IsStorytellerCard)
+                                    {
+                                        <strong class="storyteller-badge">Carta del narrador</strong>
+                                    }
+                                </div>
+
+                                <strong class="revealed-card-id">@card.CardId</strong>
+                                <p class="card-owner">De @card.OwnerName</p>
+
+                                <div class="vote-results">
+                                    <p>
+                                        <strong>@card.Votes.Count</strong>
+                                        @(card.Votes.Count == 1 ? "voto" : "votos")
+                                    </p>
+                                    @if (card.Votes.Count == 0)
+                                    {
+                                        <span class="no-votes">Sin votos</span>
+                                    }
+                                    else
+                                    {
+                                        <ul class="vote-list" aria-label="Votos de la carta @card.DisplayNumber">
+                                            @foreach (var vote in card.Votes)
+                                            {
+                                                <li @key="vote.VoterPlayerId">@vote.VoterName</li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ol>
+                }
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </section>
+        }
+        else if (room.Phase == RoomPhase.Scoring)
+        {
+            <section class="scoring-content" aria-labelledby="scoring-title">
+                <div class="scoring-heading">
+                    <div>
+                        <p class="eyebrow">Puntuación de la ronda</p>
+                        <h2 id="scoring-title">Marcador actualizado</h2>
+                        @if (!string.IsNullOrWhiteSpace(room.Clue))
+                        {
+                            <p class="scoring-clue">Pista: <strong>@room.Clue</strong></p>
+                        }
+                    </div>
+                    <div class="scoring-controls">
+                        <p class="scoring-status">Puntos calculados por el servidor</p>
+                        <button class="start-button"
+                                disabled="@RoomClient.IsStartingNextRound"
+                                @onclick="StartNextRoundAsync">
+                            @(RoomClient.IsStartingNextRound ? "Iniciando…" : "Iniciar nueva ronda")
+                        </button>
+                    </div>
+                </div>
+
+                <div class="score-panels">
+                    <section class="score-panel" aria-labelledby="round-scores-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Esta ronda</p>
+                                <h3 id="round-scores-title">Puntos ganados</h3>
+                            </div>
+                        </div>
+
+                        @if (room.RoundScores.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay puntos de ronda.</p>
+                        }
+                        else
+                        {
+                            <ol class="score-list">
+                                @foreach (var score in room.RoundScores)
+                                {
+                                    <li @key="score.PlayerId">
+                                        <span class="score-player">@score.PlayerName</span>
+                                        <strong class="score-points">+@score.PointsAwarded</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+
+                    <section class="score-panel" aria-labelledby="scoreboard-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Total</p>
+                                <h3 id="scoreboard-title">Marcador</h3>
+                            </div>
+                        </div>
+
+                        @if (room.Scoreboard.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay marcador.</p>
+                        }
+                        else
+                        {
+                            <ol class="score-list total-score-list">
+                                @foreach (var score in RoomLobbyPresentation.ScoreboardForDisplay(room))
+                                {
+                                    <li @key="score.PlayerId">
+                                        <span class="score-player">@score.PlayerName</span>
+                                        <strong class="score-points">@score.TotalPoints</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+                </div>
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </section>
+        }
+        else if (room.Phase == RoomPhase.RoundComplete)
+        {
+            <section class="scoring-content" aria-labelledby="round-complete-title">
+                <div class="scoring-heading">
+                    <div>
+                        <p class="eyebrow">Ronda terminada</p>
+                        <h2 id="round-complete-title">Marcador de la ronda</h2>
+                        @if (!string.IsNullOrWhiteSpace(room.Clue))
+                        {
+                            <p class="scoring-clue">Pista: <strong>@room.Clue</strong></p>
+                        }
+                    </div>
+                    <div class="scoring-controls">
+                        <p class="scoring-status">Listo para continuar</p>
+                        <button class="start-button"
+                                disabled="@RoomClient.IsAdvancingRound"
+                                @onclick="AdvanceRoundAsync">
+                            @(RoomClient.IsAdvancingRound ? "Iniciando…" : "Iniciar siguiente ronda")
+                        </button>
+                    </div>
+                </div>
+
+                <div class="score-panels">
+                    <section class="score-panel" aria-labelledby="round-complete-scores-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Esta ronda</p>
+                                <h3 id="round-complete-scores-title">Puntos ganados</h3>
+                            </div>
+                        </div>
+
+                        @if (room.RoundScores.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay puntos de ronda.</p>
+                        }
+                        else
+                        {
+                            <ol class="score-list">
+                                @foreach (var score in room.RoundScores)
+                                {
+                                    <li @key="score.PlayerId">
+                                        <span class="score-player">@score.PlayerName</span>
+                                        <strong class="score-points">+@score.PointsAwarded</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+
+                    <section class="score-panel" aria-labelledby="round-complete-scoreboard-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Total</p>
+                                <h3 id="round-complete-scoreboard-title">Marcador</h3>
+                            </div>
+                        </div>
+
+                        @if (room.Scoreboard.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay marcador.</p>
+                        }
+                        else
+                        {
+                            <ol class="score-list total-score-list">
+                                @foreach (var score in RoomLobbyPresentation.ScoreboardForDisplay(room))
+                                {
+                                    <li @key="score.PlayerId">
+                                        <span class="score-player">@score.PlayerName</span>
+                                        <strong class="score-points">@score.TotalPoints</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+                </div>
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </section>
+        }
+        else if (room.Phase == RoomPhase.GameComplete)
+        {
+            <section class="game-complete-content" aria-labelledby="game-complete-title">
+                <div class="game-complete-heading">
+                    <div>
+                        <p class="eyebrow">Partida terminada</p>
+                        <h2 id="game-complete-title">Ganadores</h2>
+                    </div>
+                    <p class="target-score">
+                        Objetivo:
+                        <strong>@room.TargetScore</strong>
+                    </p>
+                </div>
+
+                <div class="score-panels">
+                    <section class="score-panel winner-panel" aria-labelledby="winners-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Resultado final</p>
+                                <h3 id="winners-title">
+                                    @(room.Winners.Count == 1 ? "Ganador" : "Ganadores")
+                                </h3>
+                            </div>
+                        </div>
+
+                        @if (room.Winners.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay ganadores en el snapshot.</p>
+                        }
+                        else
+                        {
+                            <ol class="winner-list">
+                                @foreach (var winner in RoomLobbyPresentation.WinnersForDisplay(room))
+                                {
+                                    <li @key="winner.PlayerId">
+                                        <span class="winner-name">@winner.PlayerName</span>
+                                        <strong class="winner-points">@winner.TotalPoints</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+
+                    <section class="score-panel" aria-labelledby="final-scoreboard-title">
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Total</p>
+                                <h3 id="final-scoreboard-title">Marcador final</h3>
+                            </div>
+                        </div>
+
+                        @if (room.Scoreboard.Count == 0)
+                        {
+                            <p class="empty-state">Aún no hay marcador.</p>
+                        }
+                        else
+                        {
+                            <ol class="score-list total-score-list">
+                                @foreach (var score in RoomLobbyPresentation.ScoreboardForDisplay(room))
+                                {
+                                    <li @key="score.PlayerId">
+                                        <span class="score-player">@score.PlayerName</span>
+                                        <strong class="score-points">@score.TotalPoints</strong>
+                                    </li>
+                                }
+                            </ol>
+                        }
+                    </section>
+                </div>
+
+                @if (RoomClient.ErrorMessage is not null)
+                {
+                    <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                }
+            </section>
+        }
+        else
+        {
+            <section class="lobby-content">
+                <div class="players-panel">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">Jugadores conectados</p>
+                            <h2>@room.Players.Count @(room.Players.Count == 1 ? "jugador" : "jugadores")</h2>
+                        </div>
+                        @if (room.Phase == RoomPhase.WaitingForPlayers)
+                        {
+                            <p class="waiting-copy">Esperando a la familia…</p>
+                        }
+                    </div>
+
+                    @if (room.Players.Count == 0)
+                    {
+                        <p class="empty-state">Aún no se ha unido ningún jugador.</p>
+                    }
+                    else
+                    {
+                        <ol class="player-list">
+                            @foreach (var player in room.Players)
+                            {
+                                <li @key="player.PlayerId">
+                                    <span class="player-number">@(room.Players.TakeWhile(item => item.PlayerId != player.PlayerId).Count() + 1)</span>
+                                    <span>@player.Name</span>
+                                </li>
+                            }
+                        </ol>
+                    }
+                </div>
+
+                <aside class="action-panel">
+                    @if (room.Phase == RoomPhase.StorytellerChoosing)
+                    {
+                        <p class="eyebrow">La partida ha comenzado</p>
+                        <h2>Turno de @RoomLobbyPresentation.StorytellerName(room)</h2>
+                        <p>El narrador está eligiendo una carta y una pista.</p>
+                    }
+                    else if (room.Phase == RoomPhase.GuessersSubmitting)
+                    {
+                        <p class="eyebrow">Pista de la ronda</p>
+                        <h2 class="round-clue">@room.Clue</h2>
+                        <p>
+                            Esperando cartas:
+                            @room.SubmissionCount / @room.ExpectedSubmissionCount
+                        </p>
+                    }
+                    else if (RoomLobbyPresentation.ShowsStartButton(room))
+                    {
+                        var mobileJoinUrl = TvRoomJoinPresentation.CreateMobileJoinUrl(
+                            room,
+                            RoomClientOptions.MobileJoinBaseUri ?? new Uri(Navigation.BaseUri));
+                        var mobileJoinQrSvg = TvRoomJoinPresentation.CreateMobileJoinQrSvg(mobileJoinUrl);
+
+                        <div class="join-qr" aria-label="QR para entrar en la sala desde el móvil">
+                            @((MarkupString)mobileJoinQrSvg)
+                        </div>
+                        <p class="join-url">@mobileJoinUrl</p>
+                        <p class="eyebrow">Control de TV</p>
+                        <h2>Todo listo para imaginar</h2>
+                        <p>Se necesitan al menos @RoomLobbyPresentation.MinimumPlayersToStart jugadores.</p>
+                        <button class="start-button"
+                                disabled="@(!RoomLobbyPresentation.CanStart(room, RoomClient.IsStarting))"
+                                @onclick="StartGameAsync">
+                            @(RoomClient.IsStarting ? "Iniciando…" : "Iniciar partida")
+                        </button>
+                    }
+                    else
+                    {
+                        <p class="eyebrow">Partida en curso</p>
+                        <h2>@PhaseLabel(room.Phase)</h2>
+                    }
+
+                    @if (RoomClient.ErrorMessage is not null)
+                    {
+                        <p class="error-message" role="alert">@RoomClient.ErrorMessage</p>
+                    }
+                </aside>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public string RoomCode { get; set; } = string.Empty;
+
+    private string DisplayRoomCode =>
+        RoomClient.Room?.RoomCode ?? RoomCode.Trim().ToUpperInvariant();
+
+    private string ConnectionLabel => RoomClient.ConnectionStatus switch
+    {
+        RoomConnectionStatus.Loading => "Cargando",
+        RoomConnectionStatus.Connected => "Conectado",
+        RoomConnectionStatus.Reconnecting => "Reconectando",
+        RoomConnectionStatus.Disconnected => "Desconectado",
+        RoomConnectionStatus.Error => "Error de conexión",
+        _ => "Desconocido"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        RoomClient.StateChanged += HandleStateChanged;
+        await RoomClient.InitializeAsync(RoomCode);
+    }
+
+    private Task StartGameAsync()
+    {
+        return RoomClient.StartGameAsync();
+    }
+
+    private Task ScoreRoundAsync()
+    {
+        return RoomClient.ScoreRoundAsync();
+    }
+
+    private Task CompleteRoundAsync()
+    {
+        return RoomClient.CompleteRoundAsync();
+    }
+
+    private Task StartNextRoundAsync()
+    {
+        return RoomClient.StartNextRoundAsync();
+    }
+
+    private Task AdvanceRoundAsync()
+    {
+        return RoomClient.AdvanceRoundAsync();
+    }
+
+    private void HandleStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static string PhaseLabel(RoomPhase phase) => phase switch
+    {
+        RoomPhase.GuessersSubmitting => "Los jugadores están eligiendo",
+        RoomPhase.Voting => "Es hora de votar",
+        RoomPhase.Reveal => "Descubriendo las cartas",
+        RoomPhase.Scoring => "Calculando puntos",
+        RoomPhase.RoundComplete => "Ronda terminada",
+        RoomPhase.GameComplete => "Partida terminada",
+        _ => "La partida continúa"
+    };
+
+    private static bool ShowsScoreboardBoard(RoomStateResponse room)
+    {
+        return room.Phase is RoomPhase.WaitingForPlayers
+            or RoomPhase.Scoring
+            or RoomPhase.RoundComplete
+            or RoomPhase.GameComplete;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        RoomClient.StateChanged -= HandleStateChanged;
+        await RoomClient.DisposeAsync();
+    }
+}

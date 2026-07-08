@@ -35,7 +35,7 @@ The TV should tell the room what is happening and make progress exciting to watc
 - Animate player progress on the shared board after scoring.
 
 ### Progress Board
-- Use an original ImagoraGame visual design, not a copy of any existing board game.
+- Use an original ImaginArte visual design, not a copy of any existing board game.
 - Base concept: an imaginative path or map with one avatar/token per player.
 - Advance tokens according to points gained after each scoring phase.
 - Keep the board readable from a couch on a TV.

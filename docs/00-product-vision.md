@@ -1,7 +1,7 @@
 # Product Vision
 
 ## Summary
-ImagoraGame is a family storytelling party game played on a TV, with each player using a smartphone as their private controller.
+ImaginArte is a family storytelling party game played on a TV, with each player using a smartphone as their private controller.
 
 The game should feel simple enough for children and adults to play together, while giving the host a smooth living-room experience.
 
@@ -12,7 +12,7 @@ The game should feel simple enough for children and adults to play together, whi
 - Other players submit images they think match the clue.
 - Everyone votes for the image they believe was the storyteller's.
 - Scores are revealed and the next round begins.
-- The TV shows an original ImagoraGame progress board where player avatars advance after scoring.
+- The TV shows an original ImaginArte progress board where player avatars advance after scoring.
 
 ## Product Goals
 - Fast setup on a couch or family table.
