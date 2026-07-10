@@ -141,12 +141,12 @@ The Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings.json`:
 
 ```json
 {
-  "ApiBaseUrl": "http://192.168.1.136:5080/",
-  "MobileJoinBaseUrl": "http://192.168.1.136:5288/"
+  "ApiBaseUrl": "http://localhost:5080/",
+  "MobileJoinBaseUrl": "http://localhost:5288/"
 }
 ```
 
-For purely local usage, set those URLs to `http://localhost:5080/` and `http://localhost:5288/`. To test with phones on the same network, use your machine's LAN IP and the `wifi` launch profile.
+For testing with phones on the same network, replace `localhost` with your machine's LAN IP, for example `http://<your-lan-ip>:5080/` and `http://<your-lan-ip>:5288/`, and use the `wifi` launch profile.
 
 ## HTTP API
 
