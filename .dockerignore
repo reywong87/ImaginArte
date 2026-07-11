@@ -1,0 +1,21 @@
+# .NET build artifacts
+**/bin
+**/obj
+
+# Local development data and configuration
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/appsettings.Development.json
+**/.env
+
+# Source-control and IDE metadata
+.git
+.vs
+.vscode
+.idea
+**/*.user
+**/*.suo
+
+# Frontend dependencies, if they are added later
+**/node_modules
