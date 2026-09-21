@@ -1,42 +1,24 @@
-# ImaginArte - Agent Guide
+# ImaginArte agent guide
 
-## Role
-Act as a senior .NET tutor and pragmatic software architect. Build the project spec-first, one small vertical slice at a time.
+## Verify changes
 
-## Project Intent
-ImaginArte is a family party game inspired by Dixit-style storytelling. It is played on a shared TV screen and controlled by players from smartphones.
+- Requires the .NET 10 SDK.
+- From the repository root, restore and build with `dotnet restore ImaginArte.sln` and `dotnet build ImaginArte.sln`.
+- Run the complete test suite with `dotnet test ImaginArte.sln --no-restore -m:1`. Run a focused suite with `dotnet test tests/<project>/<project>.csproj --no-restore`; use `--filter FullyQualifiedName~<name>` for one test.
+- If tests fail with `System.Net.Sockets.SocketException (13): Permission denied` while MSBuild creates internal pipes, rerun outside the sandbox.
 
-## Current Phase
-Documentation only. Do not generate application code until a later task explicitly asks for it.
+## Read before changing behavior
 
-## Target Stack
-- .NET 10
-- ASP.NET Core
-- Blazor as the initial frontend
-- SignalR for realtime room/game events
-- SQLite for local development
-- Neon PostgreSQL for the online MVP database
-- Render for the backend/API/SignalR host
-- Blazor may initially be served by the Render backend
-- Cloudflare Pages is a possible later frontend host
+- Product and game behavior is specified in `docs/`; read the relevant document before changing rules or UI behavior. `docs/07-progress-board.md` is the visual/progress-board specification and explicitly keeps game rules out of the UI.
+- The solution already has domain, application, contracts, infrastructure, server, Blazor client, and corresponding test projects. Keep changes in the owning layer rather than adding business rules to endpoints, hubs, or Razor components.
+- `ImaginArte.Domain` owns entities, scoring, state transitions, and invariants; it must remain independent of ASP.NET Core, SignalR, Blazor, and persistence.
+- `ImaginArte.Application` owns commands, queries, orchestration, and ports. `ImaginArte.Infrastructure` implements persistence adapters. `ImaginArte.Contracts` owns the HTTP/SignalR request, response, and event shapes.
+- `ImaginArte.Server` is the composition root and exposes Minimal APIs plus the `/hubs/rooms` SignalR hub. SignalR publishes state but is not the source of truth; recover state through application handlers/repositories.
 
-## Architecture Principles
-- Use pragmatic Clean Architecture, not ceremony-heavy layering.
-- Keep domain rules independent from UI, database, and transport.
-- Treat Blazor as replaceable. Do not couple core game behavior to Blazor components.
-- Use SignalR as a realtime delivery mechanism, not as the source of truth.
-- Prefer simple, testable services and explicit state transitions.
-- Treat Supabase as a future option only if Auth, Storage, or integrated platform features become necessary.
+## Runtime gotchas
 
-## Development Workflow
-1. Read the relevant docs in `docs/` before editing.
-2. Make small, reviewable changes.
-3. Start with domain behavior and contracts before UI polish.
-4. Add tests for game rules, room state, and realtime event mapping.
-5. Keep naming understandable for a family-game product, not generic sample-app names.
-
-## Non-Goals For Now
-- No mobile native apps.
-- No authentication beyond lightweight player/session identity.
-- No payment, account, marketplace, or public gallery features.
-- No AI image generation in the first playable version.
+- Local server development uses SQLite from `src/ImaginArte.Server/appsettings.Development.json`; supported `Persistence:Provider` values are `InMemory`, `SQLite`, and `PostgreSQL`.
+- PostgreSQL requires `Persistence__ConnectionString`; do not commit connection strings. Production also configures `RoomCleanup__Enabled` and `Cors__AllowedOrigins__0` through environment variables.
+- Run the backend with `dotnet run --project src/ImaginArte.Server` (HTTP profile: `http://localhost:5080`) and the client separately with `dotnet run --project src/ImaginArte.Client.Blazor` (HTTP profile: `http://localhost:5288`).
+- For phone testing on the LAN, use the server/client `wifi` profiles and replace localhost URLs in the client `wwwroot/appsettings.json` with the machine’s LAN IP.
+- Realtime clients subscribe with `SubscribeToRoom(roomCode)` or `SubscribeAsPlayer(roomCode, playerId)`. Reconnects must fetch fresh snapshots; missed events are not replayed.
