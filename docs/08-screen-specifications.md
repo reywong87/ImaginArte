@@ -39,7 +39,7 @@ Room code and QR form the dominant central stage; roster sits in a quiet side or
 Room code uses large tabular figures; QR has the manual-code alternative; roster status uses text and icon, not color alone; host control has a persistent focus state.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/tv-lobby.png`.
+`docs/assets/visual-references/draft/hoja-referencia-lobby-imaginarte.png`.
 
 ### Acceptance Criteria
 From 2-3 m, a guest can read the room code, see how many players joined, and identify the host-only start action without seeing any private game data.
@@ -71,7 +71,7 @@ Use the upper safe band for phase and narrator identity. Keep the central stage 
 Use a literal message such as “Ana is choosing a card and clue”; role is conveyed by text, label, halo, and token identity.
 
 ### Visual Reference
-No dedicated reference yet; follow `tv-lobby.png` board framing.
+No dedicated reference yet; follow `hoja-referencia-lobby-imaginarte.png` board framing.
 
 ### Acceptance Criteria
 The room understands who is acting and what it is waiting for, while no visual element reveals the narrator's card or clue.
@@ -103,7 +103,7 @@ Place clue in the upper safe band using display type only if fully readable; pla
 Clue remains high-contrast on an opaque Paper Warm surface; progress states pair count, text, and icon; no countdown or time pressure.
 
 ### Visual Reference
-No dedicated reference yet; use the clue treatment established by `tv-voting.png`.
+No dedicated reference yet; use the clue treatment established by `votacion con cartas y pista.png`.
 
 ### Acceptance Criteria
 The clue is readable from 2-3 m, and the TV communicates only aggregate completion, never a pending player's identity or a selected card.
@@ -135,7 +135,7 @@ Cards occupy the central wide safe area; labels sit beside or below art. Clue us
 Card numbers use the Card Number token, remain visible throughout, and do not rely on art recognition. Do not animate or reorder cards while voting. Reduced motion keeps the set static.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/tv-voting.png`.
+`docs/assets/visual-references/draft/votacion con cartas y pista.png`.
 
 ### Acceptance Criteria
 Every card is identifiable by a readable stable number; no prohibited private information is visible; a couch viewer can understand that voting is still in progress.
@@ -167,7 +167,7 @@ Keep cards in the central wide safe area. Use labels and connectors outside the 
 Narrator identification, vote counts, and points use text plus connectors or position, never color only. Reveal changes respect reduced motion through instant labels or brief fades.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/tv-reveal-scoring.png`.
+`docs/assets/visual-references/draft/pantalla-revelacion-puntuacion-imaginarte.png`.
 
 ### Acceptance Criteria
 The narrator card, vote totals, and round points are unambiguous; individual voters remain anonymous; no token has moved during this screen.
@@ -265,7 +265,7 @@ Paper Warm textured background; one compact form column, large code field, and f
 Manual code is always available alongside QR; fields have visible labels and errors; keyboard focus and touch targets meet system requirements.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/mobile-join.png`.
+`docs/assets/visual-references/draft/hoja-referencia-lobby-imaginarte.png`.
 
 ### Acceptance Criteria
 A player can join without scanning QR, receives a clear validation error for an invalid code, and sees no board or other private player data.
@@ -296,7 +296,7 @@ One reassurance message and identity block; no dashboard density. Maintain clear
 Use plain language such as “Waiting for the host to start”; status is text plus icon; no timed expiry.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/mobile-join.png` for surface and vertical rhythm.
+`docs/assets/visual-references/draft/hoja-referencia-lobby-imaginarte.png` for surface and vertical rhythm.
 
 ### Acceptance Criteria
 The player knows they joined successfully and cannot accidentally start or advance the shared game.
@@ -327,7 +327,7 @@ Hand uses a scrollable card area with `2:3` cards; selection treatment sits outs
 Cards have accessible position labels; selection uses outline and text; clue field has label and error feedback; submit target is at least 44 px.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/mobile-card-selection.png`.
+`docs/assets/visual-references/draft/hoja-referencia-movil-seleccion.png`.
 
 ### Acceptance Criteria
 The narrator can revise both card and clue before sending; no selection commits implicitly; the selected illustration is never covered by text.
@@ -358,7 +358,7 @@ Place clue at the top and keep it persistent during hand browsing. Cards dominat
 Clue is readable without relying on memory; card selection has focus, text, and outline; action is not blocked by browser or device chrome.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/mobile-card-selection.png`.
+`docs/assets/visual-references/draft/hoja-referencia-movil-seleccion.png`.
 
 ### Acceptance Criteria
 The clue remains visible, the player can change their selected card before confirmation, and no information identifies another submitted card.
@@ -389,7 +389,7 @@ Use a compact confirmation panel on Paper Warm; do not show the submitted card a
 Confirmation pairs Moss Signal with literal text and icon. The screen communicates that no further action is needed.
 
 ### Visual Reference
-No dedicated reference yet; use `mobile-card-selection.png` confirmation treatment without exposed card art.
+No dedicated reference yet; use `hoja-referencia-movil-seleccion.png` confirmation treatment without exposed card art.
 
 ### Acceptance Criteria
 The player receives immediate confirmation, cannot submit twice, and the screen does not expose the private selected card.
@@ -420,7 +420,7 @@ Cards occupy the main scroll area at `2:3`; numbers are adjacent and persistent.
 Explain disabled own card in text, not color only. Card numbers are large and stable; selected vote uses focus/outline/text; confirmation is required and touch targets are at least 44 px.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/mobile-vote.png`.
+`docs/assets/visual-references/draft/controlador-votacion-privado.png`.
 
 ### Acceptance Criteria
 The player cannot vote for their own card, cannot cast more than one vote, can revise selection before confirming, and cannot infer the narrator card or other votes.
@@ -451,7 +451,7 @@ Use a single calm confirmation panel; no card thumbnail, number, or visual cue t
 Use literal confirmation text, icon, and non-color state cue. Do not use an auto-dismiss that could be missed.
 
 ### Visual Reference
-No dedicated reference yet; derive the privacy-safe confirmation pattern from `mobile-vote.png`.
+No dedicated reference yet; derive the privacy-safe confirmation pattern from `controlador-votacion-privado.png`.
 
 ### Acceptance Criteria
 The player knows the vote was received while anyone viewing the phone cannot identify its target.
@@ -482,7 +482,7 @@ One personal summary panel with high-contrast score hierarchy. Do not recreate t
 State points and reason in plain language; do not make correctness depend only on decorative badges or color; support reduced-motion with no required animation.
 
 ### Visual Reference
-No dedicated reference yet; use the score clarity of `tv-reveal-scoring.png` at mobile density.
+No dedicated reference yet; use the score clarity of `pantalla-revelacion-puntuacion-imaginarte.png` at mobile density.
 
 ### Acceptance Criteria
 The player can understand their own points and role outcome without seeing private information belonging to another player or receiving a phase-control action.
@@ -524,12 +524,11 @@ Reference paths use `docs/assets/visual-references/draft/` and `docs/assets/visu
 
 | File | State | Screen represented | Decisions validated | Known errors not to implement |
 | --- | --- | --- | --- | --- |
-| `tv-lobby.png` | draft | TV room lobby | Room-code/QR hierarchy, public roster, spacious board context, host-only start | Overlapping text, labels over cards, edge-clipped controls, viewport overflow |
-| `tv-voting.png` | draft | TV voting | Central card field, stable numbers, clue/progress bands, board periphery | Hands, individual votes, narrator identity, pending choices, labels over art, overlap/overflow |
-| `tv-reveal-scoring.png` | draft | TV vote reveal and round points | Narrator-card marking, public distribution, points, frozen tokens | Token movement before progress, individual voter mapping, labels over art, overlap/overflow |
-| `mobile-join.png` | draft | Mobile join and lobby waiting | Paper Warm surface, code/name flow, primary-action placement | Controls against bottom edge, content outside viewport, overlap |
-| `mobile-vote.png` | draft | Mobile voting | Disabled own card, stable numbers, explicit confirmation, private controller density | Exposed vote after confirmation, labels over art, edge-clipped controls, overflow |
-| `mobile-card-selection.png` | draft | Mobile narrator/guesser card selection | `2:3` hand, reversible selection, persistent clue, submit placement | Text over illustrations, overlap, controls against bottom edge, overflow |
+| `hoja-referencia-lobby-imaginarte.png` | draft | TV room lobby and mobile join | Room-code/QR hierarchy, public roster, spacious board context, code/name flow, primary-action placement | Host control and supporting labels overlap at the TV bottom edge; QR remains a visual placeholder; validate mobile safe-bottom spacing |
+| `votacion con cartas y pista.png` | draft | TV voting | Central card field, stable numbers, clue/progress bands, board periphery | Validate card-number and route legibility from 2-3 m; do not infer any player identity or vote choice from the reference |
+| `pantalla-revelacion-puntuacion-imaginarte.png` | draft | TV vote reveal and round points | Narrator-card marking, public distribution, round points, frozen tokens | It maps named players to individual vote targets, which violates the privacy rule; cumulative totals are absent; do not implement either behavior as shown |
+| `controlador-votacion-privado.png` | draft | Mobile voting | Disabled own card, stable numbers, explicit confirmation, private controller density | Selection labels overlap cards; validate scroll and safe-bottom spacing; hide the chosen card after confirmation |
+| `hoja-referencia-movil-seleccion.png` | draft | Mobile narrator/guesser card selection | `2:3` hand, reversible selection, persistent clue, submit placement | Selection labels overlap cards; reserve distinct space for the clue field and avoid controls against the bottom edge |
 
 # Visibility Matrix
 
