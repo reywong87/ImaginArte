@@ -2,7 +2,9 @@
 
 ImaginArte is a family visual storytelling party game inspired by Dixit-style play: a shared TV screen shows the room and game progress, while each player uses a phone as a private controller.
 
-The project is built with a pragmatic Clean Architecture approach. Game rules live in the domain, use cases live in the application layer, persistence lives in infrastructure, and the initial user experience is exposed through ASP.NET Core, SignalR, and Blazor WebAssembly.
+The project is built with a pragmatic Clean Architecture approach. Game rules live in the domain, use cases live in the application layer, persistence lives in infrastructure, and the user experience is being migrated from Blazor WebAssembly to an independent React application. ASP.NET Core and SignalR remain the backend boundary for both TV and mobile experiences.
+
+The React migration is intentionally being delivered in separate vertical slices. This document records the target architecture and deployment decisions; it does not imply that the React client or every screen has already been implemented.
 
 ## Current Status
 
@@ -14,18 +16,21 @@ The codebase currently includes:
 - ASP.NET Core server with Minimal APIs, SignalR, CORS, health check, and state publishing.
 - Swappable persistence: in-memory, local SQLite, and PostgreSQL for deployment.
 - Periodic cleanup for inactive rooms when SQLite or PostgreSQL is used.
-- Initial Blazor WebAssembly client for TV and mobile flows.
+- Initial Blazor WebAssembly client for TV and mobile flows; React is the target replacement and is not yet complete.
 - Tests for domain, application, contracts, infrastructure, server, and client behavior.
 
 ## Stack
 
 - .NET 10
 - ASP.NET Core
-- Blazor WebAssembly
+- React and TypeScript for the target frontend.
+- Vite for the target frontend build and local development workflow.
 - SignalR
 - SQLite for local development
 - PostgreSQL, prepared for Neon in production
-- Render as the planned backend/API/SignalR hosting target
+- Render as the planned backend/API/SignalR hosting target.
+- Cloudflare Pages as the planned independent React hosting target.
+- Cloudflare R2/CDN as the planned production location for card images.
 
 ## Structure
 
@@ -44,6 +49,7 @@ src/
   ImaginArte.Infrastructure/
   ImaginArte.Server/
   ImaginArte.Client.Blazor/
+  ImaginArte.Client.React/       # target frontend; introduced by a future implementation spec
 tests/
   ImaginArte.*.Tests/
 ```
@@ -57,9 +63,41 @@ The dependency direction is intentional:
 - `ImaginArte.Infrastructure` implements repositories and persistence.
 - `ImaginArte.Contracts` contains shared DTOs for HTTP and realtime communication.
 - `ImaginArte.Server` composes dependencies, exposes APIs, and publishes SignalR events.
-- `ImaginArte.Client.Blazor` renders the initial TV/mobile views and sends intents to the server.
+- `ImaginArte.Client.Blazor` is the legacy/transition client and renders the initial TV/mobile views.
+- `ImaginArte.Client.React` will render the replacement TV/mobile views and send intents to the same HTTP and SignalR contracts. It must not duplicate game rules.
 
-SignalR is used as a realtime delivery mechanism, not as the source of truth. State is recovered through use cases and repositories.
+SignalR is used as a realtime delivery mechanism, not as the source of truth. State is recovered through use cases and repositories. A React client must fetch a fresh public or private snapshot after connection and reconnection; missed realtime events are not replayed.
+
+## Frontend Migration Boundary
+
+The frontend migration is deliberately separate from the game implementation:
+
+- The backend, domain rules, application handlers, persistence, HTTP routes, and SignalR hub remain authoritative.
+- React components may render view models and collect intents, but must not calculate scoring, choose legal phases, rotate storytellers, or mutate game state locally.
+- The existing HTTP and SignalR contracts are the integration boundary. Do not couple React to domain or infrastructure assemblies.
+- The TV is a public surface and the phone is a private controller. Follow `docs/04-ui-tv-mobile-flow.md` and `docs/08-screen-specifications.md` for visibility rules.
+- The board and visual behavior must follow `docs/06-design-system.md`, `docs/07-progress-board.md`, and the approved visual references. Mockups are visual references, not a source of game rules.
+- React migration work should be specified and implemented in separate vertical slices. Do not remove Blazor or change all screens in one unreviewed step.
+
+The current documentation phase only records this boundary. Creating the React project, migrating screens, changing the solution, and removing Blazor are future implementation work.
+
+## Card Asset Strategy
+
+Cards have two separate concerns:
+
+1. The domain stores stable card identifiers (`CardId`) in hands, submissions, votes, and persisted room snapshots.
+2. The frontend resolves those identifiers to image and accessibility metadata.
+
+The recommended production arrangement is:
+
+- Store card image files as optimized web assets in Cloudflare R2, served through a CDN.
+- Keep a versioned card manifest containing the stable ID, image URL, and accessible description.
+- Do not store image binaries in PostgreSQL or inside room JSON snapshots.
+- Keep the manifest and image set compatible with persisted card IDs; never silently remove an asset referenced by an active or recoverable room.
+
+For the first React slice, static card assets may be bundled under the React application's `public/cards/` directory. Moving those files to R2 later must not require changing domain rules or room persistence.
+
+The current domain still creates a temporary `TEMP-001` to `TEMP-120` deck. Replacing it with the real card catalog is intentionally out of scope for this documentation phase and must be handled by a future spec. The repository currently contains visual card assets under `docs/assets/cartas/`; those files are design/source assets, not yet a runtime card catalog.
 
 ## Requirements
 
@@ -98,7 +136,7 @@ By default, the server HTTP profile listens on:
 http://localhost:5080
 ```
 
-Run the Blazor client in another terminal:
+Run the legacy Blazor client in another terminal while it remains part of the transition:
 
 ```bash
 dotnet run --project src/ImaginArte.Client.Blazor
@@ -109,6 +147,8 @@ By default, the client HTTP profile listens on:
 ```text
 http://localhost:5288
 ```
+
+The React development command and port will be documented when `src/ImaginArte.Client.React` is introduced by its implementation spec. Do not assume that the React client is available in the current repository state.
 
 Main client routes:
 
@@ -137,7 +177,7 @@ Supported providers:
 - `SQLite`
 - `PostgreSQL`
 
-The Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings.json`:
+The legacy Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings.json`:
 
 ```json
 {
@@ -147,6 +187,8 @@ The Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings.json`:
 ```
 
 For testing with phones on the same network, replace `localhost` with your machine's LAN IP, for example `http://<your-lan-ip>:5080/` and `http://<your-lan-ip>:5288/`, and use the `wifi` launch profile.
+
+The future React client will use a build-time API base URL, for example `VITE_API_BASE_URL`. Its deployment origin must be added to the server's `Cors:AllowedOrigins` configuration. The production React host must use HTTPS so the SignalR connection can use `wss://`.
 
 ## HTTP API
 
@@ -227,7 +269,19 @@ Note: in sandboxed environments, MSBuild may need permission to create internal 
 
 ## Deployment
 
-Production is prepared for PostgreSQL. On Render, configure:
+Production is prepared for PostgreSQL. The target deployment topology is:
+
+```text
+React UI       -> Cloudflare Pages
+ASP.NET Core   -> Render
+SignalR hub    -> Render
+PostgreSQL     -> Neon
+Card images    -> Cloudflare R2/CDN
+```
+
+The simpler transition option is to serve the React build from the ASP.NET Core host on Render. Independent Cloudflare Pages hosting is preferred for the target architecture because it keeps the UI deployable independently while preserving the existing HTTP and SignalR boundary.
+
+On Render, configure:
 
 ```text
 Persistence__Provider=PostgreSQL
@@ -235,6 +289,8 @@ Persistence__ConnectionString=<Neon connection string>
 RoomCleanup__Enabled=true
 Cors__AllowedOrigins__0=<frontend origin>
 ```
+
+When the React app is hosted separately, CORS must allow only the exact trusted frontend origins and must allow credentials for SignalR. Do not use `AllowAnyOrigin` for the production frontend. The React SignalR client must opt into automatic reconnect and fetch a fresh snapshot after reconnecting.
 
 `GET /health` can be used as the liveness endpoint. The Neon connection string must be configured as an environment secret and must not be committed.
 
@@ -245,7 +301,8 @@ Before changing behavior, read the relevant documents in `docs/`. The project is
 - keep rules in the domain;
 - coordinate behavior in the application layer;
 - expose stable HTTP and SignalR contracts;
-- avoid business rules in Blazor components or hubs;
+- avoid business rules in React/Blazor components or hubs;
+- use the mockups for visual direction without copying prohibited information or interaction errors from them;
 - add tests when rules, state, persistence, or realtime contracts change.
 
 See `AGENTS.md` for the repository-specific working instructions.

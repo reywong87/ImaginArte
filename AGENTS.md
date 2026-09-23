@@ -10,10 +10,35 @@
 ## Read before changing behavior
 
 - Product and game behavior is specified in `docs/`; read the relevant document before changing rules or UI behavior. `docs/07-progress-board.md` is the visual/progress-board specification and explicitly keeps game rules out of the UI.
-- The solution already has domain, application, contracts, infrastructure, server, Blazor client, and corresponding test projects. Keep changes in the owning layer rather than adding business rules to endpoints, hubs, or Razor components.
+- The solution already has domain, application, contracts, infrastructure, server, a legacy Blazor client, and corresponding test projects. React is the target UI replacement, but `src/ImaginArte.Client.React` is not yet implemented. Keep changes in the owning layer rather than adding business rules to endpoints, hubs, Razor components, or future React components.
 - `ImaginArte.Domain` owns entities, scoring, state transitions, and invariants; it must remain independent of ASP.NET Core, SignalR, Blazor, and persistence.
 - `ImaginArte.Application` owns commands, queries, orchestration, and ports. `ImaginArte.Infrastructure` implements persistence adapters. `ImaginArte.Contracts` owns the HTTP/SignalR request, response, and event shapes.
 - `ImaginArte.Server` is the composition root and exposes Minimal APIs plus the `/hubs/rooms` SignalR hub. SignalR publishes state but is not the source of truth; recover state through application handlers/repositories.
+
+## React Migration Rules
+
+The frontend is being migrated in explicit specs and vertical slices. Until a future implementation spec says otherwise:
+
+- Do not create a replacement React screen as an incidental part of a backend or domain change.
+- Do not remove `src/ImaginArte.Client.Blazor` or alter the solution-wide client setup until React has feature parity and the removal is explicitly specified.
+- The future React client must be independent from .NET assemblies and consume the existing HTTP and SignalR contracts through TypeScript models/services.
+- React components render state and collect intents. They must not implement scoring, phase transitions, storyteller rotation, card ownership rules, or other domain decisions.
+- Use HTTP commands for authoritative mutations and SignalR for realtime delivery. After initial connection, reconnect, or recovery, fetch a fresh snapshot; do not attempt to replay missed events in the browser.
+- Keep public TV information separate from private mobile information. Never expose hands, card ownership, pending-player identity, or individual votes where the screen specifications prohibit them.
+- Treat `docs/08-screen-specifications.md` as the screen behavior source of truth and `docs/06-design-system.md`, `docs/07-progress-board.md`, and `docs/assets/visual-references/mockups/` as visual/design references.
+- Mockups are not authoritative for game rules, privacy boundaries, accessibility, or interaction correctness. Do not reproduce overlaps, clipped controls, or information disclosures identified in the screen specification.
+- Keep the React API base URL configurable at build time, rather than hard-coding a deployment host.
+
+The current documentation update only establishes these boundaries. React project creation, package selection, SignalR client implementation, screen migration, visual implementation, and Blazor removal belong to later specs.
+
+## Card Assets And Catalog
+
+- Domain and persisted room state use stable `CardId` values; they must not store image binaries or UI-specific paths.
+- The target production storage is Cloudflare R2/CDN for optimized card images, with a versioned manifest containing stable IDs and accessibility metadata.
+- A first React slice may bundle cards under `public/cards/`, but this is a delivery detail that must remain replaceable by R2.
+- Do not put card images in PostgreSQL or room snapshots.
+- Do not replace the current temporary deck or introduce a real card catalog without a dedicated spec covering IDs, manifest shape, missing assets, versioning, and tests. The current `TEMP-001` to `TEMP-120` deck is intentionally still present.
+- `docs/assets/cartas/` contains source/design assets currently; it is not automatically a runtime catalog.
 
 ## Runtime gotchas
 
@@ -22,3 +47,18 @@
 - Run the backend with `dotnet run --project src/ImaginArte.Server` (HTTP profile: `http://localhost:5080`) and the client separately with `dotnet run --project src/ImaginArte.Client.Blazor` (HTTP profile: `http://localhost:5288`).
 - For phone testing on the LAN, use the server/client `wifi` profiles and replace localhost URLs in the client `wwwroot/appsettings.json` with the machine’s LAN IP.
 - Realtime clients subscribe with `SubscribeToRoom(roomCode)` or `SubscribeAsPlayer(roomCode, playerId)`. Reconnects must fetch fresh snapshots; missed events are not replayed.
+- A separately hosted React client requires exact-origin CORS configuration on the server, HTTPS in production, and `wss://` SignalR connectivity. Do not broaden CORS to `AllowAnyOrigin` as a shortcut.
+
+## Target Frontend Deployment
+
+The documented target topology is:
+
+```text
+React UI       -> Cloudflare Pages
+ASP.NET Core   -> Render
+SignalR hub    -> Render
+PostgreSQL     -> Neon
+Card images    -> Cloudflare R2/CDN
+```
+
+Serving the React build from Render is acceptable as a temporary transition, but independent Cloudflare Pages hosting is the preferred target. The frontend must remain replaceable without changing the backend's HTTP and SignalR contracts.
