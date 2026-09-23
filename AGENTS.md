@@ -28,6 +28,14 @@ The frontend is being migrated in explicit specs and vertical slices. Until a fu
 - Treat `docs/08-screen-specifications.md` as the screen behavior source of truth and `docs/06-design-system.md`, `docs/07-progress-board.md`, and `docs/assets/visual-references/mockups/` as visual/design references.
 - Mockups are not authoritative for game rules, privacy boundaries, accessibility, or interaction correctness. Do not reproduce overlaps, clipped controls, or information disclosures identified in the screen specification.
 - Keep the React API base URL configurable at build time, rather than hard-coding a deployment host.
+- Motion is the approved React animation dependency when animation is needed. Use `motion` with imports from `motion/react` for meaningful board, reveal, and state transitions; use CSS for simple states and do not add animation as decoration by default.
+- Every animation must respect `prefers-reduced-motion`. Replace board travel, parallax, particles, and large transforms with direct state changes or brief fades while preserving readable state, score, and outcome information.
+- Do not install `motion` or create its configuration until the React client is introduced. Do not add another animation library without an explicit decision.
+- Playwright is the approved browser E2E tool for the React client. Once the client has an executable test suite, use `@playwright/test` to validate TV/mobile flows, viewport layouts, reconnect/recovery states, privacy boundaries, keyboard access, and reduced-motion behavior.
+- Playwright tests must assert user-visible behavior through accessible roles, labels, and text where possible. Cover both the public TV view and private mobile view; never weaken privacy assertions to match a mockup.
+- Browser automation exposed by the development environment is not a reason to add Playwright to the repository early. Add `@playwright/test`, configuration, and browser installation only with the React E2E slice.
+- Use Context7 before using current documentation for libraries, frameworks, SDKs, APIs, CLI tools, or cloud services, including React, Vite, Motion, Playwright, and SignalR. Resolve the library ID first and prefer official/high-quality documentation.
+- Context7 is not required for ordinary refactoring, business-logic debugging, or general programming concepts. Do not use external documentation to move game rules into the UI.
 
 The current documentation update only establishes these boundaries. React project creation, package selection, SignalR client implementation, screen migration, visual implementation, and Blazor removal belong to later specs.
 

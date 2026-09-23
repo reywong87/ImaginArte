@@ -25,12 +25,20 @@ The codebase currently includes:
 - ASP.NET Core
 - React and TypeScript for the target frontend.
 - Vite for the target frontend build and local development workflow.
+- Motion for purposeful React animations, especially board progress and reveal transitions; use CSS for simple state changes.
 - SignalR
 - SQLite for local development
 - PostgreSQL, prepared for Neon in production
 - Render as the planned backend/API/SignalR hosting target.
 - Cloudflare Pages as the planned independent React hosting target.
 - Cloudflare R2/CDN as the planned production location for card images.
+
+### Frontend tooling decisions
+
+- **Motion** is the approved animation library for the future React client. Add the `motion` package only when the React project is created. Import React APIs from `motion/react`. Use it for meaningful transitions such as board-token movement, arrival states, and restrained reveals; do not use it for decorative motion everywhere.
+- All Motion animations must respect `prefers-reduced-motion`. Reduced motion must replace travel, parallax, particles, and large transforms with direct state changes or brief fades while keeping score and game state understandable.
+- **Playwright** is the approved browser-validation tool for the React client. When the client and E2E suite are introduced, add `@playwright/test` as a development dependency and use it to validate public TV and private mobile flows, reconnect states, privacy boundaries, keyboard navigation, responsive layouts, and reduced-motion behavior.
+- Playwright browser automation available through development tooling does not by itself require a project dependency. Do not add Playwright configuration or browser binaries before the React client has an executable test suite.
 
 ## Structure
 
@@ -80,6 +88,13 @@ The frontend migration is deliberately separate from the game implementation:
 - React migration work should be specified and implemented in separate vertical slices. Do not remove Blazor or change all screens in one unreviewed step.
 
 The current documentation phase only records this boundary. Creating the React project, migrating screens, changing the solution, and removing Blazor are future implementation work.
+
+## Documentation And Browser Validation
+
+- Use **Context7** before relying on current documentation for a library, framework, SDK, API, CLI tool, or cloud service. Resolve the library first, then query its official or highest-quality documentation. This applies to React, Vite, Motion, Playwright, SignalR, and future frontend dependencies.
+- Context7 is for current external documentation and API usage. It is not required for ordinary refactoring, business-logic debugging, or general programming concepts.
+- Use **Playwright** for end-to-end behavior that requires a real browser. Prefer accessible roles, labels, and user-visible state over implementation selectors. Cover both TV and mobile viewport profiles and verify that prohibited private information never appears on the public TV surface.
+- Keep browser tests independent from domain rules. They should assert rendered contracts and user flows; scoring, phase transitions, and legality remain authoritative in the backend.
 
 ## Card Asset Strategy
 
