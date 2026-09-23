@@ -11,20 +11,28 @@ This specification defines the board's visual layers. Game rules, scoring, and s
 ## References And Base Assets
 
 - Horizontal `16:9` illustrated background: the “Between Sky and Earth” watercolor world.
-- Functional route: 25 progress nodes on a transparent layer.
-- Production guide: route with nodes numbered 1 through 25.
+- Functional route: a runtime SVG layer composed of 25 circular progress nodes and 24 straight connectors on top of the background.
+- Production guide: `recorrido-numerado-transparente.png`, showing the intended node positions and order from 1 through 25.
 - Player tokens: seed-comet medallions independent from the background.
 
-Assets must remain separate, with transparency where appropriate. The background does not include nodes, tokens, text, or interface elements.
+Assets must remain separate, with transparency where appropriate. The background does not include nodes, tokens, text, or interface elements. The production guide is reference-only and is not used as a single raster route asset; React composes the runtime route from reusable SVG primitives.
 
 ## Progress Route
 
 - The route contains exactly 25 positions, one for each point in the standard game target.
 - It begins at the lower-left roots and ends before the upper-right golden portal.
 - Nodes are visual anchors of approximately 65 px in diameter on a `1920 x 1080` canvas.
-- The route must retain a continuous, organic, ascending reading.
+- Each connector is a straight line between the centers of two consecutive nodes. With 25 nodes, the standard route has 24 connectors.
+- The ordered arrangement of straight segments must retain a continuous, organic, ascending reading.
 - Nodes are not token containers and do not imply effects, bonuses, or penalties.
-- Final artwork does not show numbers. Numbering is used only in the internal guide and implementation data.
+- Node numbers `1` through `25` are visible on the public board. React renders each number as SVG `<text>` centered inside its corresponding `<circle>`; numbers are not baked into the background, guide image, or a node image asset.
+
+### Runtime Route Composition
+
+- The route layout is an ordered list of node centers in the reference `1920 x 1080` coordinate system. The numbered guide is used to establish and review these coordinates.
+- React renders one reusable circular node for each position and one reusable straight-line connector for each consecutive pair. Connectors render below nodes so their endpoints remain visually hidden by the node surfaces.
+- The route is rendered in a responsive SVG with a matching `viewBox`, so the background, connectors, nodes, and labels scale together without losing alignment.
+- A future route length may provide a different ordered coordinate list and target position count while reusing the same node, connector, and text-rendering components. The visual layout does not define the game rules or scoring target.
 
 ## Overlay Safe Zones
 
@@ -261,6 +269,7 @@ For constellations of five to eight microtokens, the priority from a couch is to
 ## Acceptance Criteria
 
 - The route contains exactly 25 nodes and visually ends unambiguously before the portal.
+- Node labels `1` through `25` are visible, centered, and legible at the intended TV distance.
 - Tokens do not cover the progress node or enter the reserved central area.
 - Constellations of 1, 2, 4, and 8 tokens retain a clear association with their anchor node.
 - Constellations and labels reorient near edges, the portal, route, or other nodes.

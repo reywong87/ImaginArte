@@ -181,7 +181,7 @@ Make the resolved score changes a shared board moment before the next round.
 All players view TV; no player acts; host proceeds only after progress completes or is skipped through a clear confirmation.
 
 ### Visible Information
-25-node route, token constellations, recent `+N` markers, movement trails, updated positions, active/leader context where applicable, and a concise next-round status.
+Numbered 25-node route with visible labels `1` through `25`, token constellations, recent `+N` markers, movement trails, updated positions, active/leader context where applicable, and a concise next-round status.
 
 ### Prohibited Information
 Hands, discarded or refilled cards, private actions, votes, and recalculated scoring details beyond already-resolved round changes.
@@ -202,7 +202,7 @@ Active and recently moved tokens use identity plus label, halo, and `+N`. Reduce
 No dedicated reference yet; validate against the board layouts defined in `07-progress-board.md`.
 
 ### Acceptance Criteria
-All 25 nodes remain visible, no constellation invades the central safe area, and each score change is understandable without relying on motion or color.
+All 25 nodes and their visible numbers remain legible, no constellation invades the central safe area, and each score change is understandable without relying on motion or color.
 
 ## 7. End Of Game And Tie
 

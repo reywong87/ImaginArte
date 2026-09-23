@@ -77,7 +77,8 @@ The interface should feel like a storybook portal: dark blue for depth, cream fo
 The board mockups establish a specific visual grammar for progress and scoring:
 
 - Use an illustrated world as the full background, with a readable route layered above it rather than a separate flat board panel.
-- Draw the route as a warm-gold organic path with small luminous waypoints. Use cream numbered nodes with dark text; the active node gets a gold ring or glow.
+- Draw the route as a warm-gold chain of straight connectors between circular waypoints. Use cream nodes with visible dark numeric labels; React renders each label as SVG text rather than using numbers baked into an image. The active node gets a gold ring or glow.
+- Treat the node and connector as reusable SVG primitives. The route is an ordered set of coordinates rendered in a shared responsive viewBox; a different route can reuse the same primitives with a different coordinate list and number of positions.
 - Represent players with circular illustrated avatar medallions attached to dark nameplates. Keep names and positions readable before decorative detail.
 - Place the score panel in a dark Night Wash window with a gold frame, cream player names/numbers, and gold round-point changes. Highlight the active storyteller with a clear row treatment and icon, not color alone.
 - Keep the board scenic but subordinate to the current round result. On smaller TV layouts, reduce background detail before reducing route, player, or score legibility.
@@ -203,7 +204,7 @@ Each card should select one thematic palette, use three to five colors in the il
 - Prioritize phase, storyteller identity, clue, card labels, submission/voting progress, score changes, and board movement in that order.
 - Keep private information absent: hands, selected card identity before reveal, pending votes, and player-only prompts never appear here.
 - Use large, stable composition. Avoid moving core labels or rearranging cards while people are reading or deciding.
-- The original progress board should be map-like and poetic, but its path, positions, names, and score changes must remain readable from a couch.
+- The original progress board should be map-like and poetic, but its straight route segments, positions, node numbers, names, and score changes must remain readable from a couch.
 - Host-only actions must be visually distinct and require a clear confirmation when they advance the room state.
 
 ### Mobile Controllers
