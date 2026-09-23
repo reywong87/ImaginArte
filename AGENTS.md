@@ -19,6 +19,7 @@
 
 The frontend is being migrated in explicit specs and vertical slices. Until a future implementation spec says otherwise:
 
+- For every task involving React, read and follow the approved `docs/09-react-tutoring-guide.md` before planning or editing. Treat it as a mandatory tutoring contract: explain in Spanish, assume no prior React knowledge, use concrete Blazor analogies and their limits, introduce concepts progressively, explain files/data flow/verification, and finish with a learning recap. Do not provide unexplained React code.
 - Do not create a replacement React screen as an incidental part of a backend or domain change.
 - Do not remove `src/ImaginArte.Client.Blazor` or alter the solution-wide client setup until React has feature parity and the removal is explicitly specified.
 - The future React client must be independent from .NET assemblies and consume the existing HTTP and SignalR contracts through TypeScript models/services.
