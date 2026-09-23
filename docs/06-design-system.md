@@ -72,6 +72,18 @@ The mockups in `docs/assets/visual-references/mockups/` define a more ceremonial
 
 The interface should feel like a storybook portal: dark blue for depth, cream for readable paper, and gold for invitation and progress. Avoid generic dashboards, glassmorphism, flat white pages, or untextured neon controls.
 
+### Reusable Ceremonial Window
+
+`ventana-flotante-azul-dorado-vacia.png` is a visual reference for a floating blue-and-gold window, not a stretchable production background. Implement this window as separate layers so it can adapt to TV and mobile proportions without deforming its ornaments:
+
+- **Surface:** use the Night Wash color `#08263E` as a CSS background. CSS may add restrained gradients, vignette, or shadow for depth.
+- **Texture:** use a separate transparent PNG containing the authored botanical/pigment texture, positioned or repeated inside the window at restrained opacity. CSS gradients can supply broad color variation, but should not replace this fine illustrated texture.
+- **Corners:** use one independent reusable corner ornament, preferably an SVG for clean scaling, and rotate or mirror it for the four corners. If the painted gold grain cannot be reproduced as vector art, a transparent PNG fallback is acceptable.
+- **Frame rules:** draw the straight gold edges and simple separators with CSS borders or pseudo-elements. Do not stretch the complete mockup PNG around the window.
+- **Content:** render text, cards, and controls in a layer above the texture. Essential content must have verified contrast and must not depend on the texture for separation.
+
+The corner ornament, texture, and CSS surface are decorative assets. They must not contain text, room codes, scores, controls, or other stateful content. Reserve this layered ceremonial window for major screens and panels; ordinary controls should remain visually simpler.
+
 ### Progress Board Reference Pattern
 
 The board mockups establish a specific visual grammar for progress and scoring:

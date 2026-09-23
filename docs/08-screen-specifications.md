@@ -9,6 +9,7 @@ This document is the screen source of truth for the shared TV and private mobile
 - Playable cards remain portrait `2:3`; no title or text overlays the illustration. Voting numbers sit outside the art.
 - Before revelation, TV never shows hands, any selected or submitted-card owner, the storyteller card identity, individual votes, or which players made pending choices.
 - During voting and revelation, cards occupy the board's central free area. During revelation, tokens do not move; token movement belongs only to board progress.
+- Major ceremonial windows follow the layered construction in `06-design-system.md`: CSS Night Wash surface, independent transparent texture PNG, reusable corner ornament, and CSS frame rules. The complete window mockup is a reference, not a stretchable runtime image.
 
 # Shared TV
 
