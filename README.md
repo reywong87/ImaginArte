@@ -4,7 +4,7 @@ ImaginArte is a family visual storytelling party game inspired by Dixit-style pl
 
 The project is built with a pragmatic Clean Architecture approach. Game rules live in the domain, use cases live in the application layer, persistence lives in infrastructure, and the user experience is being migrated from Blazor WebAssembly to an independent React application. ASP.NET Core and SignalR remain the backend boundary for both TV and mobile experiences.
 
-The React migration is intentionally being delivered in separate vertical slices. This document records the target architecture and deployment decisions; it does not imply that the React client or every screen has already been implemented.
+The React migration is intentionally being delivered in separate vertical slices. The independent React client scaffold now exists; game screens and API/realtime integrations are introduced separately. This document records the target architecture and deployment decisions and does not imply that every screen has been implemented.
 
 ## Current Status
 
@@ -16,7 +16,7 @@ The codebase currently includes:
 - ASP.NET Core server with Minimal APIs, SignalR, CORS, health check, and state publishing.
 - Swappable persistence: in-memory, local SQLite, and PostgreSQL for deployment.
 - Periodic cleanup for inactive rooms when SQLite or PostgreSQL is used.
-- Initial Blazor WebAssembly client for TV and mobile flows; React is the target replacement and is not yet complete.
+- Initial Blazor WebAssembly client for TV and mobile flows, plus a React/TypeScript/Vite scaffold for the replacement; React game screens and integrations are not yet complete.
 - Tests for domain, application, contracts, infrastructure, server, and client behavior.
 
 ## Stack
@@ -35,7 +35,7 @@ The codebase currently includes:
 
 ### Frontend tooling decisions
 
-- **Motion** is the approved animation library for the future React client. Add the `motion` package only when the React project is created. Import React APIs from `motion/react`. Use it for meaningful transitions such as board-token movement, arrival states, and restrained reveals; do not use it for decorative motion everywhere.
+- **Motion** is the approved animation library for the React client, and the `motion` package is installed. Import React APIs from `motion/react`. Use it for meaningful transitions such as board-token movement, arrival states, and restrained reveals; do not use it for decorative motion everywhere. The scaffold placeholder does not add animations.
 - All Motion animations must respect `prefers-reduced-motion`. Reduced motion must replace travel, parallax, particles, and large transforms with direct state changes or brief fades while keeping score and game state understandable.
 - **Playwright** is the approved browser-validation tool for the React client. When the client and E2E suite are introduced, add `@playwright/test` as a development dependency and use it to validate public TV and private mobile flows, reconnect states, privacy boundaries, keyboard navigation, responsive layouts, and reduced-motion behavior.
 - Playwright browser automation available through development tooling does not by itself require a project dependency. Do not add Playwright configuration or browser binaries before the React client has an executable test suite.
@@ -57,7 +57,7 @@ src/
   ImaginArte.Infrastructure/
   ImaginArte.Server/
   ImaginArte.Client.Blazor/
-  ImaginArte.Client.React/       # target frontend; introduced by a future implementation spec
+  ImaginArte.Client.React/       # independent React + TypeScript + Vite frontend
 tests/
   ImaginArte.*.Tests/
 ```
@@ -87,7 +87,7 @@ The frontend migration is deliberately separate from the game implementation:
 - The board and visual behavior must follow `docs/06-design-system.md`, `docs/07-progress-board.md`, and the approved visual references. Mockups are visual references, not a source of game rules.
 - React migration work should be specified and implemented in separate vertical slices. Do not remove Blazor or change all screens in one unreviewed step.
 
-The current documentation phase only records this boundary. Creating the React project, migrating screens, changing the solution, and removing Blazor are future implementation work.
+The React project scaffold establishes this boundary without changing the .NET solution. Migrating screens, adding service integrations, and removing Blazor remain future implementation work.
 
 ## Documentation And Browser Validation
 
@@ -116,7 +116,7 @@ The current domain still creates a temporary `TEMP-001` to `TEMP-120` deck. Repl
 
 ## Requirements
 
-Install the .NET 10 SDK. This repository was verified locally with:
+Install Node.js `>=22.12.0` with npm for the React client, and the .NET 10 SDK for the backend and Blazor client. This repository was verified locally with:
 
 ```bash
 dotnet --info
@@ -163,7 +163,32 @@ By default, the client HTTP profile listens on:
 http://localhost:5288
 ```
 
-The React development command and port will be documented when `src/ImaginArte.Client.React` is introduced by its implementation spec. Do not assume that the React client is available in the current repository state.
+Run the independent React client from another terminal:
+
+```bash
+cd src/ImaginArte.Client.React
+cp .env.example .env.local
+npm ci
+npm run dev
+```
+
+Vite serves the development client at `http://localhost:5173` by default. The current screen is only a scaffold placeholder; it does not call the API or use SignalR.
+
+Run the client checks and create a production build with:
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+```
+
+After building, serve the production output locally with:
+
+```bash
+npm run preview
+```
+
+Vite serves the preview at `http://localhost:4173` by default.
 
 Main client routes:
 
@@ -203,7 +228,7 @@ The legacy Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings
 
 For testing with phones on the same network, replace `localhost` with your machine's LAN IP, for example `http://<your-lan-ip>:5080/` and `http://<your-lan-ip>:5288/`, and use the `wifi` launch profile.
 
-The future React client will use a build-time API base URL, for example `VITE_API_BASE_URL`. Its deployment origin must be added to the server's `Cors:AllowedOrigins` configuration. The production React host must use HTTPS so the SignalR connection can use `wss://`.
+The React client reserves `VITE_API_BASE_URL` for its build-time API base URL. For local development, copy `.env.example` to `.env.local`; the example points to `http://localhost:5080`. This variable is public configuration that is included in browser code, so never put secrets in any `VITE_*` variable. The scaffold placeholder does not connect to the API yet. The deployed React origin must be added to the server's `Cors:AllowedOrigins` configuration, and the production React host must use HTTPS so SignalR can use `wss://`.
 
 ## HTTP API
 

@@ -1,6 +1,6 @@
 # SPEC 01 — Scaffold del cliente React
 
-> **Estado:** Approved
+> **Estado:** Implemented
 > **Depende de:** Ninguna
 > **Fecha:** 2026-09-24
 > **Objetivo:** Crear en `src/ImaginArte.Client.React` una aplicación independiente con React, TypeScript, Vite y sus herramientas base, lista para desarrollar la UI de ImaginArte.
@@ -48,15 +48,15 @@ Esta especificación no introduce estructuras de datos de juego ni persistencia.
 
 ## Criterios de aceptación
 
-- [ ] `package.json` declara React, React DOM y Motion como dependencias; y Vite, su plugin React, TypeScript, tipos y herramientas ESLint como dependencias de desarrollo.
-- [ ] `package-lock.json` está presente y `npm ci` funciona con Node 22.12 o superior.
-- [ ] `npm run dev` inicia la aplicación y muestra el placeholder de ImaginArte sin errores de consola.
-- [ ] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente.
-- [ ] `npm run preview` puede servir el build generado.
-- [ ] `.env.example` contiene `VITE_API_BASE_URL=http://localhost:5080`; el README explica copiarlo a `.env.local`.
-- [ ] `.gitignore` excluye `node_modules`, los builds y los archivos de entorno locales, pero permite versionar `.env.example`.
-- [ ] El README documenta cómo instalar y ejecutar el cliente React.
-- [ ] Blazor y la solución .NET siguen presentes y sin cambios.
+- [x] `package.json` declara React, React DOM y Motion como dependencias; y Vite, su plugin React, TypeScript, tipos y herramientas ESLint como dependencias de desarrollo.
+- [x] `package-lock.json` está presente y `npm ci` funciona con Node 22.12 o superior.
+- [x] `npm run dev` inicia la aplicación y muestra el placeholder de ImaginArte sin errores de consola.
+- [x] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente.
+- [x] `npm run preview` puede servir el build generado.
+- [x] `.env.example` contiene `VITE_API_BASE_URL=http://localhost:5080`; el README explica copiarlo a `.env.local`.
+- [x] `.gitignore` excluye `node_modules`, los builds y los archivos de entorno locales, pero permite versionar `.env.example`.
+- [x] El README documenta cómo instalar y ejecutar el cliente React.
+- [x] Blazor y la solución .NET siguen presentes y sin cambios.
 
 ## Decisiones
 
