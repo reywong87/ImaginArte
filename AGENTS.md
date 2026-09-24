@@ -7,6 +7,11 @@
 - Run the complete test suite with `dotnet test ImaginArte.sln --no-restore -m:1`. Run a focused suite with `dotnet test tests/<project>/<project>.csproj --no-restore`; use `--filter FullyQualifiedName~<name>` for one test.
 - If tests fail with `System.Net.Sockets.SocketException (13): Permission denied` while MSBuild creates internal pipes, rerun outside the sandbox.
 
+## Spec acceptance criteria
+
+- After implementing a spec, use the `spec-verifier` subagent to verify each acceptance criterion against the implementation, tests, and relevant screens.
+- Have the subagent update the spec with each criterion's verification status and concrete evidence. Keep unmet criteria visible as gaps; do not mark them satisfied without evidence.
+
 ## Read before changing behavior
 
 - Product and game behavior is specified in `docs/`; read the relevant document before changing rules or UI behavior. `docs/07-progress-board.md` is the visual/progress-board specification and explicitly keeps game rules out of the UI.
