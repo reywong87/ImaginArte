@@ -56,3 +56,23 @@ export async function createRoom(roomCode: string): Promise<CreatedRoom> {
 
   return { roomCode: payload.roomCode }
 }
+
+export async function checkRoomExists(
+  roomCode: string,
+  signal: AbortSignal,
+): Promise<boolean> {
+  const response = await fetch(
+    `${getApiBaseUrl()}/rooms/${encodeURIComponent(roomCode)}`,
+    { signal },
+  )
+
+  if (response.status === 404) {
+    return false
+  }
+
+  if (!response.ok) {
+    throw new RoomApiError(response.status)
+  }
+
+  return true
+}

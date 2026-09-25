@@ -207,6 +207,28 @@
   color: #10243a;
 }
 
+.tv-home__retry {
+  width: min(100%, 18rem);
+  min-height: 3rem;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #10243a;
+  border-radius: 10px;
+  background: #f2b632;
+  color: #10243a;
+  cursor: pointer;
+  font: 600 1.25rem Georgia, 'Times New Roman', serif;
+}
+
+.tv-home__retry:hover {
+  background: #ffcf63;
+}
+
+.tv-home__retry:focus-visible {
+  outline: 3px solid #fbf4e2;
+  outline-offset: 5px;
+  box-shadow: 0 0 0 8px #10243a;
+}
+
 @media (max-width: 600px) {
   .tv-home {
     padding: 1.5rem;
