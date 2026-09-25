@@ -1,0 +1,221 @@
+.tv-home {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  padding: clamp(1.5rem, 5vw, 4rem);
+  background-color: #08263e;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgb(3 20 35 / 28%) 0%,
+      rgb(3 20 35 / 12%) 48%,
+      rgb(3 20 35 / 32%) 100%
+    ),
+    url('../assets/fondo-entre-cielo-y-tierra-nuevo.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.tv-home__content {
+  display: flex;
+  width: min(100%, 58rem);
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1.75rem, 5vh, 3.5rem);
+  text-align: center;
+}
+
+.tv-home__title {
+  margin: 0;
+  color: #fbf4e2;
+  font-size: clamp(3rem, 4.5vw, 4.25rem);
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  line-height: 1.05;
+  text-shadow: 0 3px 18px rgb(8 38 62 / 78%);
+}
+
+.room-action {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: min(100%, 34rem);
+  min-height: 27rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: clamp(2.25rem, 5vw, 3rem);
+  border: 5px solid #c18a2e;
+  border-radius: 32px;
+  background-color: #08263e;
+  background-image: linear-gradient(
+    135deg,
+    rgb(15 48 70 / 96%),
+    rgb(8 38 62 / 96%) 55%,
+    rgb(8 32 53 / 96%)
+  );
+  box-shadow:
+    0 0 0 2px #f2b632,
+    0 0 0 5px rgb(8 38 62 / 94%),
+    0 0 0 7px #a9792a,
+    0 12px 28px rgb(4 21 34 / 42%);
+  color: #fbf4e2;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+}
+
+.room-action::before {
+  position: absolute;
+  z-index: 4;
+  border: 2px solid rgb(242 182 50 / 88%);
+  border-radius: 20px;
+  content: '';
+  inset: 9px;
+  pointer-events: none;
+}
+
+.room-action__texture {
+  position: absolute;
+  z-index: 0;
+  border-radius: 19px;
+  background-image:
+    url('../assets/ventana-textura-botanica.png'),
+    url('../assets/ventana-textura-botanica.png');
+  background-position: left center, right center;
+  background-repeat: no-repeat, no-repeat;
+  background-size: auto 100%, auto 100%;
+  inset: 12px;
+  mix-blend-mode: screen;
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.room-action__corner {
+  position: absolute;
+  z-index: 2;
+  width: clamp(2.5rem, 9.5%, 3.5rem);
+  aspect-ratio: 162 / 171;
+  background-image: url('../assets/hoja.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+}
+
+.room-action__corner--top-left {
+  top: 0.45rem;
+  left: 0.45rem;
+}
+
+.room-action__corner--top-right {
+  top: 0.45rem;
+  right: 0.45rem;
+  transform: scaleX(-1);
+}
+
+.room-action__corner--bottom-left {
+  bottom: 0.45rem;
+  left: 0.45rem;
+  transform: scaleY(-1);
+}
+
+.room-action__corner--bottom-right {
+  right: 0.45rem;
+  bottom: 0.45rem;
+  transform: scale(-1);
+}
+
+.room-action:hover {
+  border-color: #ffcf63;
+  background-color: #10364f;
+  background-image: linear-gradient(
+    135deg,
+    rgb(19 58 81 / 96%),
+    rgb(10 45 70 / 96%) 55%,
+    rgb(8 37 61 / 96%)
+  );
+}
+
+.room-action:focus-visible {
+  outline: 3px solid #fbf4e2;
+  outline-offset: 8px;
+  box-shadow:
+    0 0 0 8px #10243a,
+    0 0 0 11px #f2b632,
+    0 12px 28px rgb(4 21 34 / 42%);
+}
+
+.room-action__illustration {
+  position: relative;
+  z-index: 3;
+  display: block;
+  width: min(100%, 17rem);
+  height: auto;
+  filter: drop-shadow(0 0 12px rgb(242 182 50 / 16%));
+}
+
+.room-action__copy {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.room-action__title {
+  color: #fbf4e2;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.room-action__description {
+  color: #f3ead4;
+  font-size: clamp(1.15rem, 2.3vw, 1.5rem);
+  line-height: 1.35;
+}
+
+@media (max-width: 600px) {
+  .tv-home {
+    padding: 1.5rem;
+    background-position: 43% center;
+  }
+
+  .tv-home__content {
+    gap: 1.75rem;
+  }
+
+  .tv-home__title {
+    font-size: clamp(3rem, 13vw, 4.5rem);
+  }
+
+  .room-action {
+    min-height: 22rem;
+    padding: 2.5rem 1.5rem;
+    border-width: 4px;
+    border-radius: 26px;
+  }
+
+  .room-action::before {
+    inset: 8px;
+    border-radius: 17px;
+  }
+
+  .room-action__texture {
+    inset: 11px;
+    border-radius: 15px;
+  }
+
+  .room-action__illustration {
+    width: min(100%, 14rem);
+  }
+
+  .room-action__corner {
+    width: clamp(2.5rem, 12%, 3rem);
+  }
+}

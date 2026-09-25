@@ -19,6 +19,8 @@ obj/
 
 # Visual references
 assets/
+!/src/ImaginArte.Client.React/src/assets/
+!/src/ImaginArte.Client.React/src/assets/**
 
 # React client dependencies, builds, and local environment files
 /src/ImaginArte.Client.React/node_modules/
