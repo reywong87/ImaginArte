@@ -4,7 +4,7 @@ ImaginArte is a family visual storytelling party game inspired by Dixit-style pl
 
 The project is built with a pragmatic Clean Architecture approach. Game rules live in the domain, use cases live in the application layer, persistence lives in infrastructure, and the user experience is being migrated from Blazor WebAssembly to an independent React application. ASP.NET Core and SignalR remain the backend boundary for both TV and mobile experiences.
 
-The React migration is intentionally being delivered in separate vertical slices. The independent React client scaffold now exists; game screens and API/realtime integrations are introduced separately. This document records the target architecture and deployment decisions and does not imply that every screen has been implemented.
+The React migration is intentionally being delivered in separate vertical slices. The independent React client currently includes the TV home screen and a temporary room placeholder; room creation, recovery, and the remaining game screens are being added separately. This document records the target architecture and deployment decisions and does not imply that every screen has been implemented.
 
 ## Current Status
 
@@ -16,7 +16,7 @@ The codebase currently includes:
 - ASP.NET Core server with Minimal APIs, SignalR, CORS, health check, and state publishing.
 - Swappable persistence: in-memory, local SQLite, and PostgreSQL for deployment.
 - Periodic cleanup for inactive rooms when SQLite or PostgreSQL is used.
-- Initial Blazor WebAssembly client for TV and mobile flows, plus a React/TypeScript/Vite scaffold for the replacement; React game screens and integrations are not yet complete.
+- Initial Blazor WebAssembly client for TV and mobile flows, plus an independent React/TypeScript/Vite client with the initial TV home and room placeholder; room creation/recovery and game screens are not yet complete.
 - Tests for domain, application, contracts, infrastructure, server, and client behavior.
 
 ## Stack
@@ -163,7 +163,7 @@ By default, the client HTTP profile listens on:
 http://localhost:5288
 ```
 
-Run the independent React client from another terminal:
+For the React TV flow, keep the ASP.NET server running in one terminal and start the client in a second terminal:
 
 ```bash
 cd src/ImaginArte.Client.React
@@ -172,7 +172,7 @@ npm ci
 npm run dev
 ```
 
-Vite serves the development client at `http://localhost:5173` by default. The current screen is only a scaffold placeholder; it does not call the API or use SignalR.
+Vite serves the client at `http://localhost:5173`. Its port is fixed: startup fails if that port is occupied instead of selecting a different port. Open `http://localhost:5173/tv` for the TV home screen. The client reads `VITE_API_BASE_URL` from `.env.local`; the example value targets the local API at `http://localhost:5080`. The create/recovery HTTP flow is being connected in the remaining steps of SPEC 02; React does not use SignalR in this slice.
 
 Run the client checks and create a production build with:
 
@@ -193,8 +193,8 @@ Vite serves the preview at `http://localhost:4173` by default.
 Main client routes:
 
 - `/` home screen.
-- `/tv` create/open the TV experience.
-- `/tv/{roomCode}` TV lobby for a room.
+- `/tv` TV home and room-creation entry point.
+- `/tv/{roomCode}` temporary room-created confirmation; the full TV lobby is a later spec.
 - `/join` join from mobile.
 - `/join/{roomCode}` join from mobile with a prefilled room code.
 
@@ -228,7 +228,7 @@ The legacy Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings
 
 For testing with phones on the same network, replace `localhost` with your machine's LAN IP, for example `http://<your-lan-ip>:5080/` and `http://<your-lan-ip>:5288/`, and use the `wifi` launch profile.
 
-The React client reserves `VITE_API_BASE_URL` for its build-time API base URL. For local development, copy `.env.example` to `.env.local`; the example points to `http://localhost:5080`. This variable is public configuration that is included in browser code, so never put secrets in any `VITE_*` variable. The scaffold placeholder does not connect to the API yet. The deployed React origin must be added to the server's `Cors:AllowedOrigins` configuration, and the production React host must use HTTPS so SignalR can use `wss://`.
+The React client uses `VITE_API_BASE_URL` as its build-time API base URL. For local development, copy `.env.example` to `.env.local`; the example points to `http://localhost:5080`. This variable is public configuration included in browser code, so never put secrets in any `VITE_*` variable. Development CORS allows the exact React origin `http://localhost:5173` in addition to the existing Blazor development origins; it does not allow alternate React ports. Production CORS must be configured externally with the exact deployed React origin, and the production React host must use HTTPS so SignalR can use `wss://`.
 
 ## HTTP API
 
