@@ -20,6 +20,12 @@ function getRoomCodeFromPathname(pathname: string): string | null {
 function App() {
   const [pathname, setPathname] = useState(() => window.location.pathname)
 
+  function navigateToRoom(roomCode: string) {
+    const roomPath = `/tv/${encodeURIComponent(roomCode)}`
+    window.history.pushState(null, '', roomPath)
+    setPathname(roomPath)
+  }
+
   useEffect(() => {
     function handlePopState() {
       setPathname(window.location.pathname)
@@ -39,7 +45,7 @@ function App() {
       {roomCode ? (
         <TvLobbyPlaceholder roomCode={roomCode} />
       ) : (
-        <TvHomeScreen />
+        <TvHomeScreen onRoomCreated={navigateToRoom} />
       )}
     </main>
   )

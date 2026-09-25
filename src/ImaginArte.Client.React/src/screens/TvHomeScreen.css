@@ -3,7 +3,8 @@
   min-height: 100vh;
   min-height: 100svh;
   place-items: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: clamp(1.5rem, 5vw, 4rem);
   background-color: #08263e;
   background-image:
@@ -150,6 +151,10 @@
     0 12px 28px rgb(4 21 34 / 42%);
 }
 
+.room-action:disabled {
+  cursor: wait;
+}
+
 .room-action__illustration {
   position: relative;
   z-index: 3;
@@ -178,6 +183,28 @@
   color: #f3ead4;
   font-size: clamp(1.15rem, 2.3vw, 1.5rem);
   line-height: 1.35;
+}
+
+.room-action__status,
+.room-action__error {
+  width: min(100%, 34rem);
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  line-height: 1.4;
+  text-align: center;
+}
+
+.room-action__status {
+  color: #fbf4e2;
+  text-shadow: 0 2px 10px rgb(8 38 62 / 90%);
+}
+
+.room-action__error {
+  border: 2px solid #b95f4b;
+  background: #fbf4e2;
+  color: #10243a;
 }
 
 @media (max-width: 600px) {
