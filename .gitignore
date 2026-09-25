@@ -30,3 +30,6 @@ assets/
 /src/ImaginArte.Client.React/.env.*
 !/src/ImaginArte.Client.React/.env.example
 /src/ImaginArte.Client.React/*.local
+
+# Playwright test artifacts
+.playwright-mcp
