@@ -5,13 +5,46 @@
 This document is the screen source of truth for the shared TV and private mobile controllers. It specifies presentation and interaction only. Game rules, scoring, role rotation, and phase authority remain outside the interface.
 
 - TV is public, spacious, and readable from 2-3 metres. It may show board context, but the central safe area remains available for game content.
-- Mobile is private, uses Paper Warm with subtle paper texture, never shows the full board, and presents one clear primary action. A selection remains reversible until explicit confirmation.
+- Mobile is private and uses a Night Wash stage with a restrained ornamental gold frame; Paper Warm is reserved for readable cards, clues, fields, and content panels. It never shows the full board and presents one clear primary action. A selection remains reversible until explicit confirmation.
 - Playable cards remain portrait `2:3`; no title or text overlays the illustration. Voting numbers sit outside the art.
 - Before revelation, TV never shows hands, any selected or submitted-card owner, the storyteller card identity, individual votes, or which players made pending choices.
 - During voting and revelation, cards occupy the board's central free area. During revelation, tokens do not move; token movement belongs only to board progress.
 - Major ceremonial windows follow the layered construction in `06-design-system.md`: CSS Night Wash surface, independent transparent texture PNG, reusable corner ornament, and CSS frame rules. The complete window mockup is a reference, not a stretchable runtime image.
+- The screen mockups in `docs/assets/visual-references/mockups/` guide composition and visual tone; they do not override this document's behavior, privacy, accessibility, or safety rules, and must not be rendered as complete screen images.
 
 # Shared TV
+
+## TV Home: Create A Room
+
+### Purpose
+Give the host a clear starting point to create a room and continue into the room lobby.
+
+### User And Surface
+Host at the shared TV before a room has been created.
+
+### Visible Information
+The **ImaginArte** title, one **Crear una sala** action, and the supporting line **Prepara una nueva experiencia**.
+
+### Prohibited Information
+An **Open a room** option, a choice between multiple experience types, lobby roster or QR content before a room exists, and any game-private information.
+
+### Primary Action
+Host selects **Crear una sala**. Creation and saved-room recovery follow `specs/02-tv-home-room-creation.md`; a recoverable network failure offers retry rather than silently creating another room.
+
+### States And Transitions
+Ready, creating, conflict/error, recovering a saved room, and retry states. A successfully created or recovered room transitions to **Room lobby**. Creation errors remain accessible and allow retry.
+
+### Visual Composition
+Use the scenic TV background as a full-bleed stage, with the title and a single centered gold-framed action. Build the frame from the reusable Night Wash surface, texture, ornament, and CSS rules in `06-design-system.md`; do not render the complete mockup as a screen image.
+
+### Accessibility
+The single action is keyboard operable with persistent visible focus. Loading and error states use literal text and accessible status announcements; the action remains legible at TV distance.
+
+### Visual Reference
+`docs/assets/visual-references/mockups/01-inicio-seleccion-experiencia-tv.png`. Screen copy and interaction are governed by `specs/02-tv-home-room-creation.md`: omit **Abrir una sala**, **¿Cómo quieres comenzar?**, and **Entre cielo y tierra** as the title.
+
+### Acceptance Criteria
+The TV home presents **ImaginArte** and exactly one room-creation action, with no open-room choice; room creation or recovery leads to the room lobby without duplicating a room after a recoverable failure.
 
 ## 1. Room Lobby
 
@@ -34,13 +67,13 @@ Host selects **Start game** and explicitly confirms it.
 Empty, joining, ready, and host-confirmation states; on start, transition to **Waiting for storyteller**. If a player disconnects, retain their name with a public neutral reconnecting status.
 
 ### Visual Composition
-Room code and QR form the dominant central stage; roster sits in a quiet side or lower band. The 25-node board is background context, with no constellation entering the central stage.
+Use the scenic illustrated TV background with a dark, high-contrast content window. Room code and QR form the dominant central stage; roster sits in a quiet side or lower band. The 25-node board is background context, with no constellation entering the central stage.
 
 ### Accessibility
 Room code uses large tabular figures; QR has the manual-code alternative; roster status uses text and icon, not color alone; host control has a persistent focus state.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/hoja-referencia-lobby-imaginarte.png`.
+`docs/assets/visual-references/mockups/02-lobby-sala-tv.png`.
 
 ### Acceptance Criteria
 From 2-3 m, a guest can read the room code, see how many players joined, and identify the host-only start action without seeing any private game data.
@@ -72,7 +105,7 @@ Use the upper safe band for phase and narrator identity. Keep the central stage 
 Use a literal message such as “Ana is choosing a card and clue”; role is conveyed by text, label, halo, and token identity.
 
 ### Visual Reference
-No dedicated reference yet; follow `hoja-referencia-lobby-imaginarte.png` board framing.
+`docs/assets/visual-references/mockups/03-esperando-al-narrador-recorrido-v4-avatares-tv.png`.
 
 ### Acceptance Criteria
 The room understands who is acting and what it is waiting for, while no visual element reveals the narrator's card or clue.
@@ -104,7 +137,7 @@ Place clue in the upper safe band using display type only if fully readable; pla
 Clue remains high-contrast on an opaque Paper Warm surface; progress states pair count, text, and icon; no countdown or time pressure.
 
 ### Visual Reference
-No dedicated reference yet; use the clue treatment established by `votacion con cartas y pista.png`.
+`docs/assets/visual-references/mockups/04-pista-progreso-envios-ruta-tv-ventana-oscura.png`.
 
 ### Acceptance Criteria
 The clue is readable from 2-3 m, and the TV communicates only aggregate completion, never a pending player's identity or a selected card.
@@ -136,7 +169,7 @@ Cards occupy the central wide safe area; labels sit beside or below art. Clue us
 Card numbers use the Card Number token, remain visible throughout, and do not rely on art recognition. Do not animate or reorder cards while voting. Reduced motion keeps the set static.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/votacion con cartas y pista.png`.
+`docs/assets/visual-references/mockups/05-votacion-cartas-pista-recorrido-tv.png`.
 
 ### Acceptance Criteria
 Every card is identifiable by a readable stable number; no prohibited private information is visible; a couch viewer can understand that voting is still in progress.
@@ -168,10 +201,10 @@ Keep cards in the central wide safe area. Use labels and connectors outside the 
 Narrator identification, vote counts, and points use text plus connectors or position, never color only. Reveal changes respect reduced motion through instant labels or brief fades.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/pantalla-revelacion-puntuacion-imaginarte.png`.
+`docs/assets/visual-references/mockups/06-revelacion-puntuacion-recorrido-tv.png`.
 
 ### Acceptance Criteria
-The narrator card, vote totals, and round points are unambiguous; individual voters remain anonymous; no token has moved during this screen.
+The narrator card, anonymous per-card vote totals, round points, and cumulative scoreboard are unambiguous; no voter-to-card mapping is visible, and no token has moved during this screen.
 
 ## 6. Board Progress After Scoring
 
@@ -200,7 +233,7 @@ The board is dominant. Tokens sit outside their nodes and open away from the cen
 Active and recently moved tokens use identity plus label, halo, and `+N`. Reduced motion changes position directly, shows a static arrival halo, and preserves legible score change.
 
 ### Visual Reference
-No dedicated reference yet; validate against the board layouts defined in `07-progress-board.md`.
+`docs/assets/visual-references/mockups/07-progreso-tablero-tv.png`; validate node, token, route, and portal placement against `07-progress-board.md`.
 
 ### Acceptance Criteria
 All 25 nodes and their visible numbers remain legible, no constellation invades the central safe area, and each score change is understandable without relying on motion or color.
@@ -232,7 +265,7 @@ Use the portal as the ceremonial focus while preserving finalist token positions
 State the outcome in literal text, not celebration color alone. In a tie, say “Final tiebreaker round required”; portal light remains subtle and reduced-motion safe.
 
 ### Visual Reference
-No dedicated reference yet; use the final-state constraints in `07-progress-board.md`.
+`docs/assets/visual-references/mockups/08-final-partida-ganador-tv.png` for a resolved winner only. There is no tie-state mockup; follow the tie and portal constraints in `07-progress-board.md`.
 
 ### Acceptance Criteria
 The screen never announces a winner for a first-place tie, clearly exposes the host-only continuation, and preserves readable finalist constellations and portal.
@@ -260,13 +293,13 @@ Enter code/name and select **Join room**.
 Code entry, deep-link prefilled, validation error, joining, and joined states; successful join transitions to **Lobby waiting**.
 
 ### Visual Composition
-Paper Warm textured background; one compact form column, large code field, and full-width primary action above the safe bottom inset.
+Night Wash stage with a restrained gold frame; place the room-code and display-name fields on clear Paper Warm surfaces in one compact column. Keep the full-width primary action above the safe bottom inset.
 
 ### Accessibility
 Manual code is always available alongside QR; fields have visible labels and errors; keyboard focus and touch targets meet system requirements.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/hoja-referencia-lobby-imaginarte.png`.
+`docs/assets/visual-references/mockups/09-unirse-sala-movil-avatar-selector-sin-qr.png`. The visual shows an avatar selector, but it does not add avatar-selection behavior to this screen contract; define that behavior in a separate spec.
 
 ### Acceptance Criteria
 A player can join without scanning QR, receives a clear validation error for an invalid code, and sees no board or other private player data.
@@ -291,13 +324,13 @@ No primary game action; allow a reversible display-name correction only before g
 Waiting, host-starting, and reconnecting states; transitions to **Narrator: select card and write clue** or **Player: select a card for the clue** based on assigned role.
 
 ### Visual Composition
-One reassurance message and identity block; no dashboard density. Maintain clear empty space and reserve the bottom inset.
+Night Wash stage with the reusable gold frame and a quiet identity/waiting panel. Keep one reassurance message and identity block; avoid dashboard density, retain clear empty space, and reserve the bottom inset. Do not show the full board.
 
 ### Accessibility
 Use plain language such as “Waiting for the host to start”; status is text plus icon; no timed expiry.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/hoja-referencia-lobby-imaginarte.png` for surface and vertical rhythm.
+`docs/assets/visual-references/mockups/10-lobby-jugador-espera-anfitrion.png` for identity, roster, and waiting hierarchy.
 
 ### Acceptance Criteria
 The player knows they joined successfully and cannot accidentally start or advance the shared game.
@@ -322,13 +355,13 @@ Select a card, write the clue, then explicitly select **Send clue**.
 Browsing, selected, editing, validation, submitting, and sent states. Before submission, card and clue are reversible. Successful submission transitions to **Waiting after sending a card**.
 
 ### Visual Composition
-Hand uses a scrollable card area with `2:3` cards; selection treatment sits outside art. Keep clue and action in a stable lower control region above the viewport edge.
+Use the Night Wash framed mobile stage. The hand uses a scrollable card area with `2:3` cards; selection treatment sits outside the illustration. Place the clue field on Paper Warm and keep clue and action in a stable lower control region above the viewport edge.
 
 ### Accessibility
 Cards have accessible position labels; selection uses outline and text; clue field has label and error feedback; submit target is at least 44 px.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/hoja-referencia-movil-seleccion.png`.
+`docs/assets/visual-references/mockups/11-turno-narrador-movil.png`. Do not reproduce selection labels that overlap a card or its illustration.
 
 ### Acceptance Criteria
 The narrator can revise both card and clue before sending; no selection commits implicitly; the selected illustration is never covered by text.
@@ -353,13 +386,13 @@ Select one card and explicitly select **Send card**.
 Browsing, selected, validation, submitting, and sent. Selection remains reversible before sending; successful sending transitions to **Waiting after sending a card**.
 
 ### Visual Composition
-Place clue at the top and keep it persistent during hand browsing. Cards dominate the scroll area; fixed action region stays clear of the bottom viewport edge.
+Use the Night Wash framed mobile stage. Place the clue in a persistent Paper Warm panel at the top; cards dominate the scroll area, and the full-width gold action stays above the bottom safe inset.
 
 ### Accessibility
 Clue is readable without relying on memory; card selection has focus, text, and outline; action is not blocked by browser or device chrome.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/hoja-referencia-movil-seleccion.png`.
+`docs/assets/visual-references/mockups/12-turno-jugador-movil.png`. Keep selection labels outside card illustrations and do not copy any label overlap.
 
 ### Acceptance Criteria
 The clue remains visible, the player can change their selected card before confirmation, and no information identifies another submitted card.
@@ -384,13 +417,13 @@ No game action.
 Submission confirmed, waiting for others, voting-ready, and reconnecting. Transition to **Vote for a card** for guessers; narrator stays waiting through voting and then transitions to **Personal state after revelation**.
 
 ### Visual Composition
-Use a compact confirmation panel on Paper Warm; do not show the submitted card again. Keep the screen calm rather than celebratory.
+Use a compact Paper Warm confirmation panel on the Night Wash framed stage; do not show the submitted card again. Keep the screen calm rather than celebratory.
 
 ### Accessibility
 Confirmation pairs Moss Signal with literal text and icon. The screen communicates that no further action is needed.
 
 ### Visual Reference
-No dedicated reference yet; use `hoja-referencia-movil-seleccion.png` confirmation treatment without exposed card art.
+`docs/assets/visual-references/mockups/13-esperando-tras-enviar-carta-movil.png`; use its confirmation/waiting hierarchy without exposed card art.
 
 ### Acceptance Criteria
 The player receives immediate confirmation, cannot submit twice, and the screen does not expose the private selected card.
@@ -415,13 +448,13 @@ Select an eligible card and explicitly select **Confirm vote**.
 Browsing, selected vote, confirmation, submitted, and reconnecting. Vote selection remains reversible until confirmation; successful confirmation transitions to **Confirmation and waiting after voting**.
 
 ### Visual Composition
-Cards occupy the main scroll area at `2:3`; numbers are adjacent and persistent. Own card retains recognizable art but has a muted veil, unavailable label, and blocked interaction. Keep action above bottom inset.
+Use the Night Wash framed mobile stage. Cards occupy the main scroll area at `2:3`; numbers are adjacent and persistent. Own card retains recognizable art but has a muted veil and blocked interaction; place its unavailable explanation outside the illustration. Keep the selected state and action clear of the art and above the bottom inset.
 
 ### Accessibility
 Explain disabled own card in text, not color only. Card numbers are large and stable; selected vote uses focus/outline/text; confirmation is required and touch targets are at least 44 px.
 
 ### Visual Reference
-`docs/assets/visual-references/draft/controlador-votacion-privado.png`.
+`docs/assets/visual-references/mockups/14-votar-carta-movil.png`. Do not copy the overlapping own-card or selection labels; keep all labels outside the illustrations.
 
 ### Acceptance Criteria
 The player cannot vote for their own card, cannot cast more than one vote, can revise selection before confirming, and cannot infer the narrator card or other votes.
@@ -446,13 +479,13 @@ No game action.
 Vote confirmed, waiting for reveal, reconnecting, and reveal-ready states; transition to **Personal state after revelation**.
 
 ### Visual Composition
-Use a single calm confirmation panel; no card thumbnail, number, or visual cue that could reveal the user's vote to nearby players.
+Use a single calm Paper Warm confirmation panel on the Night Wash framed stage; no card thumbnail, number, or visual cue that could reveal the user's vote to nearby players.
 
 ### Accessibility
 Use literal confirmation text, icon, and non-color state cue. Do not use an auto-dismiss that could be missed.
 
 ### Visual Reference
-No dedicated reference yet; derive the privacy-safe confirmation pattern from `controlador-votacion-privado.png`.
+`docs/assets/visual-references/mockups/15-esperando-tras-votar-movil.png`; preserve the privacy-safe waiting state and keep the vote target hidden after confirmation.
 
 ### Acceptance Criteria
 The player knows the vote was received while anyone viewing the phone cannot identify its target.
@@ -477,13 +510,13 @@ No game action; optional acknowledgement must not control room progression.
 Results available, board-progress waiting, next-round waiting, final-result waiting, and reconnecting. Transition to the next role-specific mobile screen or **Lobby waiting** for a new game.
 
 ### Visual Composition
-One personal summary panel with high-contrast score hierarchy. Do not recreate the TV vote diagram or full board.
+One Paper Warm personal-summary panel on the Night Wash framed stage, with a high-contrast score hierarchy. Do not recreate the TV vote diagram or full board.
 
 ### Accessibility
 State points and reason in plain language; do not make correctness depend only on decorative badges or color; support reduced-motion with no required animation.
 
 ### Visual Reference
-No dedicated reference yet; use the score clarity of `pantalla-revelacion-puntuacion-imaginarte.png` at mobile density.
+`docs/assets/visual-references/mockups/16-resultado-personal-movil.png` for personal score hierarchy only; do not carry over public vote mappings or the full TV board.
 
 ### Acceptance Criteria
 The player can understand their own points and role outcome without seeing private information belonging to another player or receiving a phase-control action.
@@ -508,28 +541,40 @@ Select **Retry** or **Reconnect**; retrying a non-idempotent submission must fir
 Offline, reconnecting, recovered, invalid/expired room, and unrecoverable action states. On recovery, transition to the current role- and phase-appropriate screen; if the action already completed, show its privacy-safe waiting confirmation.
 
 ### Visual Composition
-Use an inline or modal Paper Deep error panel with Coral Spark as supporting accent, never as the sole meaning. Keep controls comfortably above the bottom edge.
+Use the Night Wash framed mobile stage with an inline or modal Paper Deep error panel. Use Copper Spark as a supporting accent, never as the sole meaning; keep controls comfortably above the bottom safe inset.
 
 ### Accessibility
 Errors name the problem and next step; status is text plus icon; focus moves to the error; retry targets meet 44 px; no essential message is transient.
 
 ### Visual Reference
-No dedicated reference yet; all references must reject edge-clipped controls and content outside the viewport.
+No dedicated error/reconnection mockup. Use the mobile shell and calm confirmation treatment established by `06-design-system.md` and mockups 13 and 15; reject edge-clipped controls and content outside the viewport.
 
 ### Acceptance Criteria
 Recovery never duplicates a vote or submission, returns the player to the correct current state, and never reveals another player's private information.
 
 # Visual Reference Register
 
-Reference paths use `docs/assets/visual-references/draft/` and `docs/assets/visual-references/approved/`. Files may be absent until created; `draft` references guide review and are not implementation approval.
+The screen mockups live in `docs/assets/visual-references/mockups/`. They are visual guidance, not implementation approval or a source of game behavior. The constraints in this document and the visual rules in `06-design-system.md` and `07-progress-board.md` take precedence.
 
-| File | State | Screen represented | Decisions validated | Known errors not to implement |
-| --- | --- | --- | --- | --- |
-| `hoja-referencia-lobby-imaginarte.png` | draft | TV room lobby and mobile join | Room-code/QR hierarchy, public roster, spacious board context, code/name flow, primary-action placement | Host control and supporting labels overlap at the TV bottom edge; QR remains a visual placeholder; validate mobile safe-bottom spacing |
-| `votacion con cartas y pista.png` | draft | TV voting | Central card field, stable numbers, clue/progress bands, board periphery | Validate card-number and route legibility from 2-3 m; do not infer any player identity or vote choice from the reference |
-| `pantalla-revelacion-puntuacion-imaginarte.png` | draft | TV vote reveal and round points | Narrator-card marking, public distribution, round points, frozen tokens | It maps named players to individual vote targets, which violates the privacy rule; cumulative totals are absent; do not implement either behavior as shown |
-| `controlador-votacion-privado.png` | draft | Mobile voting | Disabled own card, stable numbers, explicit confirmation, private controller density | Selection labels overlap cards; validate scroll and safe-bottom spacing; hide the chosen card after confirmation |
-| `hoja-referencia-movil-seleccion.png` | draft | Mobile narrator/guesser card selection | `2:3` hand, reversible selection, persistent clue, submit placement | Selection labels overlap cards; reserve distinct space for the clue field and avoid controls against the bottom edge |
+| File | Screen represented | Visual direction | Constraints or deviations not to reproduce |
+| --- | --- | --- | --- |
+| `01-inicio-seleccion-experiencia-tv.png` | TV home before room creation | Scenic stage, ImaginArte title, one prominent framed action | `specs/02-tv-home-room-creation.md` governs the screen: show only **Crear una sala**; omit **Abrir una sala**, **¿Cómo quieres comenzar?**, and **Entre cielo y tierra** as title. |
+| `02-lobby-sala-tv.png` | TV room lobby | Room-code/QR hierarchy, public roster, spacious board context, host action | Replace sample values and QR artwork with live data. Keep manual code entry available, reconnect status textual and icon-supported, and host start explicitly confirmed. |
+| `03-esperando-al-narrador-recorrido-v4-avatares-tv.png` | TV waiting for storyteller | Narrator identity, waiting message, contextual active token | Do not show the narrator's hand, card, clue, or private selection progress; keep the central stage clear. |
+| `04-pista-progreso-envios-ruta-tv-ventana-oscura.png` | TV clue and submission progress | Framed clue window, aggregate submission count, quiet board periphery | Progress must remain aggregate; do not mark or identify pending players or expose submitted cards. |
+| `05-votacion-cartas-pista-recorrido-tv.png` | TV voting | Central card set, stable numbers, clue and aggregate vote progress | Keep order/numbers fixed; do not reveal ownership, votes, voter identity, pending-voter identity, or the narrator card. Validate legibility from 2-3 m. |
+| `06-revelacion-puntuacion-recorrido-tv.png` | TV vote reveal and round points | Narrator-card marking, public per-card distribution, round points, cumulative scoreboard | Names under cards map voters to vote targets and violate privacy; replace them with anonymous counts per card. Cumulative totals are present in the mockup and remain part of the required scoreboard. Freeze tokens during this screen. |
+| `07-progreso-tablero-tv.png` | TV board progress after scoring | Scenic board, 25-node route, focused movement summary, next-round action | Apply route, node, constellation, central-safe-zone, and reduced-motion rules from `07-progress-board.md`; do not move tokens during reveal. |
+| `08-final-partida-ganador-tv.png` | TV resolved winner | Ceremonial winner panel, final ranking, portal context | This represents a resolved winner, not a first-place tie. Preserve portal and finalist positions per `07-progress-board.md`; keep host-only **Play again** and its confirmation. |
+| `09-unirse-sala-movil-avatar-selector-sin-qr.png` | Mobile join by code | Compact code/name flow and framed mobile stage | QR is not required for manual join. The avatar selector is visible in the mockup but does not define behavior; a separate spec is required for mobile avatar selection. |
+| `10-lobby-jugador-espera-anfitrion.png` | Mobile lobby waiting | Player identity, optional roster, host-waiting status | Show the roster only if enabled; do not add a full board or a player action that starts/advances the room. |
+| `11-turno-narrador-movil.png` | Mobile narrator card and clue selection | Private hand, clue field, explicit submission action | Selection labels intrude on card edges/art; place them outside the illustration. Keep the clue/action controls clear of the bottom inset. |
+| `12-turno-jugador-movil.png` | Mobile guesser card submission | Persistent clue, private hand, explicit send action | Keep selection labels outside card art and preserve a clear safe-bottom area for the action. |
+| `13-esperando-tras-enviar-carta-movil.png` | Mobile waiting after card submission | Calm confirmation and waiting status | Do not show the submitted card or imply that another action is required. |
+| `14-votar-carta-movil.png` | Mobile private voting | Stable card numbers, disabled own card, explicit confirmation | Labels cover card edges/art in the mockup; move them outside the illustrations. Hide the selected target after confirmation. |
+| `15-esperando-tras-votar-movil.png` | Mobile waiting after voting | Neutral vote confirmation and waiting status | Do not show the vote target, card thumbnail, or number after confirmation. |
+| `16-resultado-personal-movil.png` | Mobile personal result | Personal score and role-aware explanation | Keep results limited to the current player; do not show the TV vote mapping or full board. |
+| No dedicated mockup | Mobile errors, disconnection, and reconnection | Reuse the framed mobile stage and calm status-panel language | Preserve authoritative recovery, prevent duplicate submissions, and keep all errors/statuses readable and non-transient. |
 
 # Visibility Matrix
 
@@ -547,7 +592,8 @@ Reference paths use `docs/assets/visual-references/draft/` and `docs/assets/visu
 | Submitted-card ownership before reveal | Never | Never | Never |
 | Own submitted card during voting | Never | Owner only, disabled | Never |
 | Individual vote and voter identity | Never | Voter only until confirmation; then hidden | Never |
-| Narrator card and public vote distribution after reveal | Yes | Public result may be summarized personally | No special restriction |
+| Voter-to-card mapping, including after reveal | Never | Never after confirmation | Never |
+| Narrator card and anonymous aggregate vote counts per card after reveal | Yes | Public result may be summarized personally | No special restriction |
 | Round points and total scores | Yes | Own outcome and total | No special restriction |
 | Board positions and token progress | Yes | Never as full board | No special restriction |
 
@@ -555,7 +601,8 @@ Reference paths use `docs/assets/visual-references/draft/` and `docs/assets/visu
 
 | Game phase | TV screen | Narrator mobile | Guesser mobile | Host action |
 | --- | --- | --- | --- | --- |
-| Room setup | Room lobby | Join or lobby waiting | Join or lobby waiting | Start game |
+| Room creation | TV home, then Room lobby | Join by code or QR once a room code is available | Join by code or QR once a room code is available | Create a room |
+| Room setup | Room lobby | Lobby waiting | Lobby waiting | Start game |
 | Narrator choosing | Waiting for storyteller | Select card and write clue | Lobby waiting | None |
 | Guesser submitting | Clue and submission progress | Waiting after sending a card | Select a card for the clue, then waiting | None |
 | Voting | Voting | Waiting after sending a card | Vote for a card, then confirmation/waiting | None |
@@ -566,11 +613,12 @@ Reference paths use `docs/assets/visual-references/draft/` and `docs/assets/visu
 
 # Prioritized Visual Corrections
 
-1. Reject any generated reference with overlapping text, labels over card illustrations, controls against the bottom edge, or content outside the viewport.
-2. Produce and approve TV voting and reveal references that prove privacy boundaries and preserve the board central safe area.
-3. Validate TV typography, card numbers, node visibility, and active token recognition at 2-3 m.
-4. Validate mobile one-action flows, `44 x 44 px` minimum targets, safe bottom spacing, and explicit confirmation on physical devices.
-5. Validate board constellations, labels, and movement against the 25-node safe zones with 3-8 players and reduced motion.
+1. Treat all files in `docs/assets/visual-references/mockups/` as visual guidance only; this specification and `06-design-system.md`/`07-progress-board.md` govern behavior and constraints.
+2. Correct the reveal mockup's voter-to-card mapping to anonymous per-card counts while retaining round changes and cumulative totals.
+3. Keep card selection and disabled-state labels outside illustrations; reject clipped controls, bottom-edge collisions, and content outside the viewport.
+4. Validate TV typography, card numbers, node visibility, and active-token recognition at 2-3 m.
+5. Validate mobile one-action flows, `44 x 44 px` minimum targets, safe-bottom spacing, and explicit confirmation on physical devices.
+6. Validate board constellations, labels, and movement against the 25-node safe zones with 3-8 players and reduced motion; do not infer a tie layout from the resolved-winner mockup.
 
 # Glossary
 
