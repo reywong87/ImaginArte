@@ -1,6 +1,6 @@
 # SPEC 02 — Inicio TV: creación y reanudación de sala
 
-> **Estado:** Approved
+> **Estado:** Implemented
 > **Depende de:** SPEC 01 — Scaffold del cliente React
 > **Fecha:** 2026-09-24
 > **Objetivo:** Implementar el inicio de TV en React para crear una sala, recuperar la sala de esta pestaña y entregar el flujo a `/tv/{roomCode}` hasta que el lobby real se implemente en otro spec.
@@ -62,18 +62,18 @@ La clave es por pestaña y solo contiene el código público, no estado del jueg
 
 ## Criterios de aceptación
 
-- [ ] `/tv` muestra el fondo indicado y una sola tarjeta/botón “Crear una sala”; no muestra “Entre cielo y tierra”, “¿Cómo quieres comenzar?” ni “Abrir una sala”.
-- [ ] “ImaginArte” aparece como título de texto, sin incorporar el logo final.
-- [ ] Los assets de ejecución están en `src/ImaginArte.Client.React/src/assets/` y la UI se compone con React/CSS, no con el PNG del mockup.
-- [ ] La acción tiene foco visible y se activa con Tab más Enter/Espacio; el foco no depende de hover o color solamente.
-- [ ] Crear una sala envía un código de seis caracteres al `POST /rooms`; una respuesta correcta guarda el código en la clave acordada y navega a `/tv/{roomCode}`.
-- [ ] Un 409 muestra un error y permite un nuevo intento con otro código.
-- [ ] El placeholder muestra “Sala creada” y el código, sin UI de lobby.
-- [ ] Al entrar de nuevo en `/tv`, un GET exitoso navega al placeholder; un 404 borra la clave y deja disponible la creación.
-- [ ] Ante un error de red durante la recuperación, se conserva la clave y se ofrece reintentar sin crear automáticamente otra sala.
-- [ ] El servidor de desarrollo permite solo el origen local React exacto `http://localhost:5173`; Vite falla si ese puerto está ocupado en vez de cambiar de puerto.
-- [ ] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente.
-- [ ] La prueba manual desde React y el servidor verifica creación, recuperación, 404 y error de conexión.
+- [x] `/tv` muestra el fondo indicado y una sola tarjeta/botón “Crear una sala”; no muestra “Entre cielo y tierra”, “¿Cómo quieres comenzar?” ni “Abrir una sala”. — Evidencia: Playwright en `/tv`, screenshots y snapshot accesible a 1920×1080 y 390×844; aparece una sola acción y no aparece el texto excluido; `TvHomeScreen.css:1-20`, `TvHomeScreen.tsx:118-172`.
+- [x] “ImaginArte” aparece como título de texto, sin incorporar el logo final. — Evidencia: `TvHomeScreen.tsx:121-123` renderiza un `<h1>` textual; snapshots Playwright a 1920×1080 y 390×844 identifican el heading “ImaginArte”.
+- [x] Los assets de ejecución están en `src/ImaginArte.Client.React/src/assets/` y la UI se compone con React/CSS, no con el PNG del mockup. — Evidencia: están los dos PNG requeridos en `src/assets/`; `TvHomeScreen.css:10-20,83-97` los usa como fondo/textura y `TvHomeScreen.tsx:118-172` compone la acción; `npm run build` emite los assets; no hay import del PNG del mockup.
+- [x] La acción tiene foco visible y se activa con Tab más Enter/Espacio; el foco no depende de hover o color solamente. — Evidencia: Playwright con Tab enfocó el botón y `getComputedStyle` confirmó outline sólido de 3 px, offset 8 px; `TvHomeScreen.css:145-152`. Prueba manual informada: Tab+Enter con API real y Tab+Espacio con respuesta 200 simulada.
+- [x] Crear una sala envía un código de seis caracteres al `POST /rooms`; una respuesta correcta guarda el código en la clave acordada y navega a `/tv/{roomCode}`. — Evidencia: `roomCode.ts:1-10` usa el alfabeto acordado y longitud 6; `roomsApi.ts:32-39` envía el JSON; `TvHomeScreen.tsx:108-112` guarda y navega. Prueba real: POST 201 con `53F37K`, `sessionStorage[imaginarte.tv.currentRoomCode]=53F37K` y navegación a `/tv/53F37K`.
+- [x] Un 409 muestra un error y permite un nuevo intento con otro código. — Evidencia: `TvHomeScreen.tsx:37-39,180-183` muestra el conflicto como alerta accesible; prueba real: POST repetido `AAAAAA` devolvió 409 y el siguiente intento `BBBBBB` devolvió 201, se guardó y navegó.
+- [x] El placeholder muestra “Sala creada” y el código, sin UI de lobby. — Evidencia: `TvLobbyPlaceholder.tsx:7-22`; snapshot y screenshot Playwright de `/tv/53F37K` a 1920×1080 muestran solo “Sala creada”, “Código de sala” y `53F37K`.
+- [x] Al entrar de nuevo en `/tv`, un GET exitoso navega al placeholder; un 404 borra la clave y deja disponible la creación. — Evidencia: `TvHomeScreen.tsx:54-88`, `roomsApi.ts:60-77`; prueba real GET 200 recuperó `53F37K`; GET 404 para `ZZZ999` limpió la clave y presentó “Crear una sala”.
+- [x] Ante un error de red durante la recuperación, se conserva la clave y se ofrece reintentar sin crear automáticamente otra sala. — Evidencia: `TvHomeScreen.tsx:77-83,194-206`; con servidor detenido, GET `OFFLN1` falló con `ERR_CONNECTION_REFUSED`, la clave se conservó, se mostró “Reintentar” y no apareció el botón de creación. El éxito posterior del reintento se probó con GET 200 simulado.
+- [x] El servidor de desarrollo permite solo el origen local React exacto `http://localhost:5173`; Vite falla si ese puerto está ocupado en vez de cambiar de puerto. — Evidencia: `appsettings.Development.json:11-16` y `Program.cs:12-29,91` permiten el origen React exacto (se mantienen los dos orígenes Blazor); `vite.config.ts:7-11` fija `localhost:5173` y `strictPort`; prueba de puerto ocupado devolvió “Port 5173 is already in use” y POST/GET reales funcionaron desde el origen React.
+- [x] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente. — Evidencia: los tres comandos finalizaron con código 0; build Vite 8.3.0 generó el bundle y assets.
+- [x] La prueba manual desde React y el servidor verifica creación, recuperación, 404 y error de conexión. — Evidencia: flujo manual con React/API real: POST 201 y GET 200; GET 404 eliminó la clave; con el servidor detenido, la recuperación produjo `ERR_CONNECTION_REFUSED`, conservó el código y ofreció reintentar. No se añadió ni ejecutó una suite automática.
 
 ## Decisiones
 

@@ -4,7 +4,7 @@ ImaginArte is a family visual storytelling party game inspired by Dixit-style pl
 
 The project is built with a pragmatic Clean Architecture approach. Game rules live in the domain, use cases live in the application layer, persistence lives in infrastructure, and the user experience is being migrated from Blazor WebAssembly to an independent React application. ASP.NET Core and SignalR remain the backend boundary for both TV and mobile experiences.
 
-The React migration is intentionally being delivered in separate vertical slices. The independent React client currently includes the TV home screen and a temporary room placeholder; room creation, recovery, and the remaining game screens are being added separately. This document records the target architecture and deployment decisions and does not imply that every screen has been implemented.
+The React migration is intentionally being delivered in separate vertical slices. The independent React client currently includes the TV home, room creation/recovery, and a temporary room placeholder; the remaining game screens and realtime integrations will be added separately. This document records the target architecture and deployment decisions and does not imply that every screen has been implemented.
 
 ## Current Status
 
@@ -16,7 +16,7 @@ The codebase currently includes:
 - ASP.NET Core server with Minimal APIs, SignalR, CORS, health check, and state publishing.
 - Swappable persistence: in-memory, local SQLite, and PostgreSQL for deployment.
 - Periodic cleanup for inactive rooms when SQLite or PostgreSQL is used.
-- Initial Blazor WebAssembly client for TV and mobile flows, plus an independent React/TypeScript/Vite client with the initial TV home and room placeholder; room creation/recovery and game screens are not yet complete.
+- Initial Blazor WebAssembly client for TV and mobile flows, plus an independent React/TypeScript/Vite client with the TV home, room creation/recovery, and temporary room placeholder; the remaining game screens and realtime integrations are not yet complete.
 - Tests for domain, application, contracts, infrastructure, server, and client behavior.
 
 ## Stack
@@ -172,7 +172,7 @@ npm ci
 npm run dev
 ```
 
-Vite serves the client at `http://localhost:5173`. Its port is fixed: startup fails if that port is occupied instead of selecting a different port. Open `http://localhost:5173/tv` for the TV home screen. The client reads `VITE_API_BASE_URL` from `.env.local`; the example value targets the local API at `http://localhost:5080`. The create/recovery HTTP flow is being connected in the remaining steps of SPEC 02; React does not use SignalR in this slice.
+Vite serves the client at `http://localhost:5173`. Its port is fixed: startup fails if that port is occupied instead of selecting a different port. Open `http://localhost:5173/tv` for the TV home screen. The client reads `VITE_API_BASE_URL` from `.env.local`; the example value targets the local API at `http://localhost:5080`. Room creation calls `POST /rooms`, and returning to `/tv` checks a saved room with `GET /rooms/{roomCode}`. This slice does not use SignalR.
 
 Run the client checks and create a production build with:
 
