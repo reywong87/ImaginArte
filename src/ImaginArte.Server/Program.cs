@@ -86,6 +86,7 @@ builder.Services.AddTransient<StartNextRoundHandler>();
 builder.Services.AddTransient<GetRoomStateHandler>();
 builder.Services.AddTransient<GetPlayerPrivateStateHandler>();
 builder.Services.AddTransient<RoomRealtimePublisher>();
+builder.Services.AddSingleton<RoomPresenceTracker>();
 
 var app = builder.Build();
 
@@ -98,12 +99,13 @@ app.MapHub<RoomHub>("/hubs/rooms");
 app.MapPost("/rooms", async (
     CreateRoomRequest request,
     CreateRoomHandler handler,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
         async () => (await handler.HandleAsync(
             new CreateRoomCommand(request.RoomCode),
-            cancellationToken)).Room.ToHttpResponse(),
+            cancellationToken)).Room.ToHttpResponse(presenceTracker),
         room => Results.Created($"/rooms/{room.RoomCode}", room));
 });
 
@@ -112,6 +114,7 @@ app.MapPost("/rooms/{roomCode}/players", async (
     JoinRoomRequest request,
     JoinRoomHandler handler,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -120,7 +123,7 @@ app.MapPost("/rooms/{roomCode}/players", async (
             var result = await handler.HandleAsync(
                 new JoinRoomCommand(roomCode, request.PlayerId, request.PlayerName),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await realtimePublisher.PublishRoomUpdatedAsync(response, cancellationToken);
 
@@ -134,6 +137,7 @@ app.MapPost("/rooms/{roomCode}/start", async (
     StartGameHandler handler,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -142,12 +146,13 @@ app.MapPost("/rooms/{roomCode}/start", async (
             var result = await handler.HandleAsync(
                 new StartGameCommand(roomCode),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await PublishRoomAndPlayerStatesAsync(
                 response,
                 getPlayerPrivateState,
                 realtimePublisher,
+                presenceTracker,
                 cancellationToken);
 
             return response;
@@ -160,6 +165,7 @@ app.MapPut("/rooms/{roomCode}/target-score", async (
     UpdateRoomTargetScoreRequest request,
     SetRoomTargetScoreHandler handler,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -168,7 +174,7 @@ app.MapPut("/rooms/{roomCode}/target-score", async (
             var result = await handler.HandleAsync(
                 new SetRoomTargetScoreCommand(roomCode, request.TargetScore),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await realtimePublisher.PublishRoomUpdatedAsync(response, cancellationToken);
 
@@ -183,6 +189,7 @@ app.MapPost("/rooms/{roomCode}/storyteller-card", async (
     ChooseStorytellerCardHandler handler,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -195,12 +202,13 @@ app.MapPost("/rooms/{roomCode}/storyteller-card", async (
                     request.CardId,
                     request.Clue),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await PublishRoomAndPlayerStatesAsync(
                 response,
                 getPlayerPrivateState,
                 realtimePublisher,
+                presenceTracker,
                 cancellationToken);
 
             return response;
@@ -214,6 +222,7 @@ app.MapPost("/rooms/{roomCode}/guess-cards", async (
     SubmitGuessCardHandler handler,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -225,12 +234,13 @@ app.MapPost("/rooms/{roomCode}/guess-cards", async (
                     request.PlayerId,
                     request.CardId),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await PublishRoomAndPlayerStatesAsync(
                 response,
                 getPlayerPrivateState,
                 realtimePublisher,
+                presenceTracker,
                 cancellationToken);
 
             return response;
@@ -244,6 +254,7 @@ app.MapPost("/rooms/{roomCode}/votes", async (
     CastVoteHandler handler,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -255,12 +266,13 @@ app.MapPost("/rooms/{roomCode}/votes", async (
                     request.PlayerId,
                     request.VotingCardId),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await PublishRoomAndPlayerStatesAsync(
                 response,
                 getPlayerPrivateState,
                 realtimePublisher,
+                presenceTracker,
                 cancellationToken);
 
             return response;
@@ -273,6 +285,7 @@ app.MapPost("/rooms/{roomCode}/score", async (
     ScoreRoundHandler handler,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -281,12 +294,13 @@ app.MapPost("/rooms/{roomCode}/score", async (
             var result = await handler.HandleAsync(
                 new ScoreRoundCommand(roomCode),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await PublishRoomAndPlayerStatesAsync(
                 response,
                 getPlayerPrivateState,
                 realtimePublisher,
+                presenceTracker,
                 cancellationToken);
 
             return response;
@@ -299,6 +313,7 @@ app.MapPost("/rooms/{roomCode}/complete-round", async (
     CompleteRoundHandler handler,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -307,12 +322,13 @@ app.MapPost("/rooms/{roomCode}/complete-round", async (
             var result = await handler.HandleAsync(
                 new CompleteRoundCommand(roomCode),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await PublishRoomAndPlayerStatesAsync(
                 response,
                 getPlayerPrivateState,
                 realtimePublisher,
+                presenceTracker,
                 cancellationToken);
 
             return response;
@@ -325,6 +341,7 @@ app.MapPost("/rooms/{roomCode}/advance-round", async (
     AdvanceRoundHandler handler,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -333,12 +350,13 @@ app.MapPost("/rooms/{roomCode}/advance-round", async (
             var result = await handler.HandleAsync(
                 new AdvanceRoundCommand(roomCode),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await PublishRoomAndPlayerStatesAsync(
                 response,
                 getPlayerPrivateState,
                 realtimePublisher,
+                presenceTracker,
                 cancellationToken);
 
             return response;
@@ -351,6 +369,7 @@ app.MapPost("/rooms/{roomCode}/next-round", async (
     StartNextRoundHandler handler,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
@@ -359,12 +378,13 @@ app.MapPost("/rooms/{roomCode}/next-round", async (
             var result = await handler.HandleAsync(
                 new StartNextRoundCommand(roomCode),
                 cancellationToken);
-            var response = result.Room.ToHttpResponse();
+            var response = result.Room.ToHttpResponse(presenceTracker);
 
             await PublishRoomAndPlayerStatesAsync(
                 response,
                 getPlayerPrivateState,
                 realtimePublisher,
+                presenceTracker,
                 cancellationToken);
 
             return response;
@@ -375,12 +395,13 @@ app.MapPost("/rooms/{roomCode}/next-round", async (
 app.MapGet("/rooms/{roomCode}", async (
     string roomCode,
     GetRoomStateHandler handler,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     return await HandleRoomRequestAsync(
         async () => (await handler.HandleAsync(
             new GetRoomStateQuery(roomCode),
-            cancellationToken)).Room.ToHttpResponse(),
+            cancellationToken)).Room.ToHttpResponse(presenceTracker),
         Results.Ok);
 });
 
@@ -388,6 +409,7 @@ app.MapGet("/rooms/{roomCode}/players/{playerId:guid}", async (
     string roomCode,
     Guid playerId,
     GetPlayerPrivateStateHandler handler,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
     var request = new GetPlayerPrivateStateRequest(roomCode, playerId);
@@ -395,7 +417,7 @@ app.MapGet("/rooms/{roomCode}/players/{playerId:guid}", async (
     return await HandleRoomRequestAsync(
         async () => (await handler.HandleAsync(
             new GetPlayerPrivateStateQuery(request.RoomCode, request.PlayerId),
-            cancellationToken)).ToHttpResponse(),
+            cancellationToken)).ToHttpResponse(presenceTracker),
         Results.Ok);
 });
 
@@ -432,6 +454,7 @@ static async Task PublishRoomAndPlayerStatesAsync(
     RoomStateResponse room,
     GetPlayerPrivateStateHandler getPlayerPrivateState,
     RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken)
 {
     await realtimePublisher.PublishRoomUpdatedAsync(room, cancellationToken);
@@ -443,7 +466,7 @@ static async Task PublishRoomAndPlayerStatesAsync(
             cancellationToken);
 
         await realtimePublisher.PublishPlayerStateUpdatedAsync(
-            privateState.ToHttpResponse(),
+            privateState.ToHttpResponse(presenceTracker),
             cancellationToken);
     }
 }

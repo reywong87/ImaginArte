@@ -5,10 +5,13 @@ using ImaginArte.Domain;
 internal static class RoomHttpMappings
 {
     public static GetPlayerPrivateStateResponse ToHttpResponse(
-        this GetPlayerPrivateStateResult result)
+        this GetPlayerPrivateStateResult result,
+        RoomPresenceTracker presenceTracker)
     {
+        ArgumentNullException.ThrowIfNull(presenceTracker);
+
         return new GetPlayerPrivateStateResponse(
-            result.Room.ToHttpResponse(),
+            result.Room.ToHttpResponse(presenceTracker),
             new PlayerPrivateStateResponse(
                 result.Player.PlayerId,
                 result.Player.Name,
@@ -20,10 +23,17 @@ internal static class RoomHttpMappings
                 result.Player.SubmittedVotingCardId));
     }
 
-    public static RoomStateResponse ToHttpResponse(this RoomState room)
+    public static RoomStateResponse ToHttpResponse(
+        this RoomState room,
+        RoomPresenceTracker presenceTracker)
     {
+        ArgumentNullException.ThrowIfNull(presenceTracker);
+
         var players = room.Players
-            .Select(player => new PlayerStateResponse(player.PlayerId, player.Name))
+            .Select(player => new PlayerStateResponse(player.PlayerId, player.Name)
+            {
+                IsConnected = presenceTracker.IsConnected(room.RoomCode, player.PlayerId)
+            })
             .ToArray();
 
         return new RoomStateResponse(
@@ -33,6 +43,9 @@ internal static class RoomHttpMappings
             players,
             room.CurrentStoryteller is { } storyteller
                 ? new PlayerStateResponse(storyteller.PlayerId, storyteller.Name)
+                {
+                    IsConnected = presenceTracker.IsConnected(room.RoomCode, storyteller.PlayerId)
+                }
                 : null,
             room.Clue,
             room.SubmissionCount,

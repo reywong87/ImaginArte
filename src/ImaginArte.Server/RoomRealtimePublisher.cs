@@ -1,7 +1,7 @@
 using ImaginArte.Contracts.Rooms;
 using Microsoft.AspNetCore.SignalR;
 
-internal sealed class RoomRealtimePublisher
+public sealed class RoomRealtimePublisher
 {
     private readonly IHubContext<RoomHub> _hubContext;
 

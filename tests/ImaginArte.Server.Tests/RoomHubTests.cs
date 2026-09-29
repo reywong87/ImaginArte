@@ -95,6 +95,117 @@ public sealed class RoomHubTests
     }
 
     [Fact]
+    public async Task SubscribeAsPlayer_UpdatesPublicPresenceOnConnectDisconnectAndReconnect()
+    {
+        using var application = CreateApplication();
+        using var httpClient = application.CreateClient();
+        var playerId = Guid.NewGuid();
+        await CreateRoomAsync(httpClient, "ABC123");
+        await JoinPlayerAsync(httpClient, "ABC123", playerId, "Alice");
+
+        await using var tvConnection = CreateHubConnection(application);
+        await using var playerConnection = CreateHubConnection(application);
+        var initialRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+
+        await tvConnection.StartAsync();
+        await SubscribeToRoomAsync(tvConnection, "ABC123");
+        var initialRoom = await initialRoomEvent.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(Assert.Single(initialRoom.Room.Players).IsConnected);
+
+        var connectedEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        await playerConnection.StartAsync();
+        await SubscribeAsPlayerAsync(playerConnection, "abc123", playerId);
+
+        var connectedRoom = await connectedEvent.WaitAsync(TimeSpan.FromSeconds(5));
+        var connectedPlayer = Assert.Single(connectedRoom.Room.Players);
+        Assert.Equal(playerId, connectedPlayer.PlayerId);
+        Assert.True(connectedPlayer.IsConnected);
+        Assert.True((await GetRoomAsync(httpClient, "ABC123")).Players.Single().IsConnected);
+
+        var disconnectedEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        await playerConnection.StopAsync();
+
+        var disconnectedRoom = await disconnectedEvent.WaitAsync(TimeSpan.FromSeconds(5));
+        var disconnectedPlayer = Assert.Single(disconnectedRoom.Room.Players);
+        Assert.Equal(playerId, disconnectedPlayer.PlayerId);
+        Assert.False(disconnectedPlayer.IsConnected);
+
+        await using var reconnectedPlayerConnection = CreateHubConnection(application);
+        var reconnectedEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        await reconnectedPlayerConnection.StartAsync();
+        await SubscribeAsPlayerAsync(reconnectedPlayerConnection, "ABC123", playerId);
+
+        var reconnectedRoom = await reconnectedEvent.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(Assert.Single(reconnectedRoom.Room.Players).IsConnected);
+    }
+
+    [Fact]
+    public async Task SubscribeAsPlayer_WithMultipleConnections_StaysConnectedUntilLastDisconnects()
+    {
+        using var application = CreateApplication();
+        using var httpClient = application.CreateClient();
+        var playerId = Guid.NewGuid();
+        await CreateRoomAsync(httpClient, "ABC123");
+        await JoinPlayerAsync(httpClient, "ABC123", playerId, "Alice");
+
+        await using var tvConnection = CreateHubConnection(application);
+        await using var firstPlayerConnection = CreateHubConnection(application);
+        await using var secondPlayerConnection = CreateHubConnection(application);
+        var initialRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+
+        await tvConnection.StartAsync();
+        await SubscribeToRoomAsync(tvConnection, "ABC123");
+        await initialRoomEvent.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var firstConnectedEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        await firstPlayerConnection.StartAsync();
+        await SubscribeAsPlayerAsync(firstPlayerConnection, "ABC123", playerId);
+        Assert.True((await firstConnectedEvent.WaitAsync(TimeSpan.FromSeconds(5)))
+            .Room.Players.Single().IsConnected);
+
+        var secondInitialRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            secondPlayerConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var unexpectedPresenceEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        await secondPlayerConnection.StartAsync();
+        await SubscribeAsPlayerAsync(secondPlayerConnection, "ABC123", playerId);
+        Assert.True((await secondInitialRoomEvent.WaitAsync(TimeSpan.FromSeconds(5)))
+            .Room.Players.Single().IsConnected);
+        await AssertNoEventAsync(unexpectedPresenceEvent);
+
+        var unexpectedDisconnectEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        await firstPlayerConnection.StopAsync();
+        await AssertNoEventAsync(unexpectedDisconnectEvent);
+        Assert.True((await GetRoomAsync(httpClient, "ABC123")).Players.Single().IsConnected);
+
+        var lastDisconnectEvent = WaitForEvent<RoomUpdatedEvent>(
+            tvConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        await secondPlayerConnection.StopAsync();
+
+        var disconnectedRoom = await lastDisconnectEvent.WaitAsync(TimeSpan.FromSeconds(5));
+        var disconnectedPlayer = Assert.Single(disconnectedRoom.Room.Players);
+        Assert.Equal(playerId, disconnectedPlayer.PlayerId);
+        Assert.False(disconnectedPlayer.IsConnected);
+    }
+
+    [Fact]
     public async Task SubscribeToRoom_WhenRoomDoesNotExist_FailsWithHubException()
     {
         using var application = CreateApplication();
@@ -174,10 +285,24 @@ public sealed class RoomHubTests
         await SubscribeAsPlayerAsync(connection, "ABC123", playerId);
         await privateEvent.WaitAsync(TimeSpan.FromSeconds(5));
         var after = await GetRoomAsync(httpClient, "ABC123");
+        var beforeWithoutPresence = before with
+        {
+            Players = before.Players
+                .Select(player => player with { IsConnected = false })
+                .ToArray()
+        };
+        var afterWithoutPresence = after with
+        {
+            Players = after.Players
+                .Select(player => player with { IsConnected = false })
+                .ToArray()
+        };
 
         Assert.Equal(
-            JsonSerializer.Serialize(before),
-            JsonSerializer.Serialize(after));
+            JsonSerializer.Serialize(beforeWithoutPresence),
+            JsonSerializer.Serialize(afterWithoutPresence));
+        Assert.False(before.Players.Single().IsConnected);
+        Assert.True(after.Players.Single().IsConnected);
     }
 
     [Fact]

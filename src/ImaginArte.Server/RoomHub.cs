@@ -7,15 +7,21 @@ public sealed class RoomHub : Hub
 {
     private readonly GetRoomStateHandler _getRoomState;
     private readonly GetPlayerPrivateStateHandler _getPlayerPrivateState;
+    private readonly RoomPresenceTracker _presenceTracker;
+    private readonly RoomRealtimePublisher _realtimePublisher;
     private readonly ILogger<RoomHub> _logger;
 
     public RoomHub(
         GetRoomStateHandler getRoomState,
         GetPlayerPrivateStateHandler getPlayerPrivateState,
+        RoomPresenceTracker presenceTracker,
+        RoomRealtimePublisher realtimePublisher,
         ILogger<RoomHub> logger)
     {
         _getRoomState = getRoomState;
         _getPlayerPrivateState = getPlayerPrivateState;
+        _presenceTracker = presenceTracker;
+        _realtimePublisher = realtimePublisher;
         _logger = logger;
     }
 
@@ -32,7 +38,7 @@ public sealed class RoomHub : Hub
             var result = await _getRoomState.HandleAsync(
                 new GetRoomStateQuery(roomCode),
                 cancellation.Token);
-            var room = result.Room.ToHttpResponse();
+            var room = result.Room.ToHttpResponse(_presenceTracker);
 
             await Groups.AddToGroupAsync(
                 Context.ConnectionId,
@@ -71,8 +77,7 @@ public sealed class RoomHub : Hub
             var result = await _getPlayerPrivateState.HandleAsync(
                 new GetPlayerPrivateStateQuery(roomCode, playerId),
                 cancellation.Token);
-            var state = result.ToHttpResponse();
-            var normalizedRoomCode = state.Room.RoomCode;
+            var normalizedRoomCode = result.Room.RoomCode;
 
             await Groups.AddToGroupAsync(
                 Context.ConnectionId,
@@ -83,10 +88,24 @@ public sealed class RoomHub : Hub
                 RoomHubGroupNames.PrivatePlayer(normalizedRoomCode, playerId),
                 cancellation.Token);
 
-            await Clients.Caller.SendAsync(
-                RoomRealtimeEventNames.RoomUpdated,
-                new RoomUpdatedEvent(state.Room),
-                cancellation.Token);
+            var becameConnected = _presenceTracker.Connect(
+                normalizedRoomCode,
+                playerId,
+                Context.ConnectionId);
+            var state = result.ToHttpResponse(_presenceTracker);
+
+            if (becameConnected)
+            {
+                await _realtimePublisher.PublishRoomUpdatedAsync(state.Room, cancellation.Token);
+            }
+            else
+            {
+                await Clients.Caller.SendAsync(
+                    RoomRealtimeEventNames.RoomUpdated,
+                    new RoomUpdatedEvent(state.Room),
+                    cancellation.Token);
+            }
+
             await Clients.Caller.SendAsync(
                 RoomRealtimeEventNames.PlayerStateUpdated,
                 new PlayerStateUpdatedEvent(state),
@@ -108,6 +127,44 @@ public sealed class RoomHub : Hub
                 "Unexpected error subscribing connection {ConnectionId} as a player.",
                 Context.ConnectionId);
             throw new HubException("The player subscription could not be completed.");
+        }
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        try
+        {
+            foreach (var disconnectedPlayer in _presenceTracker.Disconnect(Context.ConnectionId))
+            {
+                try
+                {
+                    var result = await _getRoomState.HandleAsync(
+                        new GetRoomStateQuery(disconnectedPlayer.RoomCode));
+                    var room = result.Room.ToHttpResponse(_presenceTracker);
+
+                    await _realtimePublisher.PublishRoomUpdatedAsync(room);
+                }
+                catch (RoomNotFoundException roomNotFoundException)
+                {
+                    _logger.LogInformation(
+                        roomNotFoundException,
+                        "Room {RoomCode} disappeared while disconnecting player {PlayerId}.",
+                        disconnectedPlayer.RoomCode,
+                        disconnectedPlayer.PlayerId);
+                }
+                catch (Exception publishException)
+                {
+                    _logger.LogError(
+                        publishException,
+                        "Could not publish disconnected presence for player {PlayerId} in room {RoomCode}.",
+                        disconnectedPlayer.PlayerId,
+                        disconnectedPlayer.RoomCode);
+                }
+            }
+        }
+        finally
+        {
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }
