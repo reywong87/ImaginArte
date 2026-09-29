@@ -76,6 +76,37 @@
   overflow-wrap: anywhere;
 }
 
+.tv-lobby-placeholder__status {
+  margin: 1.5rem 0 0;
+  color: #f3ead4;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+}
+
+.tv-lobby-placeholder__error {
+  margin: 1.5rem 0 0;
+  color: #ffe2df;
+  font-family: Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.tv-lobby-placeholder__retry {
+  min-height: 44px;
+  margin-top: 1.5rem;
+  padding: 0.7rem 1.4rem;
+  border: 2px solid #f2b632;
+  border-radius: 10px;
+  background: #08263e;
+  color: #fbf4e2;
+  cursor: pointer;
+  font: inherit;
+}
+
+.tv-lobby-placeholder__retry:focus-visible {
+  outline: 3px solid #fbf4e2;
+  outline-offset: 4px;
+}
+
 @media (max-width: 600px) {
   .tv-lobby-placeholder {
     padding: 1.5rem;
