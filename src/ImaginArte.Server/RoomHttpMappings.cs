@@ -1,5 +1,6 @@
 using ImaginArte.Application.Rooms;
 using ImaginArte.Contracts.Rooms;
+using ImaginArte.Domain;
 
 internal static class RoomHttpMappings
 {
@@ -21,13 +22,15 @@ internal static class RoomHttpMappings
 
     public static RoomStateResponse ToHttpResponse(this RoomState room)
     {
+        var players = room.Players
+            .Select(player => new PlayerStateResponse(player.PlayerId, player.Name))
+            .ToArray();
+
         return new RoomStateResponse(
             room.RoomCode,
             (RoomPhase)room.Phase,
             room.TargetScore,
-            room.Players
-                .Select(player => new PlayerStateResponse(player.PlayerId, player.Name))
-                .ToArray(),
+            players,
             room.CurrentStoryteller is { } storyteller
                 ? new PlayerStateResponse(storyteller.PlayerId, storyteller.Name)
                 : null,
@@ -78,6 +81,11 @@ internal static class RoomHttpMappings
                     winner.PlayerId,
                     winner.PlayerName,
                     winner.TotalPoints))
-                .ToArray());
+                .ToArray())
+        {
+            MinimumPlayers = Room.MinimumPlayers,
+            MaximumPlayers = Room.MaximumPlayers,
+            HostPlayerId = players.FirstOrDefault()?.PlayerId
+        };
     }
 }

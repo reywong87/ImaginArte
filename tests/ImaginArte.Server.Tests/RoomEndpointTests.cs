@@ -983,9 +983,10 @@ public sealed class RoomEndpointTests
     {
         using var application = CreateApplication();
         using var client = application.CreateClient();
+        var aliceId = Guid.NewGuid();
 
         await CreateRoomAsync(client, "ABC123");
-        await JoinPlayerAsync(client, "ABC123", Guid.NewGuid(), "Alice");
+        await JoinPlayerAsync(client, "ABC123", aliceId, "Alice");
         await JoinPlayerAsync(client, "ABC123", Guid.NewGuid(), "Bob");
         await JoinPlayerAsync(client, "ABC123", Guid.NewGuid(), "Carla");
         await client.PostAsync("/rooms/ABC123/start", content: null);
@@ -998,9 +999,18 @@ public sealed class RoomEndpointTests
         var room = ReadPublicRoomState(responseBody);
         Assert.Equal("ABC123", room.RoomCode);
         Assert.Equal(RoomPhase.StorytellerChoosing, room.Phase);
+        Assert.Equal(Room.MinimumPlayers, room.MinimumPlayers);
+        Assert.Equal(Room.MaximumPlayers, room.MaximumPlayers);
+        Assert.Equal(aliceId, room.HostPlayerId);
+        Assert.Equal(aliceId, room.Players.First().PlayerId);
+        Assert.All(room.Players, player => Assert.False(player.IsConnected));
 
         using var json = JsonDocument.Parse(responseBody);
         Assert.False(json.RootElement.TryGetProperty("hand", out _));
+        Assert.Equal(Room.MinimumPlayers, json.RootElement.GetProperty("minimumPlayers").GetInt32());
+        Assert.Equal(Room.MaximumPlayers, json.RootElement.GetProperty("maximumPlayers").GetInt32());
+        Assert.Equal(aliceId, json.RootElement.GetProperty("hostPlayerId").GetGuid());
+        Assert.False(json.RootElement.GetProperty("players")[0].GetProperty("isConnected").GetBoolean());
         Assert.DoesNotContain("TEMP-", responseBody, StringComparison.Ordinal);
     }
 

@@ -2,6 +2,8 @@ namespace ImaginArte.Contracts.Rooms;
 
 public sealed record CreateRoomRequest(string RoomCode);
 
+public sealed record UpdateRoomTargetScoreRequest(int TargetScore);
+
 public sealed record JoinRoomRequest(Guid PlayerId, string PlayerName);
 
 public sealed record ChooseStorytellerCardRequest(
@@ -48,9 +50,19 @@ public sealed record RoomStateResponse(
     IReadOnlyCollection<RevealCardStateResponse> RevealedCards,
     IReadOnlyCollection<RoundScoreStateResponse> RoundScores,
     IReadOnlyCollection<ScoreboardEntryStateResponse> Scoreboard,
-    IReadOnlyCollection<WinningPlayerStateResponse> Winners);
+    IReadOnlyCollection<WinningPlayerStateResponse> Winners)
+{
+    public int MinimumPlayers { get; init; }
 
-public sealed record PlayerStateResponse(Guid PlayerId, string Name);
+    public int MaximumPlayers { get; init; }
+
+    public Guid? HostPlayerId { get; init; }
+}
+
+public sealed record PlayerStateResponse(Guid PlayerId, string Name)
+{
+    public bool IsConnected { get; init; }
+}
 
 public sealed record VotingCardStateResponse(
     string VotingCardId,

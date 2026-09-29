@@ -23,6 +23,34 @@ public sealed class RoomRealtimeContractTests
     }
 
     [Fact]
+    public void RoomStateResponse_ExposesLobbyLimitsAndHost()
+    {
+        Assert.Equal(
+            typeof(int),
+            typeof(RoomStateResponse).GetProperty(nameof(RoomStateResponse.MinimumPlayers))?.PropertyType);
+        Assert.Equal(
+            typeof(int),
+            typeof(RoomStateResponse).GetProperty(nameof(RoomStateResponse.MaximumPlayers))?.PropertyType);
+        Assert.Equal(
+            typeof(Guid?),
+            typeof(RoomStateResponse).GetProperty(nameof(RoomStateResponse.HostPlayerId))?.PropertyType);
+        Assert.Equal(
+            typeof(bool),
+            typeof(PlayerStateResponse).GetProperty(nameof(PlayerStateResponse.IsConnected))?.PropertyType);
+    }
+
+    [Fact]
+    public void UpdateRoomTargetScoreRequest_ContainsTargetScore()
+    {
+        var property = typeof(UpdateRoomTargetScoreRequest)
+            .GetProperty(nameof(UpdateRoomTargetScoreRequest.TargetScore));
+
+        Assert.NotNull(property);
+        Assert.Equal(typeof(int), property.PropertyType);
+        Assert.Single(typeof(UpdateRoomTargetScoreRequest).GetProperties());
+    }
+
+    [Fact]
     public void PublicRoomSnapshot_DoesNotExposePrivateHands()
     {
         var publicSnapshotTypes = new[]
