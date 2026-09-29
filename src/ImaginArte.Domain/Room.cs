@@ -35,7 +35,7 @@ public sealed class Room
 
     public GamePhase Phase { get; private set; }
 
-    public int TargetScore { get; }
+    public int TargetScore { get; private set; }
 
     public PlayerId? CurrentStorytellerId { get; private set; }
 
@@ -215,6 +215,25 @@ public sealed class Room
             : null;
 
         return room;
+    }
+
+    public void SetTargetScore(int targetScore)
+    {
+        if (Phase != GamePhase.WaitingForPlayers)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.RoomNotWaitingForPlayers,
+                "The target score can only be changed while the room is waiting for players.");
+        }
+
+        if (targetScore is not (15 or 25 or 35))
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.InvalidTargetScore,
+                "The target score must be 15, 25, or 35.");
+        }
+
+        TargetScore = targetScore;
     }
 
     public Player Join(PlayerId playerId, string playerName)

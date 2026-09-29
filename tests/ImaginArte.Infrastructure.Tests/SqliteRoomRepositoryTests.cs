@@ -50,10 +50,12 @@ public sealed class SqliteRoomRepositoryTests
         var playerId = PlayerId.New();
 
         room.Join(playerId, "Alice");
+        room.SetTargetScore(35);
         await repository.SaveAsync(room);
 
         var savedRoom = await repository.GetByCodeAsync(new RoomCode("ABC123"));
         Assert.NotNull(savedRoom);
+        Assert.Equal(35, savedRoom.TargetScore);
         var player = Assert.Single(savedRoom.Players);
         Assert.Equal(playerId, player.Id);
         Assert.Equal("Alice", player.Name);

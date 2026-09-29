@@ -21,5 +21,6 @@ public enum DomainErrorCode
     PlayerAlreadyVoted = 16,
     RoomNotReadyForScoring = 17,
     RoomNotInScoring = 18,
-    RoomNotRoundComplete = 19
+    RoomNotRoundComplete = 19,
+    InvalidTargetScore = 20
 }

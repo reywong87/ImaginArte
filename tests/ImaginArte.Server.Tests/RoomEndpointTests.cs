@@ -50,6 +50,76 @@ public sealed class RoomEndpointTests
         Assert.Equal((int)HttpStatusCode.Conflict, problem.Status);
     }
 
+    [Theory]
+    [InlineData(15)]
+    [InlineData(25)]
+    [InlineData(35)]
+    public async Task PutTargetScore_WithAllowedScore_UpdatesAndPersistsRoom(int targetScore)
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        await CreateRoomAsync(client, "ABC123");
+
+        var response = await client.PutAsJsonAsync(
+            "/rooms/abc123/target-score",
+            new UpdateRoomTargetScoreRequest(targetScore));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updatedRoom = await ReadPublicRoomStateAsync(response);
+        var persistedRoom = await GetRoomAsync(client, "ABC123");
+        Assert.Equal(targetScore, updatedRoom.TargetScore);
+        Assert.Equal(targetScore, persistedRoom.TargetScore);
+    }
+
+    [Fact]
+    public async Task PutTargetScore_WithUnsupportedScore_ReturnsBadRequestWithoutChangingRoom()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        await CreateRoomAsync(client, "ABC123");
+
+        var response = await client.PutAsJsonAsync(
+            "/rooms/ABC123/target-score",
+            new UpdateRoomTargetScoreRequest(20));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var room = await GetRoomAsync(client, "ABC123");
+        Assert.Equal(25, room.TargetScore);
+    }
+
+    [Fact]
+    public async Task PutTargetScore_AfterGameStarts_ReturnsBadRequestWithoutChangingRoom()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        await CreateRoomAsync(client, "ABC123");
+        await JoinPlayerAsync(client, "ABC123", Guid.NewGuid(), "Alice");
+        await JoinPlayerAsync(client, "ABC123", Guid.NewGuid(), "Bob");
+        await JoinPlayerAsync(client, "ABC123", Guid.NewGuid(), "Carla");
+        await client.PostAsync("/rooms/ABC123/start", content: null);
+
+        var response = await client.PutAsJsonAsync(
+            "/rooms/ABC123/target-score",
+            new UpdateRoomTargetScoreRequest(15));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var room = await GetRoomAsync(client, "ABC123");
+        Assert.Equal(25, room.TargetScore);
+    }
+
+    [Fact]
+    public async Task PutTargetScore_WhenRoomDoesNotExist_ReturnsNotFound()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+
+        var response = await client.PutAsJsonAsync(
+            "/rooms/missing/target-score",
+            new UpdateRoomTargetScoreRequest(15));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     [Fact]
     public async Task PostPlayers_JoinsPlayerAndReturnsUpdatedRoomState()
     {
@@ -1111,6 +1181,13 @@ public sealed class RoomEndpointTests
             RoomCode = roomCode
         });
 
+        response.EnsureSuccessStatusCode();
+        return await ReadPublicRoomStateAsync(response);
+    }
+
+    private static async Task<RoomStateResponse> GetRoomAsync(HttpClient client, string roomCode)
+    {
+        var response = await client.GetAsync($"/rooms/{roomCode}");
         response.EnsureSuccessStatusCode();
         return await ReadPublicRoomStateAsync(response);
     }

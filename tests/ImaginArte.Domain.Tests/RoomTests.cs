@@ -24,6 +24,62 @@ public sealed class RoomTests
     }
 
     [Theory]
+    [InlineData(15)]
+    [InlineData(25)]
+    [InlineData(35)]
+    public void SetTargetScore_WithAllowedScoreWhileWaiting_UpdatesTargetScore(int targetScore)
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+
+        room.SetTargetScore(targetScore);
+
+        Assert.Equal(targetScore, room.TargetScore);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(14)]
+    [InlineData(26)]
+    [InlineData(50)]
+    public void SetTargetScore_WithUnsupportedScore_ThrowsAndKeepsCurrentTarget(int targetScore)
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.SetTargetScore(targetScore));
+
+        Assert.Equal(DomainErrorCode.InvalidTargetScore, exception.Code);
+        Assert.Equal(25, room.TargetScore);
+    }
+
+    [Fact]
+    public void SetTargetScore_AfterGameStarts_ThrowsAndKeepsCurrentTarget()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        room.Join(PlayerId.New(), "Alice");
+        room.Join(PlayerId.New(), "Bob");
+        room.Join(PlayerId.New(), "Carla");
+        room.StartGame();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.SetTargetScore(15));
+
+        Assert.Equal(DomainErrorCode.RoomNotWaitingForPlayers, exception.Code);
+        Assert.Equal(25, room.TargetScore);
+    }
+
+    [Fact]
+    public void SetTargetScore_IsPreservedBySnapshotRestore()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        room.SetTargetScore(35);
+
+        var restoredRoom = Room.Restore(room.ToSnapshot());
+
+        Assert.Equal(35, restoredRoom.TargetScore);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData(" ")]
     public void RoomCode_WithBlankValue_Throws(string code)

@@ -75,6 +75,7 @@ if (roomCleanupEnabled
 builder.Services.AddTransient<CreateRoomHandler>();
 builder.Services.AddTransient<JoinRoomHandler>();
 builder.Services.AddTransient<StartGameHandler>();
+builder.Services.AddTransient<SetRoomTargetScoreHandler>();
 builder.Services.AddTransient<ChooseStorytellerCardHandler>();
 builder.Services.AddTransient<SubmitGuessCardHandler>();
 builder.Services.AddTransient<CastVoteHandler>();
@@ -148,6 +149,28 @@ app.MapPost("/rooms/{roomCode}/start", async (
                 getPlayerPrivateState,
                 realtimePublisher,
                 cancellationToken);
+
+            return response;
+        },
+        Results.Ok);
+});
+
+app.MapPut("/rooms/{roomCode}/target-score", async (
+    string roomCode,
+    UpdateRoomTargetScoreRequest request,
+    SetRoomTargetScoreHandler handler,
+    RoomRealtimePublisher realtimePublisher,
+    CancellationToken cancellationToken) =>
+{
+    return await HandleRoomRequestAsync(
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new SetRoomTargetScoreCommand(roomCode, request.TargetScore),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse();
+
+            await realtimePublisher.PublishRoomUpdatedAsync(response, cancellationToken);
 
             return response;
         },

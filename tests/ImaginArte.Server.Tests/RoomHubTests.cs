@@ -273,6 +273,65 @@ public sealed class RoomHubTests
     }
 
     [Fact]
+    public async Task PutTargetScore_BroadcastsUpdatedRoomAfterSavingAndDoesNotBroadcastRejectedChanges()
+    {
+        var repository = new CountingRoomRepository();
+        using var application = CreateApplication(repository);
+        using var httpClient = application.CreateClient();
+        await CreateRoomAsync(httpClient, "ABC123");
+        await CreateRoomAsync(httpClient, "OTHER");
+        await using var roomConnection = CreateHubConnection(application);
+        await using var otherRoomConnection = CreateHubConnection(application);
+        var initialRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            roomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var initialOtherRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            otherRoomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+
+        await Task.WhenAll(roomConnection.StartAsync(), otherRoomConnection.StartAsync());
+        await SubscribeToRoomAsync(roomConnection, "ABC123");
+        await SubscribeToRoomAsync(otherRoomConnection, "OTHER");
+        await Task.WhenAll(initialRoomEvent, initialOtherRoomEvent)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        var roomUpdated = WaitForEvent<RoomUpdatedEvent>(
+            roomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var otherRoomUpdated = WaitForEvent<RoomUpdatedEvent>(
+            otherRoomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var response = await httpClient.PutAsJsonAsync(
+            "/rooms/abc123/target-score",
+            new UpdateRoomTargetScoreRequest(35));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var responseRoom = await response.Content.ReadFromJsonAsync<RoomStateResponse>();
+        Assert.NotNull(responseRoom);
+        var publicEvent = await roomUpdated.WaitAsync(TimeSpan.FromSeconds(5));
+        var persistedRoom = await GetRoomAsync(httpClient, "ABC123");
+        Assert.Equal(1, repository.SaveCount);
+        Assert.Equal(35, persistedRoom.TargetScore);
+        Assert.Equal(
+            JsonSerializer.Serialize(responseRoom),
+            JsonSerializer.Serialize(publicEvent.Room));
+
+        var rejectedUpdate = WaitForEvent<RoomUpdatedEvent>(
+            roomConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var saveCountBeforeRejectedUpdate = repository.SaveCount;
+        var invalidResponse = await httpClient.PutAsJsonAsync(
+            "/rooms/ABC123/target-score",
+            new UpdateRoomTargetScoreRequest(20));
+
+        Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+        await Task.WhenAll(
+            AssertNoEventAsync(rejectedUpdate),
+            AssertNoEventAsync(otherRoomUpdated));
+        Assert.Equal(saveCountBeforeRejectedUpdate, repository.SaveCount);
+    }
+
+    [Fact]
     public async Task PostStart_BroadcastsPublicStateAndEachPlayersOwnPrivateState()
     {
         using var application = CreateApplication();
