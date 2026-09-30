@@ -82,7 +82,7 @@ The interface should feel like a storybook portal: dark blue for depth, cream fo
 - **Frame rules:** draw the straight gold edges and simple separators with CSS borders or pseudo-elements. Do not stretch the complete mockup PNG around the window.
 - **Content:** render text, cards, and controls in a layer above the texture. Essential content must have verified contrast and must not depend on the texture for separation.
 
-The corner ornament, texture, and CSS surface are decorative assets. They must not contain text, room codes, scores, controls, or other stateful content. Reserve this layered ceremonial window for major screens and panels; ordinary controls should remain visually simpler.
+The corner ornament, texture, and CSS surface are decorative assets. They must not contain text, room codes, scores, controls, or other stateful content. Every floating/modal window and major lobby panel uses this same layered treatment: a textured Night Wash surface, a double frame, and independent botanical corner ornaments. Reuse the decoration layer from `TvHomeScreen` rather than creating unadorned software-card variants; keep ordinary controls visually simpler.
 
 ### Progress Board Reference Pattern
 

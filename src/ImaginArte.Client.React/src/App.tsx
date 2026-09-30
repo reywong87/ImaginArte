@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import TvHomeScreen from './screens/TvHomeScreen'
-import TvLobbyPlaceholder from './screens/TvLobbyPlaceholder'
+import TvLobbyScreen from './screens/TvLobbyScreen'
 
 function getRoomCodeFromPathname(pathname: string): string | null {
   const match = pathname.match(/^\/tv\/([^/]+)\/?$/)
@@ -43,7 +43,7 @@ function App() {
   return (
     <main className="app-shell">
       {roomCode ? (
-        <TvLobbyPlaceholder roomCode={roomCode} />
+        <TvLobbyScreen roomCode={roomCode} />
       ) : (
         <TvHomeScreen onRoomCreated={navigateToRoom} />
       )}

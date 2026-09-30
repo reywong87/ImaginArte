@@ -1,0 +1,97 @@
+.ceremonial-window-decorations {
+  position: absolute;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ceremonial-window-decorations__texture {
+  position: absolute;
+  border-radius: inherit;
+  background-image:
+    url('../assets/ventana-textura-botanica.png'),
+    url('../assets/ventana-textura-botanica.png');
+  background-position: left center, right center;
+  background-repeat: no-repeat, no-repeat;
+  background-size: auto 100%, auto 100%;
+  inset: 12px;
+  mix-blend-mode: screen;
+  opacity: 0.62;
+}
+
+.ceremonial-window-decorations__inner-frame {
+  position: absolute;
+  border: 2px solid rgb(242 182 50 / 88%);
+  border-radius: 20px;
+  inset: 9px;
+}
+
+.ceremonial-window-decorations__corner {
+  position: absolute;
+  width: clamp(2.5rem, 9.5%, 3.5rem);
+  aspect-ratio: 162 / 171;
+  background-image: url('../assets/hoja.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.ceremonial-window-decorations__corner--top-left {
+  top: 0.45rem;
+  left: 0.45rem;
+}
+
+.ceremonial-window-decorations__corner--top-right {
+  top: 0.45rem;
+  right: 0.45rem;
+  transform: scaleX(-1);
+}
+
+.ceremonial-window-decorations__corner--bottom-left {
+  bottom: 0.45rem;
+  left: 0.45rem;
+  transform: scaleY(-1);
+}
+
+.ceremonial-window-decorations__corner--bottom-right {
+  right: 0.45rem;
+  bottom: 0.45rem;
+  transform: scale(-1);
+}
+
+@media (max-width: 600px) {
+  .ceremonial-window-decorations__texture {
+    inset: 11px;
+  }
+
+  .ceremonial-window-decorations__inner-frame {
+    border-radius: 14px;
+    inset: 8px;
+  }
+
+  .ceremonial-window-decorations__corner {
+    width: clamp(2.5rem, 12%, 3rem);
+  }
+
+  .ceremonial-window-decorations__corner--top-left {
+    top: 0.35rem;
+    left: 0.35rem;
+  }
+
+  .ceremonial-window-decorations__corner--top-right {
+    top: 0.35rem;
+    right: 0.35rem;
+  }
+
+  .ceremonial-window-decorations__corner--bottom-left {
+    bottom: 0.35rem;
+    left: 0.35rem;
+  }
+
+  .ceremonial-window-decorations__corner--bottom-right {
+    right: 0.35rem;
+    bottom: 0.35rem;
+  }
+}

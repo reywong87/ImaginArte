@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import './TvHomeScreen.css'
 import seedIllustration from '../assets/semilla-circulo-estrellas.png'
+import CeremonialWindowDecorations from '../components/CeremonialWindowDecorations'
 import { createRoomCode } from '../services/roomCode'
 import {
   checkRoomExists,
@@ -133,23 +134,7 @@ function TvHomeScreen({ onRoomCreated }: TvHomeScreenProps) {
               disabled={isCreating}
               onClick={handleCreateRoom}
             >
-              <span className="room-action__texture" aria-hidden="true" />
-              <span
-                className="room-action__corner room-action__corner--top-left"
-                aria-hidden="true"
-              />
-              <span
-                className="room-action__corner room-action__corner--top-right"
-                aria-hidden="true"
-              />
-              <span
-                className="room-action__corner room-action__corner--bottom-left"
-                aria-hidden="true"
-              />
-              <span
-                className="room-action__corner room-action__corner--bottom-right"
-                aria-hidden="true"
-              />
+              <CeremonialWindowDecorations />
 
               <img
                 className="room-action__illustration"
