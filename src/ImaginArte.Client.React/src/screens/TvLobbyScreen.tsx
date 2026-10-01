@@ -511,7 +511,7 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
               )}
 
               {visibleTargetScoreSaveState.isSaving && (
-                <p className="tv-lobby-screen__score-note" role="status">
+                <p className="tv-lobby-screen__score-saving" role="status">
                   Guardando el modo elegido…
                 </p>
               )}
