@@ -6,18 +6,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: clamp(1.5rem, 5vw, 4rem);
-  background-color: #08263e;
-  background-image:
-    linear-gradient(
-      180deg,
-      rgb(3 20 35 / 28%) 0%,
-      rgb(3 20 35 / 12%) 48%,
-      rgb(3 20 35 / 32%) 100%
-    ),
-    url('../assets/fondo-entre-cielo-y-tierra-nuevo.png');
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
 }
 
 .tv-home__content {
@@ -171,7 +159,6 @@
 @media (max-width: 600px) {
   .tv-home {
     padding: 1.5rem;
-    background-position: 43% center;
   }
 
   .tv-home__content {

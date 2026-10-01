@@ -117,7 +117,7 @@ function TvHomeScreen({ onRoomCreated }: TvHomeScreenProps) {
   }
 
   return (
-    <section className="tv-home" aria-labelledby="tv-home-title">
+    <main className="tv-home" aria-labelledby="tv-home-title">
       <div className="tv-home__content">
         <h1 className="tv-home__title" id="tv-home-title">
           ImaginArte
@@ -192,7 +192,7 @@ function TvHomeScreen({ onRoomCreated }: TvHomeScreenProps) {
           </>
         )}
       </div>
-    </section>
+    </main>
   )
 }
 
