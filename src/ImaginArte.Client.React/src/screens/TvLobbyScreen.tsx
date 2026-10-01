@@ -737,7 +737,7 @@ function getAvatarStyle(avatarIndex: number | undefined) {
   const row = Math.floor(avatarIndex / 4)
 
   return {
-    backgroundPosition: `${(column / 3) * 100}% ${(row / 3) * 100}%`,
+    backgroundPosition: `${(column / 3) * 95 + 3}% ${(row / 3) * 95 + 4}%`,
   }
 }
 

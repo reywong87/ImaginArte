@@ -73,14 +73,23 @@
   width: 0.75rem;
   height: 0.75rem;
   flex: 0 0 auto;
-  border: 2px solid currentColor;
   border-radius: 50%;
-  background: #607653;
+  background: transparent;
 }
 
+.tv-lobby-screen__connection--connected .tv-lobby-screen__connection-dot,
+.tv-lobby-screen__player-status--connected .tv-lobby-screen__player-status-dot {
+  background: #46aa0a;
+}
+
+.tv-lobby-screen__connection--connecting .tv-lobby-screen__connection-dot,
 .tv-lobby-screen__connection--reconnecting .tv-lobby-screen__connection-dot,
+.tv-lobby-screen__player-status--reconnecting .tv-lobby-screen__player-status-dot {
+  background: #f2b632;
+}
+
 .tv-lobby-screen__connection--disconnected .tv-lobby-screen__connection-dot {
-  background: transparent;
+  background: #b95f4b;
 }
 
 .tv-lobby-screen__main-grid {
@@ -321,19 +330,16 @@
   display: block;
   width: clamp(2rem, 4.5vh, 3.25rem);
   height: clamp(2rem, 4.5vh, 3.25rem);
-  border: 2px solid #f2b632;
-  border-radius: 50%;
-  background-color: #fbf4e2;
   background-image: url('../assets/player-avatars-atlas.png');
   background-repeat: no-repeat;
-  background-size: 400% 400%;
-  box-shadow: 0 0 0 2px #10243a;
+  background-size: 420% 420%;
 }
 
 .tv-lobby-screen__avatar--placeholder {
   border: 2px dashed #b7b9b3;
   background: transparent;
   box-shadow: none;
+  border-radius: 50%;
 }
 
 .tv-lobby-screen__player-name {
@@ -377,10 +383,6 @@
 .tv-lobby-screen__player-status-dot {
   width: 0.65rem;
   height: 0.65rem;
-}
-
-.tv-lobby-screen__player-status--reconnecting .tv-lobby-screen__player-status-dot {
-  background: transparent;
 }
 
 .tv-lobby-panel--target-score {
