@@ -19,10 +19,10 @@ Assets must remain separate, with transparency where appropriate. The background
 
 ## Progress Route
 
-- The route contains exactly 25 positions, one for each point in the standard game target.
+- The route contains exactly 25 positions, one for each point in the medium game target.
 - It begins at the lower-left roots and ends before the upper-right golden portal.
 - Nodes are visual anchors of approximately 65 px in diameter on a `1920 x 1080` canvas.
-- Each connector is a straight line between the centers of two consecutive nodes. With 25 nodes, the standard route has 24 connectors.
+- Each connector is a straight line between the centers of two consecutive nodes. With 25 nodes, the medium route has 24 connectors.
 - The ordered arrangement of straight segments must retain a continuous, organic, ascending reading.
 - Nodes are not token containers and do not imply effects, bonuses, or penalties.
 - Node numbers `1` through `25` are visible on the public board. React renders each number as SVG `<text>` centered inside its corresponding `<circle>`; numbers are not baked into the background, guide image, or a node image asset.

@@ -43,7 +43,7 @@
 - The game ends when at least one player reaches the configured target score.
 - Suggested targets:
   - Short game: 15 points.
-  - Standard game: 25 points.
+  - Medium game: 25 points.
   - Long game: 35 points.
 - If several players reach the target in the same round, the highest score wins.
 - If first place is tied, play one final tiebreaker round.

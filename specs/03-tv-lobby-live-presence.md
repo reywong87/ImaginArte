@@ -11,7 +11,7 @@
 
 - Sustituir el placeholder de `/tv/{roomCode}` por el lobby de TV.
 - Mostrar el código de sala como alternativa manual al QR, los jugadores unidos, el progreso de ocupación y la puntuación objetivo.
-- Permitir elegir en el lobby el modo **Corta** (15 puntos), **Estándar** (25 puntos) o **Larga** (35 puntos). Las salas nuevas empiezan en **Estándar**.
+- Permitir elegir en el lobby el modo **Corta** (15 puntos), **Media** (25 puntos) o **Larga** (35 puntos). Las salas nuevas empiezan en **Media**.
 - Guardar cada cambio de modo inmediatamente en el servidor mediante `PUT /rooms/{roomCode}/target-score`. El snapshot actualizado es la fuente autoritativa y se publica a la sala por SignalR.
 - Permitir cambiar el modo mientras la sala está en espera de jugadores. El servidor rechaza cambios una vez iniciada la partida. Si falla el guardado, conservar seleccionado el último valor confirmado, mostrar un error accesible y permitir reintentar.
 - Actualizar el roster y la presencia con SignalR. Mostrar «Conectado» si el jugador tiene una o más conexiones SignalR activas. Si no tiene ninguna, conservarlo en la lista con el estado neutral «Reconectando».
@@ -58,7 +58,7 @@ public sealed record UpdateRoomTargetScoreRequest(int TargetScore);
 - `HostPlayerId` identifica al primer jugador de la sala y es `null` mientras no haya jugadores. El servidor conserva el orden de incorporación en la colección pública de jugadores.
 - `IsConnected` es `true` si el servidor mantiene una o más conexiones SignalR activas para ese jugador y sala.
 - La presencia se mantiene en memoria en el servidor. No se persiste en snapshots ni en la base de datos.
-- `TargetScore` sigue siendo la fuente de verdad para el modo: `15` corresponde a Corta, `25` a Estándar y `35` a Larga. La sala nueva conserva el valor predeterminado actual de `25`.
+- `TargetScore` sigue siendo la fuente de verdad para el modo: `15` corresponde a Corta, `25` a Media y `35` a Larga. La sala nueva conserva el valor predeterminado actual de `25`.
 - El servidor solo acepta `15`, `25` o `35` al actualizar el objetivo y solo mientras la sala esté en `WaitingForPlayers`. El valor seleccionado se guarda con el estado existente de la sala y sobrevive a la recuperación del snapshot.
 - No se añade una propiedad `GameMode`: la pantalla deriva la etiqueta del `TargetScore` recibido y el futuro spec del recorrido podrá usar ese mismo valor para determinar su tamaño.
 - React asigna índices del atlas, del `0` al `15`, sin repetirlos en la sala. Guarda el mapa temporal en:
@@ -121,7 +121,7 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 
 ## Tutoría React
 
-- **Objetivo observable:** la persona verá cómo se llena la sala en la TV, podrá elegir Corta, Estándar o Larga, escanear el QR con el cliente móvil existente y verá el estado de espera del narrador al iniciar.
+- **Objetivo observable:** la persona verá cómo se llena la sala en la TV, podrá elegir Corta, Media o Larga, escanear el QR con el cliente móvil existente y verá el estado de espera del narrador al iniciar.
 - **Conceptos nuevos:** estado React para representar un snapshot; `useEffect` para sincronizar la pantalla con SignalR y limpiar la suscripción; `Promise` para las llamadas HTTP; un `PUT` para persistir una opción de sala; Motion para mover elementos visuales sin modificar el estado del juego.
 - **Analogía con Blazor:** `TvLobby.razor` presenta la información pública y `RoomClient.cs` coordina HTTP, SignalR y los cambios de estado. En React, el servicio de sala realiza esa coordinación y el componente vuelve a renderizarse cuando recibe un snapshot nuevo.
 - **Límite de la analogía:** React no debe copiar `GameRoom` ni decidir reglas. El servidor sigue siendo la fuente de verdad; React muestra el estado y envía la intención de iniciar.
@@ -130,33 +130,66 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 
 ## Criterios de aceptación
 
-- [ ] `/tv/{roomCode}` muestra el lobby real, obtiene sus datos del servidor y no muestra el texto «Sala de juego».
-- [ ] El código de sala es legible a distancia y puede introducirse manualmente.
-- [ ] Con `VITE_MOBILE_JOIN_BASE_URL` configurada, el QR representa una URL accesible del cliente Blazor con `/join/{roomCode}`.
-- [ ] Sin esa configuración, no aparece un QR inválido; el código manual permanece disponible y se comunica el problema con texto accesible.
-- [ ] Al unirse un jugador, su nombre, avatar y el contador se actualizan en la TV sin recargar la página.
-- [ ] El progreso muestra los jugadores actuales sobre la capacidad devuelta por el servidor; la capacidad no está duplicada como regla en React.
-- [ ] Una sala nueva muestra **Estándar** seleccionado porque su `TargetScore` inicial es `25`.
-- [ ] El lobby permite seleccionar **Corta** (`15`), **Estándar** (`25`) o **Larga** (`35`). La selección actual se deriva del `TargetScore` confirmado por el servidor.
-- [ ] Seleccionar un modo envía `PUT /rooms/{roomCode}/target-score`; el servidor valida el valor, guarda la sala, devuelve el snapshot actualizado y publica `RoomUpdated`.
-- [ ] Tras recargar la TV o reconectar SignalR, el snapshot conserva el modo confirmado. Un fallo al guardar conserva la última selección confirmada, presenta un error accesible y permite reintentar.
-- [ ] El selector solo está habilitado mientras la sala está en espera de jugadores. El servidor rechaza cambios después de iniciar la partida.
-- [ ] Un jugador conectado tiene `IsConnected=true` mientras conserva al menos una conexión SignalR activa. Al cerrarse todas, su nombre permanece y la TV comunica «Reconectando».
-- [ ] Al reconectar un jugador, la presencia vuelve a «Conectado»; al reconectar la TV, se solicita un snapshot actualizado.
-- [ ] La primera persona de la lista tiene la etiqueta visual «Anfitrión», que no concede permisos ni cambia que el inicio ocurre desde la TV.
-- [ ] Cada jugador tiene un avatar del atlas, único en la sala y estable tras actualizaciones SignalR y recarga de la pestaña.
-- [ ] Al llegar a 8/8 se comunica «Sala completa»; el botón de inicio sigue disponible si se alcanzó el mínimo.
-- [ ] El botón está deshabilitado por debajo del mínimo devuelto por el servidor. Un clic al estar habilitado envía un único `POST /start`; no hay un diálogo adicional.
-- [ ] Si `POST /start` responde correctamente, aparece el nombre del narrador y el mensaje de que está eligiendo una carta y una pista.
-- [ ] Un error al cargar, conectar o iniciar se presenta con texto accesible y permite recuperarse sin duplicar el comando.
-- [ ] La transición conserva el mismo paisaje y anima solo elementos superpuestos. Con `prefers-reduced-motion`, no se reproduce el desplazamiento.
-- [ ] Los estados de conexión incluyen texto y no dependen solo del color; las acciones tienen foco de teclado visible.
-- [ ] Las actualizaciones públicas no muestran manos ni otros datos privados de jugadores.
-- [ ] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente.
-- [ ] Las pruebas de servidor cubren presencia, desconexión, reconexión y conexiones múltiples; las pruebas de contratos validan los nuevos campos públicos.
-- [ ] Las pruebas de dominio y aplicación validan los puntajes permitidos y que el modo solo se pueda cambiar antes de iniciar; las pruebas de endpoint y SignalR verifican guardado, snapshot y publicación. Se usan los proyectos de prueba existentes, sin crear uno nuevo.
-- [ ] La revisión manual en una vista TV verifica roster, QR, ocupación completa, inicio y movimiento reducido. El QR se prueba con un teléfono conectado a la misma red.
-- [ ] La revisión manual comprueba los tres modos, el valor estándar inicial, la persistencia tras recarga, el bloqueo al iniciar y la recuperación accesible tras un error de guardado.
+- [x] `/tv/{roomCode}` muestra el lobby real, obtiene sus datos del servidor y no muestra el texto «Sala de juego».
+  - Evidencia: `App.tsx:48-72` renderiza `TvLobbyScreen`; `TvLobbyScreen.tsx:149-193` carga el snapshot HTTP y se suscribe a SignalR. La captura accesible `.playwright-mcp/page-2026-10-01T19-30-50-686Z.yml` muestra el lobby y no contiene «Sala de juego».
+- [ ] **Parcial:** El código de sala es legible a distancia y puede introducirse manualmente.
+  - Evidencia: `TvLobbyScreen.css:150-165` aplica figuras grandes y `JoinRoom.razor` acepta `/join/{RoomCode}`; se probó la entrada manual en el navegador. No se comprobó la legibilidad física a 2–3 m en una TV.
+- [ ] **Parcial:** Con `VITE_MOBILE_JOIN_BASE_URL` configurada, el QR representa una URL accesible del cliente Blazor con `/join/{roomCode}`.
+  - Evidencia: `TvLobbyScreen.tsx:290-298, 471-487, 710-728` crea el QR con la base configurada y la ruta codificada; `JoinRoom.razor:1-2` declara esa ruta y `.env.example` documenta la variable. El QR se ve en `.playwright-mcp/page-2026-10-01T19-30-50-686Z.yml`; se probó la ruta manualmente en navegador, pero no se escaneó con un teléfono en la red local.
+- [x] Sin esa configuración, no aparece un QR inválido; el código manual permanece disponible y se comunica el problema con texto accesible.
+  - Evidencia: `TvLobbyScreen.tsx:456-496` conserva el código y, si la URL no se puede construir, omite `QRCodeSVG` y presenta el aviso con `role="status"`.
+- [x] Al unirse un jugador, su nombre, avatar y el contador se actualizan en la TV sin recargar la página.
+  - Evidencia: los snapshots `RoomUpdated` pasan por `applyRoomSnapshot` (`TvLobbyScreen.tsx:132-147`); el endpoint de unión publica la actualización (`Program.cs:112-130`). La revisión Playwright informó roster/contador en vivo; capturas de roster: `.playwright-mcp/page-2026-10-01T19-39-11-521Z.png`.
+- [x] El progreso muestra los jugadores actuales sobre la capacidad devuelta por el servidor; la capacidad no está duplicada como regla en React.
+  - Evidencia: `RoomHttpMappings.cs:98-101` pone los límites autoritativos en el contrato; `TvLobbyScreen.tsx:301, 509-512` renderiza `playerCount / room.maximumPlayers`. `RoomEndpointTests.cs:1072-1083` comprueba los límites públicos.
+- [x] Una sala nueva muestra **Media** seleccionado porque su `TargetScore` inicial es `25`.
+  - Evidencia: `Room.cs:8` establece 25 y la captura `.playwright-mcp/page-2026-10-01T19-30-50-686Z.yml` muestra seleccionado el radio de 25 puntos, con etiqueta **«Media»**. Las opciones se definen en `TvLobbyScreen.tsx:58-61`.
+- [x] El lobby permite seleccionar **Corta** (`15`), **Media** (`25`) o **Larga** (`35`). La selección actual se deriva del `TargetScore` confirmado por el servidor.
+  - Evidencia: `TvLobbyScreen.tsx:58-61` define las tres etiquetas y puntajes; `:605-610` compara la selección con `room.targetScore` y guarda mediante el endpoint. Las capturas `.playwright-mcp/page-2026-10-01T19-37-13-892Z.yml` y `page-2026-10-01T19-38-44-866Z.yml` muestran las opciones y los valores seleccionados.
+- [x] Seleccionar un modo envía `PUT /rooms/{roomCode}/target-score`; el servidor valida el valor, guarda la sala, devuelve el snapshot actualizado y publica `RoomUpdated`.
+  - Evidencia: `roomsApi.ts:87-113`, `Room.SetTargetScore` (`Room.cs:220-237`) y endpoint (`Program.cs:163-183`). `RoomEndpointTests.cs:53-121` cubre valores válidos, inválidos y sala iniciada; `RoomHubTests.cs:401-457` comprueba guardado, snapshot y publicación solo después de guardar.
+- [x] Tras recargar la TV o reconectar SignalR, el snapshot conserva el modo confirmado. Un fallo al guardar conserva la última selección confirmada, presenta un error accesible y permite reintentar.
+  - Evidencia: `RoomTests.cs:72-80` prueba restaurar el puntaje; `roomRealtime.ts:50-76` vuelve a suscribirse y pide un snapshot tras reconectar. `TvLobbyScreen.tsx:237-285, 605-610, 636-655` no aplica el valor optimistamente y presenta `role="alert"` con reintento en caso de fallo. La interacción de error/recarga no tiene una prueba React automatizada; queda incluida en la revisión manual pendiente del último criterio.
+- [x] El selector solo está habilitado mientras la sala está en espera de jugadores. El servidor rechaza cambios después de iniciar la partida.
+  - Evidencia: el `fieldset` depende de `WaitingForPlayers` (`TvLobbyScreen.tsx:595-598`); `Room.SetTargetScore` aplica la misma regla (`Room.cs:222-227`). Cubierto por `RoomTests.cs:55-69` y `RoomEndpointTests.cs:91-107`.
+- [x] Un jugador conectado tiene `IsConnected=true` mientras conserva al menos una conexión SignalR activa. Al cerrarse todas, su nombre permanece y la TV comunica «Reconectando».
+  - Evidencia: `RoomPresenceTracker.cs:9-37, 40-85` cuenta conexiones por jugador y sala; `RoomHubTests.cs:98-205` prueba conexión, desconexión, reconexión y conexiones múltiples. La UI no elimina al jugador y muestra ambos estados textualmente (`TvLobbyScreen.tsx:525-557`).
+- [x] Al reconectar un jugador, la presencia vuelve a «Conectado»; al reconectar la TV, se solicita un snapshot actualizado.
+  - Evidencia: reconexión de jugador cubierta en `RoomHubTests.cs:139-147`; el cliente TV ejecuta `SubscribeToRoom` y `GET` tras `onreconnected` (`roomRealtime.ts:50-76`).
+- [x] La primera persona de la lista tiene la etiqueta visual «Anfitrión», que no concede permisos ni cambia que el inicio ocurre desde la TV.
+  - Evidencia: `RoomHttpMappings.cs:32-37, 98-102` conserva el orden y deriva `HostPlayerId` de la primera persona; `RoomEndpointTests.cs:1074-1075` lo valida. La etiqueta se renderiza en `TvLobbyScreen.tsx:525-548`; el inicio es un control de TV y no depende de `HostPlayerId` (`TvLobbyScreen.tsx:317-355, 677-684`).
+- [x] Cada jugador tiene un avatar del atlas, único en la sala y estable tras actualizaciones SignalR y recarga de la pestaña.
+  - Evidencia: el atlas está en `src/ImaginArte.Client.React/src/assets/player-avatars-atlas.png`; `playerAvatarAssignments.ts:3-60, 63-94` asigna índices distintos y aleatorios, y guarda/recupera el mapa en `sessionStorage` con la clave acordada. `TvLobbyScreen.tsx:142-146, 525-539` conserva la asignación al aplicar snapshots.
+- [x] Al llegar a 8/8 se comunica «Sala completa»; el botón de inicio sigue disponible si se alcanzó el mínimo.
+  - Evidencia: `TvLobbyScreen.tsx:301, 303-306, 515-519` compara contra el máximo y solo condiciona el inicio al mínimo. La vista 8/8 y el inicio habilitado se revisaron en `.playwright-mcp/page-2026-10-01T19-40-05-285Z.png`.
+- [x] El botón está deshabilitado por debajo del mínimo devuelto por el servidor. Un clic al estar habilitado envía un único `POST /start`; no hay un diálogo adicional.
+  - Evidencia: `TvLobbyScreen.tsx:303-315, 317-392, 677-684` usa `minimumPlayers`, evita solicitudes concurrentes y llama `startRoom`; `roomsApi.ts:115-131` usa `POST /rooms/{roomCode}/start`. En la captura `.playwright-mcp/page-2026-10-01T19-30-50-686Z.yml` aparece deshabilitado con 0/8 y mínimo 3; en 8/8 se observó habilitado.
+- [x] Si `POST /start` responde correctamente, aparece el nombre del narrador y el mensaje de que está eligiendo una carta y una pista.
+  - Evidencia: `TvWaitingForStorytellerScreen.tsx:9-33` renderiza nombre y mensaje; la vista observada está registrada en `.playwright-mcp/page-2026-10-01T19-40-19-176Z.yml`.
+- [x] Un error al cargar, conectar o iniciar se presenta con texto accesible y permite recuperarse sin duplicar el comando.
+  - Evidencia: `TvLobbyScreen.tsx:183-190, 429-439, 317-392` usa mensajes de estado/alerta, ofrece reintento y protege el inicio con `startRequestsInFlight`.
+- [x] La transición conserva el mismo paisaje y anima solo elementos superpuestos. Con `prefers-reduced-motion`, no se reproduce el desplazamiento.
+  - Evidencia: el paisaje está en el backdrop fijo compartido (`App.css:10-27`); `App.tsx:51-91` anima la capa de pantalla con Motion y elimina el desplazamiento al reducir movimiento. Revisado en `.playwright-mcp/page-2026-10-01T19-42-17-274Z.png` con movimiento reducido.
+- [x] Los estados de conexión incluyen texto y no dependen solo del color; las acciones tienen foco de teclado visible.
+  - Evidencia: `TvLobbyScreen.tsx:411-419, 529-557, 792-802` presenta etiquetas textuales; `TvLobbyScreen.css:428-431, 494-497, 618-620` define foco visible. Captura de revisión de foco: `.playwright-mcp/page-2026-10-01T19-42-31-184Z.png`.
+- [ ] **No cumple:** Las actualizaciones públicas no muestran manos ni otros datos privados de jugadores.
+  - Evidencia: el snapshot público no incluye manos, pero `RoomHttpMappings.cs:55-64` publica votante e identidad en `VotingCards[].Votes`; `:66-79` incluye propietario y votos en `RevealedCards`. Los contratos correspondientes exponen esos campos (`RoomHttpContracts.cs:67-88`). `docs/08-screen-specifications.md:10, 156-157, 593-595` prohíbe votos/identidades y la relación votante-carta en TV; la prueba actual de contrato solo comprueba la ausencia de `Hand` (`RoomRealtimeContractTests.cs:53-73`).
+- [x] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente.
+  - Evidencia: los tres comandos terminaron con código 0 el 2026-10-01. Advertencia no bloqueante del build: Vite no resuelve `../assets/hola-lateral.png` en `TvLobbyScreen.css:180`; el recurso existente se llama `hoja-lateral.png`.
+- [x] Las pruebas de servidor cubren presencia, desconexión, reconexión y conexiones múltiples; las pruebas de contratos validan los nuevos campos públicos.
+  - Evidencia: `RoomHubTests.cs:98-205` cubre los estados de presencia y varias conexiones; `RoomRealtimeContractTests.cs:25-50` comprueba mínimo, máximo, anfitrión, conexión y solicitud. Suite ejecutada: Server 69/69; Contracts 7/7.
+- [x] Las pruebas de dominio y aplicación validan los puntajes permitidos y que el modo solo se pueda cambiar antes de iniciar; las pruebas de endpoint y SignalR verifican guardado, snapshot y publicación. Se usan los proyectos de prueba existentes, sin crear uno nuevo.
+  - Evidencia: `RoomTests.cs:26-80`, `RoomUseCaseTests.cs:136-205`, `RoomEndpointTests.cs:53-121` y `RoomHubTests.cs:401-457`. Suites ejecutadas: Domain 89/89, Application 53/53, Server 69/69 y Contracts 7/7.
+- [ ] **Parcial:** La revisión manual en una vista TV verifica roster, QR, ocupación completa, inicio y movimiento reducido. El QR se prueba con un teléfono conectado a la misma red.
+  - Evidencia: la revisión Playwright comprobó lobby/roster, 8/8, inicio y movimiento reducido; capturas `.playwright-mcp/page-2026-10-01T19-39-11-521Z.png`, `page-2026-10-01T19-40-05-285Z.png` y `page-2026-10-01T19-42-17-274Z.png`. No se probó en una TV física ni se escaneó el QR con un teléfono en la misma red.
+- [ ] **Parcial:** La revisión manual comprueba los tres modos, el valor Media inicial, la persistencia tras recarga, el bloqueo al iniciar y la recuperación accesible tras un error de guardado.
+  - Evidencia: el servidor y la persistencia tienen pruebas automatizadas, y la revisión del navegador observó valores 15/25/35 en distintas capturas, incluido el valor 25 como «Media». No hay evidencia de revisión manual de recarga, bloqueo del selector tras iniciar ni fallo/reintento de guardado.
+
+### Resultado de verificación — 2026-10-01
+
+**Estado global: Parcial; no cerrar este spec todavía.** De los 27 criterios, 22 están verificados, 1 no se cumple (privacidad del snapshot público) y 4 requieren completar validación manual/parcial. La revisión de navegador se realizó con Playwright del entorno; no se añadió una suite E2E al repositorio, según el alcance aprobado.
+
+Comprobaciones ejecutadas: `npm run typecheck`, `npm run lint`, `npm run build`; `dotnet test` de Domain (89), Application (53), Server (69) y Contracts (7), todas correctas. El build conserva la advertencia de recurso CSS no resuelto descrita arriba. Evidencia visual local bajo `.playwright-mcp/` (ignorada por Git); los QR y la legibilidad física a distancia siguen pendientes.
 
 ## Decisiones
 
@@ -166,8 +199,8 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 - **Sí:** asignar la etiqueta visual de anfitrión a la primera persona; la etiqueta no representa autorización.
 - **Sí:** asignar avatares temporales del atlas de forma aleatoria, única y estable en la pestaña. La selección desde el móvil reemplazará esta solución en otro spec.
 - **Sí:** interpretar el clic sobre **Iniciar partida**, cuando ya está habilitado, como la confirmación explícita. Esta decisión descarta un segundo diálogo.
-- **Sí:** permitir seleccionar Corta (`15`), Estándar (`25`) o Larga (`35`) en el lobby; usar `TargetScore` existente como única representación autoritativa, sin añadir `GameMode`.
-- **Sí:** iniciar las salas nuevas en Estándar (`TargetScore = 25`) y guardar cada cambio inmediatamente mediante `PUT /rooms/{roomCode}/target-score`.
+- **Sí:** permitir seleccionar Corta (`15`), Media (`25`) o Larga (`35`) en el lobby; usar `TargetScore` existente como única representación autoritativa, sin añadir `GameMode`.
+- **Sí:** iniciar las salas nuevas en Media (`TargetScore = 25`) y guardar cada cambio inmediatamente mediante `PUT /rooms/{roomCode}/target-score`.
 - **Sí:** permitir cambios solo durante `WaitingForPlayers`; la validación del servidor bloquea cambios una vez iniciada la partida.
 - **Sí:** conservar en la interfaz el último valor confirmado y permitir reintentar si falla el guardado.
 - **Sí:** mantener fijo el paisaje y animar la interfaz superpuesta con la dependencia Motion existente.
