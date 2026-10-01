@@ -9,7 +9,8 @@
 
 ## Spec acceptance criteria
 
-- After implementing a spec, use the `spec-verifier` subagent to verify each acceptance criterion against the implementation, tests, and relevant screens.
+- Do not launch the `spec-verifier` subagent automatically when the last implementation-plan step of a spec is complete. Acceptance-criteria verification is a manual follow-up; the user will explicitly request it.
+- When the user requests verification, use the `spec-verifier` subagent to check each acceptance criterion against the implementation, tests, and relevant screens.
 - Have the subagent update the spec with each criterion's verification status and concrete evidence. Keep unmet criteria visible as gaps; do not mark them satisfied without evidence.
 
 ## Read before changing behavior
