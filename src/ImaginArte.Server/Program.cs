@@ -79,6 +79,7 @@ builder.Services.AddTransient<SetRoomTargetScoreHandler>();
 builder.Services.AddTransient<ChooseStorytellerCardHandler>();
 builder.Services.AddTransient<SubmitGuessCardHandler>();
 builder.Services.AddTransient<CastVoteHandler>();
+builder.Services.AddTransient<RevealStorytellerCardHandler>();
 builder.Services.AddTransient<ScoreRoundHandler>();
 builder.Services.AddTransient<CompleteRoundHandler>();
 builder.Services.AddTransient<AdvanceRoundHandler>();
@@ -274,6 +275,28 @@ app.MapPost("/rooms/{roomCode}/votes", async (
                 realtimePublisher,
                 presenceTracker,
                 cancellationToken);
+
+            return response;
+        },
+        Results.Ok);
+});
+
+app.MapPost("/rooms/{roomCode}/reveal-storyteller-card", async (
+    string roomCode,
+    RevealStorytellerCardHandler handler,
+    RoomRealtimePublisher realtimePublisher,
+    RoomPresenceTracker presenceTracker,
+    CancellationToken cancellationToken) =>
+{
+    return await HandleRoomRequestAsync(
+        async () =>
+        {
+            var result = await handler.HandleAsync(
+                new RevealStorytellerCardCommand(roomCode),
+                cancellationToken);
+            var response = result.Room.ToHttpResponse(presenceTracker);
+
+            await realtimePublisher.PublishRoomUpdatedAsync(response, cancellationToken);
 
             return response;
         },

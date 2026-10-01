@@ -620,6 +620,54 @@ public sealed class RoomUseCaseTests
     }
 
     [Fact]
+    public async Task RevealStorytellerCard_WithVoteRevealRoom_SavesAndReturnsRevealState()
+    {
+        var repository = new InMemoryRoomRepository();
+        var (aliceId, bobId, _) = await CreateRoomAfterVoteRevealAsync(repository);
+        var handler = new RevealStorytellerCardHandler(repository);
+
+        var result = await handler.HandleAsync(new RevealStorytellerCardCommand("abc123"));
+        var savedRoom = await GetRequiredRoomAsync(repository);
+
+        Assert.Equal(GamePhase.Reveal, result.Room.Phase);
+        Assert.Equal(GamePhase.Reveal, savedRoom.Phase);
+        Assert.Empty(result.Room.VotingCards);
+        Assert.Equal(3, result.Room.RevealedCards.Count);
+        var storytellerCard = Assert.Single(
+            result.Room.RevealedCards,
+            card => card.IsStorytellerCard);
+        Assert.Equal("Alice", storytellerCard.OwnerName);
+        Assert.Contains(
+            storytellerCard.Votes,
+            vote => vote.VoterPlayerId == bobId && vote.VoterName == "Bob");
+        Assert.Equal(aliceId, result.Room.CurrentStoryteller?.PlayerId);
+    }
+
+    [Fact]
+    public async Task RevealStorytellerCard_WhenRoomIsNotInVoteReveal_PropagatesDomainException()
+    {
+        var repository = new InMemoryRoomRepository();
+        await CreateRoomWaitingForVotingAsync(repository);
+        var handler = new RevealStorytellerCardHandler(repository);
+
+        var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
+            () => handler.HandleAsync(new RevealStorytellerCardCommand("ABC123")));
+
+        Assert.Equal(DomainErrorCode.RoomNotReadyForStorytellerReveal, exception.Code);
+    }
+
+    [Fact]
+    public async Task RevealStorytellerCard_WhenRoomDoesNotExist_Throws()
+    {
+        var handler = new RevealStorytellerCardHandler(new InMemoryRoomRepository());
+
+        var exception = await Assert.ThrowsAsync<RoomNotFoundException>(
+            () => handler.HandleAsync(new RevealStorytellerCardCommand("missing")));
+
+        Assert.Equal("MISSING", exception.RoomCode);
+    }
+
+    [Fact]
     public async Task CastVote_WhenRoomDoesNotExist_Throws()
     {
         var repository = new InMemoryRoomRepository();
@@ -1121,17 +1169,24 @@ public sealed class RoomUseCaseTests
     private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId)> CreateRoomAfterRevealAsync(
         InMemoryRoomRepository repository)
     {
+        var playerIds = await CreateRoomAfterVoteRevealAsync(repository);
+        var revealStorytellerCard = new RevealStorytellerCardHandler(repository);
+
+        await revealStorytellerCard.HandleAsync(new RevealStorytellerCardCommand("ABC123"));
+
+        return playerIds;
+    }
+
+    private static async Task<(Guid AliceId, Guid BobId, Guid CarlaId)> CreateRoomAfterVoteRevealAsync(
+        InMemoryRoomRepository repository)
+    {
         var castVote = new CastVoteHandler(repository);
-        var (aliceId, bobId, carlaId, votingState) = await CreateRoomWaitingForVotingAsync(repository);
+        var (aliceId, bobId, carlaId, _) = await CreateRoomWaitingForVotingAsync(repository);
         var storytellerVotingCardId = await GetStorytellerVotingCardIdAsync(repository);
         var bobVotingCardId = await GetVotingCardIdForOwnerAsync(repository, bobId);
 
         await castVote.HandleAsync(new CastVoteCommand("ABC123", bobId, storytellerVotingCardId));
         await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
-
-        var room = await GetRequiredRoomAsync(repository);
-        room.RevealStorytellerCard();
-        await repository.SaveAsync(room);
 
         return (aliceId, bobId, carlaId);
     }

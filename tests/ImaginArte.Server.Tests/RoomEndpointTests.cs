@@ -481,42 +481,59 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
-    public async Task PostVotes_WithLastVote_MovesToRevealAndRevealsVoteDetails()
+    public async Task PostVotes_WithLastVote_MovesToVoteRevealWithoutRevealingTheStorytellerCard()
     {
         using var application = CreateApplication();
         using var client = application.CreateClient();
-        var room = await PrepareVotingRoomAsync(client, "ABC123");
-        var storytellerVotingCardId = room.VotingState.VotingCards
-            .Single(card => card.CardId == room.StorytellerCardId)
-            .VotingCardId;
-        var bobVotingCardId = room.VotingState.VotingCards
-            .Single(card => card.CardId == room.BobCardId)
-            .VotingCardId;
+        var room = await PrepareVoteRevealRoomAsync(client, "ABC123");
+        var state = room.VoteRevealState;
 
-        var firstResponse = await client.PostAsJsonAsync(
-            "/rooms/ABC123/votes",
-            new CastVoteRequest(room.BobId, storytellerVotingCardId));
-        firstResponse.EnsureSuccessStatusCode();
+        Assert.Equal(RoomPhase.VoteReveal, state.Phase);
+        Assert.Equal(state.ExpectedVoteCount, state.VoteCount);
+        Assert.Equal(room.VotingState.VotingCards.Count, state.VotingCards.Count);
+        Assert.Empty(state.RevealedCards);
 
-        var response = await client.PostAsJsonAsync(
-            "/rooms/ABC123/votes",
-            new CastVoteRequest(room.CarlaId, bobVotingCardId));
+        var storytellerCard = state.VotingCards.Single(card => card.CardId == room.StorytellerCardId);
+        Assert.Collection(
+            storytellerCard.Votes,
+            vote =>
+            {
+                Assert.Equal(room.BobId, vote.VoterPlayerId);
+                Assert.Equal("Bob", vote.VoterName);
+            });
+
+        var bobCard = state.VotingCards.Single(card => card.CardId == room.BobCardId);
+        Assert.Collection(
+            bobCard.Votes,
+            vote =>
+            {
+                Assert.Equal(room.CarlaId, vote.VoterPlayerId);
+                Assert.Equal("Carla", vote.VoterName);
+            });
+
+        Assert.DoesNotContain(state.VotingCards, card => card.CardId == room.CarlaCardId && card.Votes.Count > 0);
+    }
+
+    [Fact]
+    public async Task PostRevealStorytellerCard_WithVoteRevealRoom_PersistsAndReturnsRevealDetails()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        var room = await PrepareVoteRevealRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsync(
+            "/rooms/ABC123/reveal-storyteller-card",
+            content: null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
         var state = await ReadPublicRoomStateAsync(response);
+        var persistedState = await GetRoomAsync(client, "ABC123");
         Assert.Equal(RoomPhase.Reveal, state.Phase);
-        Assert.Equal(state.ExpectedVoteCount, state.VoteCount);
+        Assert.Equal(RoomPhase.Reveal, persistedState.Phase);
         Assert.Empty(state.VotingCards);
-        Assert.Equal(room.VotingState.VotingCards.Count, state.RevealedCards.Count);
-        Assert.Equal(
-            room.VotingState.VotingCards.Select(
-                card => (card.VotingCardId, card.CardId, card.DisplayNumber)),
-            state.RevealedCards.Select(
-                card => (card.VotingCardId, card.CardId, card.DisplayNumber)));
+        Assert.Equal(room.VoteRevealState.VotingCards.Count, state.RevealedCards.Count);
 
-        var storytellerCard = state.RevealedCards.Single(
-            card => card.CardId == room.StorytellerCardId);
+        var storytellerCard = state.RevealedCards.Single(card => card.CardId == room.StorytellerCardId);
         Assert.Equal(room.AliceId, storytellerCard.OwnerPlayerId);
         Assert.Equal("Alice", storytellerCard.OwnerName);
         Assert.True(storytellerCard.IsStorytellerCard);
@@ -530,8 +547,6 @@ public sealed class RoomEndpointTests
 
         var bobCard = state.RevealedCards.Single(card => card.CardId == room.BobCardId);
         Assert.Equal(room.BobId, bobCard.OwnerPlayerId);
-        Assert.Equal("Bob", bobCard.OwnerName);
-        Assert.False(bobCard.IsStorytellerCard);
         Assert.Collection(
             bobCard.Votes,
             vote =>
@@ -539,12 +554,44 @@ public sealed class RoomEndpointTests
                 Assert.Equal(room.CarlaId, vote.VoterPlayerId);
                 Assert.Equal("Carla", vote.VoterName);
             });
+    }
 
-        var carlaCard = state.RevealedCards.Single(card => card.CardId == room.CarlaCardId);
-        Assert.Equal(room.CarlaId, carlaCard.OwnerPlayerId);
-        Assert.Equal("Carla", carlaCard.OwnerName);
-        Assert.False(carlaCard.IsStorytellerCard);
-        Assert.Empty(carlaCard.Votes);
+    [Fact]
+    public async Task PostRevealStorytellerCard_BeforeAllVotesAreLocked_ReturnsBadRequest()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+        var storytellerVotingCardId = room.VotingState.VotingCards
+            .Single(card => card.CardId == room.StorytellerCardId)
+            .VotingCardId;
+        var voteResponse = await client.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(room.BobId, storytellerVotingCardId));
+        voteResponse.EnsureSuccessStatusCode();
+
+        var response = await client.PostAsync(
+            "/rooms/ABC123/reveal-storyteller-card",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var state = await GetRoomAsync(client, "ABC123");
+        Assert.Equal(RoomPhase.Voting, state.Phase);
+        Assert.Equal(1, state.VoteCount);
+        Assert.Empty(state.RevealedCards);
+    }
+
+    [Fact]
+    public async Task PostRevealStorytellerCard_WhenRoomDoesNotExist_ReturnsNotFound()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+
+        var response = await client.PostAsync(
+            "/rooms/missing/reveal-storyteller-card",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
@@ -1291,7 +1338,7 @@ public sealed class RoomEndpointTests
             await ReadPublicRoomStateAsync(response));
     }
 
-    private static async Task<RevealRoom> PrepareRevealRoomAsync(
+    private static async Task<VoteRevealRoom> PrepareVoteRevealRoomAsync(
         HttpClient client,
         string roomCode)
     {
@@ -1313,13 +1360,34 @@ public sealed class RoomEndpointTests
             new CastVoteRequest(room.CarlaId, bobVotingCardId));
         response.EnsureSuccessStatusCode();
 
-        return new RevealRoom(
+        return new VoteRevealRoom(
             room.AliceId,
             room.BobId,
             room.CarlaId,
             room.StorytellerCardId,
             room.BobCardId,
             room.CarlaCardId,
+            room.VotingState,
+            await ReadPublicRoomStateAsync(response));
+    }
+
+    private static async Task<RevealRoom> PrepareRevealRoomAsync(
+        HttpClient client,
+        string roomCode)
+    {
+        var voteRevealRoom = await PrepareVoteRevealRoomAsync(client, roomCode);
+        var response = await client.PostAsync(
+            $"/rooms/{roomCode}/reveal-storyteller-card",
+            content: null);
+        response.EnsureSuccessStatusCode();
+
+        return new RevealRoom(
+            voteRevealRoom.AliceId,
+            voteRevealRoom.BobId,
+            voteRevealRoom.CarlaId,
+            voteRevealRoom.StorytellerCardId,
+            voteRevealRoom.BobCardId,
+            voteRevealRoom.CarlaCardId,
             await ReadPublicRoomStateAsync(response));
     }
 
@@ -1459,6 +1527,16 @@ public sealed class RoomEndpointTests
         string BobCardId,
         string CarlaCardId,
         RoomStateResponse VotingState);
+
+    private sealed record VoteRevealRoom(
+        Guid AliceId,
+        Guid BobId,
+        Guid CarlaId,
+        string StorytellerCardId,
+        string BobCardId,
+        string CarlaCardId,
+        RoomStateResponse VotingState,
+        RoomStateResponse VoteRevealState);
 
     private sealed record RevealRoom(
         Guid AliceId,

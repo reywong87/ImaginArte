@@ -457,6 +457,105 @@ public sealed class RoomHubTests
     }
 
     [Fact]
+    public async Task PostRevealStorytellerCard_PublishesRoomUpdatedOnlyAfterSaveCompletes()
+    {
+        var repository = new CountingRoomRepository();
+        using var application = CreateApplication(repository);
+        using var httpClient = application.CreateClient();
+        var aliceId = Guid.NewGuid();
+        var bobId = Guid.NewGuid();
+        var carlaId = Guid.NewGuid();
+
+        await CreateRoomAsync(httpClient, "ABC123");
+        await JoinPlayerAsync(httpClient, "ABC123", aliceId, "Alice");
+        await JoinPlayerAsync(httpClient, "ABC123", bobId, "Bob");
+        await JoinPlayerAsync(httpClient, "ABC123", carlaId, "Carla");
+        await StartRoomAsync(httpClient, "ABC123");
+
+        var aliceStarted = await GetPlayerPrivateStateAsync(httpClient, "ABC123", aliceId);
+        var bobStarted = await GetPlayerPrivateStateAsync(httpClient, "ABC123", bobId);
+        var carlaStarted = await GetPlayerPrivateStateAsync(httpClient, "ABC123", carlaId);
+        var storytellerCardId = aliceStarted.Player.Hand.First().CardId;
+        var bobCardId = bobStarted.Player.Hand.First().CardId;
+        var carlaCardId = carlaStarted.Player.Hand.First().CardId;
+
+        var storytellerResponse = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/storyteller-card",
+            new ChooseStorytellerCardRequest(aliceId, storytellerCardId, "A clue"));
+        storytellerResponse.EnsureSuccessStatusCode();
+        var bobSubmission = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/guess-cards",
+            new SubmitGuessCardRequest(bobId, bobCardId));
+        bobSubmission.EnsureSuccessStatusCode();
+        var carlaSubmission = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/guess-cards",
+            new SubmitGuessCardRequest(carlaId, carlaCardId));
+        carlaSubmission.EnsureSuccessStatusCode();
+        var votingState = await GetRoomAsync(httpClient, "ABC123");
+        var storytellerVotingCardId = votingState.VotingCards
+            .Single(card => card.CardId == storytellerCardId)
+            .VotingCardId;
+        var bobVotingCardId = votingState.VotingCards
+            .Single(card => card.CardId == bobCardId)
+            .VotingCardId;
+
+        var firstVote = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(bobId, storytellerVotingCardId));
+        firstVote.EnsureSuccessStatusCode();
+        var finalVote = await httpClient.PostAsJsonAsync(
+            "/rooms/ABC123/votes",
+            new CastVoteRequest(carlaId, bobVotingCardId));
+        finalVote.EnsureSuccessStatusCode();
+        Assert.Equal(RoomPhase.VoteReveal, (await GetRoomAsync(httpClient, "ABC123")).Phase);
+
+        await using var connection = CreateHubConnection(application);
+        var initialRoomEvent = WaitForEvent<RoomUpdatedEvent>(
+            connection,
+            RoomRealtimeEventNames.RoomUpdated);
+        await connection.StartAsync();
+        await SubscribeToRoomAsync(connection, "ABC123");
+        Assert.Equal(
+            RoomPhase.VoteReveal,
+            (await initialRoomEvent.WaitAsync(TimeSpan.FromSeconds(5))).Room.Phase);
+
+        var saveCountBeforeReveal = repository.SaveCount;
+        var (saveStarted, releaseSave) = repository.BlockNextSave();
+        var revealEvent = WaitForEvent<RoomUpdatedEvent>(
+            connection,
+            RoomRealtimeEventNames.RoomUpdated);
+        try
+        {
+            var revealResponseTask = httpClient.PostAsync(
+                "/rooms/ABC123/reveal-storyteller-card",
+                content: null);
+            await saveStarted.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.False(revealEvent.IsCompleted);
+
+            releaseSave();
+            var revealResponse = await revealResponseTask;
+            Assert.Equal(HttpStatusCode.OK, revealResponse.StatusCode);
+            var responseState = await revealResponse.Content.ReadFromJsonAsync<RoomStateResponse>();
+            Assert.NotNull(responseState);
+
+            var publicEvent = await revealEvent.WaitAsync(TimeSpan.FromSeconds(5));
+            var persistedState = await GetRoomAsync(httpClient, "ABC123");
+            Assert.Equal(saveCountBeforeReveal + 1, repository.SaveCount);
+            Assert.Equal(RoomPhase.Reveal, responseState.Phase);
+            Assert.Equal(RoomPhase.Reveal, publicEvent.Room.Phase);
+            Assert.Equal(RoomPhase.Reveal, persistedState.Phase);
+            Assert.Equal(
+                JsonSerializer.Serialize(responseState),
+                JsonSerializer.Serialize(publicEvent.Room));
+        }
+        finally
+        {
+            releaseSave();
+        }
+    }
+
+    [Fact]
     public async Task PostStart_BroadcastsPublicStateAndEachPlayersOwnPrivateState()
     {
         using var application = CreateApplication();
@@ -766,13 +865,20 @@ public sealed class RoomHubTests
                 Assert.Equal("Bob", vote.VoterName);
             });
 
-        var revealResponse = await PostAndAssertRealtimeUpdateAsync(
+        var voteRevealResponse = await PostAndAssertRealtimeUpdateAsync(
             httpClient,
             tvConnection,
             [aliceConnection, bobConnection, carlaConnection],
             () => httpClient.PostAsJsonAsync(
                 "/rooms/ABC123/votes",
                 new CastVoteRequest(carlaId, bobVotingCardId)));
+        Assert.Equal(RoomPhase.VoteReveal, voteRevealResponse.Phase);
+
+        var revealResponse = await PostAndAssertPublicRealtimeUpdateAsync(
+            tvConnection,
+            () => httpClient.PostAsync(
+                "/rooms/ABC123/reveal-storyteller-card",
+                content: null));
         Assert.Equal(RoomPhase.Reveal, revealResponse.Phase);
 
         var scoringResponse = await PostAndAssertRealtimeUpdateAsync(
@@ -856,6 +962,11 @@ public sealed class RoomHubTests
             "/rooms/ABC123/votes",
             new CastVoteRequest(carlaId, bobVotingCardId));
         revealResponse.EnsureSuccessStatusCode();
+
+        var storytellerRevealResponse = await httpClient.PostAsync(
+            "/rooms/ABC123/reveal-storyteller-card",
+            content: null);
+        storytellerRevealResponse.EnsureSuccessStatusCode();
 
         var scoringResponse = await httpClient.PostAsync("/rooms/ABC123/score", content: null);
         scoringResponse.EnsureSuccessStatusCode();
@@ -1023,6 +1134,27 @@ public sealed class RoomHubTests
         return responseRoom;
     }
 
+    private static async Task<RoomStateResponse> PostAndAssertPublicRealtimeUpdateAsync(
+        HubConnection publicConnection,
+        Func<Task<HttpResponseMessage>> postAsync)
+    {
+        var publicUpdated = WaitForEvent<RoomUpdatedEvent>(
+            publicConnection,
+            RoomRealtimeEventNames.RoomUpdated);
+        var response = await postAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var responseRoom = await response.Content.ReadFromJsonAsync<RoomStateResponse>();
+        Assert.NotNull(responseRoom);
+        var publicEvent = await publicUpdated.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(
+            JsonSerializer.Serialize(responseRoom),
+            JsonSerializer.Serialize(publicEvent.Room));
+
+        return responseRoom;
+    }
+
     private static void AssertPrivateState(
         PlayerStateUpdatedEvent playerEvent,
         GetPlayerPrivateStateResponse expectedState,
@@ -1107,8 +1239,21 @@ public sealed class RoomHubTests
     private sealed class CountingRoomRepository : IRoomRepository
     {
         private readonly InMemoryRoomRepository _inner = new();
+        private SaveGate? _nextSaveGate;
+        private int _saveCount;
 
-        public int SaveCount { get; private set; }
+        public int SaveCount => Volatile.Read(ref _saveCount);
+
+        public (Task Started, Action Release) BlockNextSave()
+        {
+            var gate = new SaveGate();
+            if (Interlocked.CompareExchange(ref _nextSaveGate, gate, null) is not null)
+            {
+                throw new InvalidOperationException("A save is already blocked.");
+            }
+
+            return (gate.Started, gate.Release);
+        }
 
         public Task<Room?> GetByCodeAsync(
             RoomCode code,
@@ -1128,8 +1273,32 @@ public sealed class RoomHubTests
             Room room,
             CancellationToken cancellationToken = default)
         {
-            SaveCount++;
+            var saveGate = Interlocked.Exchange(ref _nextSaveGate, null);
+            if (saveGate is not null)
+            {
+                await saveGate.WaitAsync(cancellationToken);
+            }
+
             await _inner.SaveAsync(room, cancellationToken);
+            Interlocked.Increment(ref _saveCount);
+        }
+
+        private sealed class SaveGate
+        {
+            private readonly TaskCompletionSource _started = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource _release = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Task Started => _started.Task;
+
+            public void Release() => _release.TrySetResult();
+
+            public async Task WaitAsync(CancellationToken cancellationToken)
+            {
+                _started.TrySetResult();
+                await _release.Task.WaitAsync(cancellationToken);
+            }
         }
     }
 }
