@@ -23,6 +23,8 @@
 - Tras iniciar, mostrar una pantalla mínima de espera con el nombre del narrador y el mensaje de que está eligiendo una carta y una pista.
 - Animar la transición desde la pantalla `/tv`: el paisaje permanece fijo y se animan los elementos de interfaz superpuestos. Respetar `prefers-reduced-motion`.
 - Cargar el snapshot inicial por HTTP y suscribirse a SignalR. Tras reconectar, obtener un snapshot actual; no reconstruir el estado reproduciendo eventos perdidos.
+- Mantener los votos individuales fuera de los snapshots públicos mientras `Voting` esté abierta. Al recibirse el último voto, persistir la fase `VoteReveal` y publicar la relación votante-carta, manteniendo oculta la identidad de la carta del narrador.
+- Exponer `POST /rooms/{roomCode}/reveal-storyteller-card` para pasar de `VoteReveal` a `Reveal`; guardar la transición antes de publicar `RoomUpdated`. El cálculo de puntos solo se permite después de esta acción.
 
 **Fuera de alcance (para futuros specs):**
 
@@ -31,7 +33,9 @@
 - La selección y persistencia de avatares desde el móvil.
 - La pantalla completa de espera al narrador y las fases posteriores; aquí solo se muestra el estado mínimo de espera acordado.
 - Autorización real del jugador anfitrión. La etiqueta visual no cambia permisos ni traslada el control de inicio desde la TV.
-- Cambios en el cálculo o reparto de puntos, la rotación del narrador u otras reglas y fases. Este slice solo permite configurar el puntaje objetivo existente.
+- Cambios en el cálculo o reparto de puntos, la rotación del narrador u otras fases. La única fase de juego incluida es el estado server-side `VoteReveal` y la transición explícita a `Reveal`.
+- Pantallas de juego React y controles para las dos revelaciones. Se implementarán en una spec posterior; este slice solo alinea el estado y los contratos del servidor.
+- Actualización del cliente Blazor TV para las dos revelaciones. El cliente actual no podrá avanzar desde `VoteReveal` hasta que se implemente el futuro consumidor React.
 - Una suite Playwright para React; el cliente todavía no tiene una suite ejecutable y no se introduce en este slice.
 
 ## Modelo de datos
@@ -69,6 +73,11 @@ sessionStorage["imaginarte.tv.roomAvatars.{roomCode}"] = { "{playerId}": 0..15 }
 
 La asignación de avatar es estado visual temporal, no un dato de jugador ni una fuente de verdad del juego.
 
+- `GamePhase.VoteReveal` y `RoomPhase.VoteReveal` representan que todos los votos están cerrados y el mapa votante-carta puede publicarse, pero la carta del narrador todavía no se ha revelado. Se añade con valor numérico `8`; los valores existentes `0` a `7` no cambian.
+- En `Voting`, el snapshot público devuelve progreso agregado y no incluye votos por carta ni identidades de votantes. `PlayerPrivateStateResponse` conserva solo la confirmación privada del propio jugador.
+- Al completarse la votación, el servidor transiciona y persiste `VoteReveal`. En esa fase, `VotingCards` puede incluir los votos con sus identidades, pero `RevealedCards` permanece vacío.
+- `POST /rooms/{roomCode}/reveal-storyteller-card` permite pasar de `VoteReveal` a `Reveal`; desde `Reveal` se publican la carta del narrador y los datos de revelación existentes.
+
 ## Plan de implementación
 
 1. **Extender los contratos públicos.** Añadir mínimo, máximo, anfitrión y estado de conexión al snapshot, además de la solicitud `UpdateRoomTargetScoreRequest`. Actualizar las pruebas de contrato y del endpoint.
@@ -79,6 +88,10 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 6. **Conectar el inicio y el estado de espera.** Deshabilitar el botón según `MinimumPlayers`, evitar envíos duplicados y enviar `POST /start` al activarlo. Tras el éxito, bloquear el selector de modo y mostrar el narrador y la instrucción de espera usando el snapshot del servidor.
 7. **Implementar la transición visual.** Mantener el fondo en un contenedor compartido entre `/tv` y `/tv/{roomCode}`. Animar el título, la tarjeta/semilla y los paneles de interfaz con Motion, que ya está instalado. Con movimiento reducido, pasar directamente al estado final o usar un fundido breve.
 8. **Documentar la configuración.** Añadir `VITE_MOBILE_JOIN_BASE_URL` a `.env.example` y explicar en `README.md` que, para escanear desde un teléfono en la red local, la URL debe usar una dirección accesible desde ese dispositivo.
+9. **Alinear la revelación pública.** Actualizar las reglas, la especificación de pantallas y estos criterios: ocultar votos durante `Voting`, publicar el mapa después del último voto y reservar la revelación de la carta del narrador para una acción HTTP aparte.
+10. **Añadir la fase persistida.** Extender dominio y contrato con `VoteReveal`, sin renumerar las fases existentes. Cambiar la transición al último voto y conservar la fase en restauraciones de snapshot. Añadir pruebas de dominio y persistencia.
+11. **Añadir el comando de revelación del narrador.** Implementar la operación de aplicación y `POST /rooms/{roomCode}/reveal-storyteller-card`; persistir la transición a `Reveal` y publicar `RoomUpdated` solo después de guardar. Añadir pruebas de aplicación, endpoint y SignalR.
+12. **Blindar los snapshots públicos.** No serializar votos individuales durante `Voting`; exponerlos solo en `VoteReveal` y fases posteriores. Comprobar que la carta del narrador no se marca antes del comando y que puntuar antes de `Reveal` se rechaza.
 
 ### Archivos previstos
 
@@ -86,6 +99,7 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 
 - `src/ImaginArte.Contracts/Rooms/RoomHttpContracts.cs`
 - `src/ImaginArte.Domain/Room.cs`
+- `src/ImaginArte.Domain/GamePhase.cs`
 - `src/ImaginArte.Server/Program.cs`
 - `src/ImaginArte.Server/RoomHub.cs`
 - `src/ImaginArte.Server/RoomHttpMappings.cs`
@@ -94,6 +108,8 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 - `tests/ImaginArte.Server.Tests/RoomHubTests.cs`
 - `tests/ImaginArte.Server.Tests/RoomEndpointTests.cs`
 - `tests/ImaginArte.Contracts.Tests/RoomRealtimeContractTests.cs`
+- `docs/01-game-rules.md`
+- `docs/08-screen-specifications.md`
 - `src/ImaginArte.Client.React/package.json`
 - `src/ImaginArte.Client.React/package-lock.json`
 - `src/ImaginArte.Client.React/.env.example`
@@ -110,6 +126,7 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 
 - `src/ImaginArte.Server/RoomPresenceTracker.cs`
 - `src/ImaginArte.Application/Rooms/SetRoomTargetScore.cs`
+- `src/ImaginArte.Application/Rooms/RevealStorytellerCard.cs`
 - `src/ImaginArte.Client.React/src/models/roomState.ts`
 - `src/ImaginArte.Client.React/src/services/roomRealtime.ts`
 - `src/ImaginArte.Client.React/src/services/playerAvatarAssignments.ts`
@@ -172,8 +189,16 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
   - Evidencia: el paisaje está en el backdrop fijo compartido (`App.css:10-27`); `App.tsx:51-91` anima la capa de pantalla con Motion y elimina el desplazamiento al reducir movimiento. Revisado en `.playwright-mcp/page-2026-10-01T19-42-17-274Z.png` con movimiento reducido.
 - [x] Los estados de conexión incluyen texto y no dependen solo del color; las acciones tienen foco de teclado visible.
   - Evidencia: `TvLobbyScreen.tsx:411-419, 529-557, 792-802` presenta etiquetas textuales; `TvLobbyScreen.css:428-431, 494-497, 618-620` define foco visible. Captura de revisión de foco: `.playwright-mcp/page-2026-10-01T19-42-31-184Z.png`.
-- [ ] **No cumple:** Las actualizaciones públicas no muestran manos ni otros datos privados de jugadores.
-  - Evidencia: el snapshot público no incluye manos, pero `RoomHttpMappings.cs:55-64` publica votante e identidad en `VotingCards[].Votes`; `:66-79` incluye propietario y votos en `RevealedCards`. Los contratos correspondientes exponen esos campos (`RoomHttpContracts.cs:67-88`). `docs/08-screen-specifications.md:10, 156-157, 593-595` prohíbe votos/identidades y la relación votante-carta en TV; la prueba actual de contrato solo comprueba la ausencia de `Hand` (`RoomRealtimeContractTests.cs:53-73`).
+- [x] Los snapshots públicos no contienen manos de jugadores.
+  - Evidencia: `RoomStateResponse` y sus modelos públicos no tienen propiedad `Hand`; esa información está en `PlayerPrivateStateResponse` (`RoomHttpContracts.cs:24-34, 38-65`). `RoomRealtimeContractTests.cs:53-73` comprueba la separación.
+- [ ] Durante `Voting`, ni HTTP ni `RoomUpdated` incluyen votos individuales, identidades de votantes o su carta elegida; el snapshot conserva solo el progreso agregado.
+  - Evidencia previa: actualmente `RoomHttpMappings.cs:55-64` serializa `VotingCards[].Votes` durante la votación. Queda pendiente aplicar el filtro por fase y probar HTTP/SignalR.
+- [ ] Al recibirse el último voto, el servidor guarda y publica `VoteReveal`; ese snapshot permite ver el mapa votante-carta, pero no identifica la carta del narrador.
+  - Evidencia pendiente: la fase actual pasa directamente de `Voting` a `Reveal` en `Room.cs:424-427`; faltan la fase intermedia, persistencia, contrato y pruebas.
+- [ ] `POST /rooms/{roomCode}/reveal-storyteller-card` solo acepta `VoteReveal`, persiste la transición a `Reveal` y publica el snapshot actualizado después del guardado.
+  - Evidencia pendiente: el endpoint y la operación de aplicación aún no existen. Deben añadirse pruebas de fase válida, fase inválida, persistencia y publicación realtime.
+- [ ] El servidor rechaza el cálculo de puntos antes de `Reveal`, incluida la fase `VoteReveal`.
+  - Evidencia pendiente: ampliar las pruebas de `ScoreRound` para la nueva fase; `Room.ScoreRound` debe seguir admitiendo únicamente `Reveal`.
 - [x] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente.
   - Evidencia: los tres comandos terminaron con código 0 el 2026-10-01. Advertencia no bloqueante del build: Vite no resuelve `../assets/hola-lateral.png` en `TvLobbyScreen.css:180`; el recurso existente se llama `hoja-lateral.png`.
 - [x] Las pruebas de servidor cubren presencia, desconexión, reconexión y conexiones múltiples; las pruebas de contratos validan los nuevos campos públicos.
@@ -187,7 +212,7 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 
 ### Resultado de verificación — 2026-10-01
 
-**Estado global: Parcial; no cerrar este spec todavía.** De los 27 criterios, 22 están verificados, 1 no se cumple (privacidad del snapshot público) y 4 requieren completar validación manual/parcial. La revisión de navegador se realizó con Playwright del entorno; no se añadió una suite E2E al repositorio, según el alcance aprobado.
+**Estado global: En implementación; no cerrar este spec todavía.** Los criterios originales del lobby siguen verificados según la revisión anterior; la ampliación de revelación añade cuatro criterios server-side pendientes. La revisión de navegador se realizó con Playwright del entorno; no se añadió una suite E2E al repositorio, según el alcance aprobado.
 
 Comprobaciones ejecutadas: `npm run typecheck`, `npm run lint`, `npm run build`; `dotnet test` de Domain (89), Application (53), Server (69) y Contracts (7), todas correctas. El build conserva la advertencia de recurso CSS no resuelto descrita arriba. Evidencia visual local bajo `.playwright-mcp/` (ignorada por Git); los QR y la legibilidad física a distancia siguen pendientes.
 
@@ -204,6 +229,9 @@ Comprobaciones ejecutadas: `npm run typecheck`, `npm run lint`, `npm run build`;
 - **Sí:** permitir cambios solo durante `WaitingForPlayers`; la validación del servidor bloquea cambios una vez iniciada la partida.
 - **Sí:** conservar en la interfaz el último valor confirmado y permitir reintentar si falla el guardado.
 - **Sí:** mantener fijo el paisaje y animar la interfaz superpuesta con la dependencia Motion existente.
+- **Sí:** cerrar la votación antes de publicar identidades; mostrar el mapa votante-carta en `VoteReveal` y revelar la carta del narrador mediante una acción posterior.
+- **Sí:** preservar los valores numéricos existentes de las fases y asignar `VoteReveal = 8`.
+- **No:** implementar pantallas React o actualizar la TV Blazor para esta transición en este slice; quedan para la futura spec de fases React.
 - **No:** implementar ahora el recorrido ni variar su tamaño. La siguiente spec del tablero usará el `TargetScore` elegido para definir el tamaño del recorrido.
 
 ## Riesgos
@@ -215,6 +243,7 @@ Comprobaciones ejecutadas: `npm run typecheck`, `npm run lint`, `npm run build`;
 | La asignación temporal de avatares se reemplaza cuando el móvil incorpore selección real. | Guardar los índices solo en `sessionStorage`; no introducir avatares en el dominio ni en el contrato. |
 | Una selección de modo no confirmada podría contradecir el estado persistido de la sala. | Mostrar como seleccionada únicamente la última respuesta confirmada por el servidor y permitir reintentar los errores. |
 | El modo de partida todavía no cambia la ruta del tablero en este slice. | Mantener la selección en `TargetScore` y hacer explícito que la siguiente spec adaptará el recorrido a ese valor. |
+| El cliente Blazor actual no conoce `VoteReveal` ni su comando de avance. | No actualizarlo en este slice según el alcance aprobado; la futura pantalla de juego React consumirá el nuevo contrato. |
 
 ## Qué **no** incluye este spec
 
@@ -224,6 +253,8 @@ Comprobaciones ejecutadas: `npm run typecheck`, `npm run lint`, `npm run build`;
 - Las pantallas completas de fases posteriores a la espera mínima del narrador.
 - Permisos de inicio ligados al jugador anfitrión.
 - Cambios en el cálculo y reparto de puntuación, reglas de fase, persistencia de presencia o contratos privados. El puntaje objetivo existente sí se configura en este spec.
+- Las pantallas y controles React de revelación; esta spec solo prepara el contrato y estado server-side.
+- La actualización de Blazor para la nueva secuencia de revelación.
 - La eliminación o modificación del cliente Blazor.
 
 ## Referencias

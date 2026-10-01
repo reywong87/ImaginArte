@@ -16,10 +16,12 @@
 3. Each guesser chooses one card from their private hand that could match the clue.
 4. The TV reveals all submitted cards in random order.
 5. All guessers vote for the card they believe belongs to the storyteller.
-6. Votes are revealed.
-7. Scores are calculated.
-8. Used cards are discarded and hands are refilled.
-9. The next storyteller starts a new round.
+6. The server locks voting after the final guesser votes. Until then, the TV shows only aggregate progress, not individual votes.
+7. The TV reveals which guesser voted for each card while keeping the storyteller card unmarked.
+8. The TV explicitly reveals the storyteller card.
+9. Scores are calculated.
+10. Used cards are discarded and hands are refilled.
+11. The next storyteller starts a new round.
 
 ## Voting Rules
 - The storyteller does not vote.

@@ -7,7 +7,7 @@ This document is the screen source of truth for the shared TV and private mobile
 - TV is public, spacious, and readable from 2-3 metres. It may show board context, but the central safe area remains available for game content.
 - Mobile is private and uses a Night Wash stage with a restrained ornamental gold frame; Paper Warm is reserved for readable cards, clues, fields, and content panels. It never shows the full board and presents one clear primary action. A selection remains reversible until explicit confirmation.
 - Playable cards remain portrait `2:3`; no title or text overlays the illustration. Voting numbers sit outside the art.
-- Before revelation, TV never shows hands, any selected or submitted-card owner, the storyteller card identity, individual votes, or which players made pending choices.
+- While voting remains open, TV never shows hands, any selected or submitted-card owner, the storyteller card identity, individual votes, or which players made pending choices. After the server locks all votes, the dedicated vote-reveal state may show who voted for each card while keeping the storyteller card hidden until a separate TV action.
 - During voting and revelation, cards occupy the board's central free area. During revelation, tokens do not move; token movement belongs only to board progress.
 - Major ceremonial windows follow the layered construction in `06-design-system.md`: CSS Night Wash surface, independent transparent texture PNG, reusable corner ornament, and CSS frame rules. The complete window mockup is a reference, not a stretchable runtime image.
 - The screen mockups in `docs/assets/visual-references/mockups/` guide composition and visual tone; they do not override this document's behavior, privacy, accessibility, or safety rules, and must not be rendered as complete screen images.
@@ -160,7 +160,7 @@ Hands, votes or vote targets, voter identity, pending-voter identity, narrator-c
 No TV action; guessers vote privately.
 
 ### States And Transitions
-Voting, aggregate-progress, all-voted, and reconnecting states. Card order and numbers remain stable. When all eligible votes exist, transition to **Vote reveal and round points**.
+Voting, aggregate-progress, all-voted, and reconnecting states. Card order and numbers remain stable. When all eligible votes exist, the server locks voting and transitions to **Vote reveal and round points**. Individual votes are not sent in public snapshots before this transition.
 
 ### Visual Composition
 Cards occupy the central wide safe area; labels sit beside or below art. Clue uses the upper band and progress the lower band. Board nodes and constellations remain peripheral.
@@ -177,22 +177,22 @@ Every card is identifiable by a readable stable number; no prohibited private in
 ## 5. Vote Reveal And Round Points
 
 ### Purpose
-Reveal the narrator card, public vote distribution, and points earned in the completed round.
+Reveal the voter-to-card mapping first, then reveal the narrator card and points earned in the completed round.
 
 ### User And Surface
-All players view TV; no player acts; host may only use a clearly labelled continuation control after results are understood.
+All players view TV. After votes are locked, the host uses a clearly labelled TV action to reveal the storyteller card; no guesser can act on or change a vote.
 
 ### Visible Information
-Clue, card set, narrator-card label, public vote distribution per card, each player's round-point change, total-score scoreboard, and neutral result summary.
+Before the narrator card is revealed: clue, card set, and the name of each guesser next to the card they voted for. Keep the narrator card unmarked. After the explicit reveal action: narrator-card label, public vote distribution, each player's round-point change, total-score scoreboard, and neutral result summary.
 
 ### Prohibited Information
-Private hands, a mapping from individual voter to vote, private mobile confirmations, and token movement or updated board positions before the next screen.
+Private hands, private mobile confirmations, token movement or updated board positions before the next screen, and the narrator-card identity before the explicit reveal action.
 
 ### Primary Action
-Host selects **Show board progress** after explicit confirmation; no automatic advance.
+In the first reveal state, host selects **Reveal storyteller card**. The server rejects this action until all votes are locked. After the card reveal and score resolution, host selects **Show board progress**; no automatic advance.
 
 ### States And Transitions
-Reveal settles before score information appears; result-ready waits for host. Transition to **Board progress after scoring**, or to **End of game and tie** when the resolved phase says the game has ended.
+The vote-reveal state shows the voter-to-card mapping while withholding the storyteller-card marker. The explicit reveal action transitions to the card-revealed state; score information appears only after that transition. Result-ready waits for host. Transition to **Board progress after scoring**, or to **End of game and tie** when the resolved phase says the game has ended.
 
 ### Visual Composition
 Keep cards in the central wide safe area. Use labels and connectors outside the illustrations for narrator and vote relationships. Scores occupy the lower safe band; board tokens remain frozen.
@@ -204,7 +204,7 @@ Narrator identification, vote counts, and points use text plus connectors or pos
 `docs/assets/visual-references/mockups/06-revelacion-puntuacion-recorrido-tv.png`.
 
 ### Acceptance Criteria
-The narrator card, anonymous per-card vote totals, round points, and cumulative scoreboard are unambiguous; no voter-to-card mapping is visible, and no token has moved during this screen.
+Before all votes are locked, no individual vote or voter identity is public. After the lock, the vote-reveal state shows the voter-to-card mapping without marking the narrator card. Only the explicit **Reveal storyteller card** action marks that card; scoring remains unavailable until then. No token moves during this screen.
 
 ## 6. Board Progress After Scoring
 
@@ -591,8 +591,8 @@ The screen mockups live in `docs/assets/visual-references/mockups/`. They are vi
 | Pending player identity | Never | Never | Never |
 | Submitted-card ownership before reveal | Never | Never | Never |
 | Own submitted card during voting | Never | Owner only, disabled | Never |
-| Individual vote and voter identity | Never | Voter only until confirmation; then hidden | Never |
-| Voter-to-card mapping, including after reveal | Never | Never after confirmation | Never |
+| Individual vote and voter identity | Hidden while voting; public after all votes are locked | Voter only until confirmation; then hidden | TV may show after all votes are locked |
+| Voter-to-card mapping | Hidden while voting; public during Vote reveal | Never after confirmation | TV may show after all votes are locked |
 | Narrator card and anonymous aggregate vote counts per card after reveal | Yes | Public result may be summarized personally | No special restriction |
 | Round points and total scores | Yes | Own outcome and total | No special restriction |
 | Board positions and token progress | Yes | Never as full board | No special restriction |
@@ -614,7 +614,7 @@ The screen mockups live in `docs/assets/visual-references/mockups/`. They are vi
 # Prioritized Visual Corrections
 
 1. Treat all files in `docs/assets/visual-references/mockups/` as visual guidance only; this specification and `06-design-system.md`/`07-progress-board.md` govern behavior and constraints.
-2. Correct the reveal mockup's voter-to-card mapping to anonymous per-card counts while retaining round changes and cumulative totals.
+2. Keep the narrator card hidden while the vote-reveal state shows voter-to-card mapping; reveal the narrator card only after the explicit TV action, while retaining round changes and cumulative totals.
 3. Keep card selection and disabled-state labels outside illustrations; reject clipped controls, bottom-edge collisions, and content outside the viewport.
 4. Validate TV typography, card numbers, node visibility, and active-token recognition at 2-3 m.
 5. Validate mobile one-action flows, `44 x 44 px` minimum targets, safe-bottom spacing, and explicit confirmation on physical devices.
