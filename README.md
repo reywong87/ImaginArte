@@ -172,7 +172,7 @@ npm ci
 npm run dev
 ```
 
-Vite serves the client at `http://localhost:5173`. Its port is fixed: startup fails if that port is occupied instead of selecting a different port. Open `http://localhost:5173/tv` for the TV home screen. The client reads `VITE_API_BASE_URL` from `.env.local`; the example value targets the local API at `http://localhost:5080`. Room creation calls `POST /rooms`, and returning to `/tv` checks a saved room with `GET /rooms/{roomCode}`. This slice does not use SignalR.
+Vite serves the client at `http://localhost:5173`. Its port is fixed: startup fails if that port is occupied instead of selecting a different port. Open `http://localhost:5173/tv` for the TV home screen. The client reads `VITE_API_BASE_URL` from `.env.local`; the example value targets the local API at `http://localhost:5080`. The TV lobby loads its room snapshot over HTTP and uses SignalR for live updates. Its QR code uses `VITE_MOBILE_JOIN_BASE_URL` as the base of the existing Blazor client and opens `/join/{roomCode}`; the example points to `http://localhost:5288`. If this setting is missing or invalid, the lobby omits the QR and keeps the manual room code available.
 
 Run the client checks and create a production build with:
 
@@ -226,9 +226,9 @@ The legacy Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings
 }
 ```
 
-For testing with phones on the same network, replace `localhost` with your machine's LAN IP, for example `http://<your-lan-ip>:5080/` and `http://<your-lan-ip>:5288/`, and use the `wifi` launch profile.
+For testing with phones on the same network, replace `localhost` with your machine's LAN IP in the Blazor client settings and set `VITE_MOBILE_JOIN_BASE_URL` to the Blazor address reachable from the phone, for example `http://<your-lan-ip>:5288`. A phone's `localhost` refers to the phone itself, not the development computer. Use the `wifi` launch profiles and ensure the Blazor client and API are reachable from the local network.
 
-The React client uses `VITE_API_BASE_URL` as its build-time API base URL. For local development, copy `.env.example` to `.env.local`; the example points to `http://localhost:5080`. This variable is public configuration included in browser code, so never put secrets in any `VITE_*` variable. Development CORS allows the exact React origin `http://localhost:5173` in addition to the existing Blazor development origins; it does not allow alternate React ports. Production CORS must be configured externally with the exact deployed React origin, and the production React host must use HTTPS so SignalR can use `wss://`.
+The React client uses `VITE_API_BASE_URL` for the ASP.NET API and `VITE_MOBILE_JOIN_BASE_URL` for the Blazor join page. For local development, copy `.env.example` to `.env.local`; the example values target `http://localhost:5080` and `http://localhost:5288` respectively. These build-time variables are public configuration included in browser code, so never put secrets in any `VITE_*` variable. Development CORS allows the exact React origin `http://localhost:5173` in addition to the existing Blazor development origins; it does not allow alternate React ports. Production CORS must be configured externally with the exact deployed React origin, and the production React host must use HTTPS so SignalR can use `wss://`.
 
 ## HTTP API
 
