@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   RoomPhase,
@@ -8,6 +8,7 @@ import {
   getRoomState,
   RoomApiError,
   RoomsApiConfigurationError,
+  startRoom,
   updateRoomTargetScore,
 } from '../services/roomsApi'
 import {
@@ -17,6 +18,7 @@ import {
 } from '../services/roomRealtime'
 import { assignPlayerAvatars } from '../services/playerAvatarAssignments'
 import CeremonialWindowDecorations from '../components/CeremonialWindowDecorations'
+import TvWaitingForStorytellerScreen from './TvWaitingForStorytellerScreen'
 import './TvLobbyScreen.css'
 
 interface TvLobbyScreenProps {
@@ -46,6 +48,13 @@ interface TargetScoreSaveState {
   failedTargetScore: number | null
 }
 
+interface StartGameState {
+  roomCode: string
+  retryVersion: number
+  isStarting: boolean
+  errorMessage: string | null
+}
+
 const TARGET_SCORE_OPTIONS = [
   { score: 15, label: 'Corta', detail: '15 puntos' },
   { score: 25, label: 'Media', detail: '25 puntos' },
@@ -71,6 +80,8 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
   const [avatarState, setAvatarState] = useState<AvatarViewState | null>(null)
   const [targetScoreSaveState, setTargetScoreSaveState] =
     useState<TargetScoreSaveState | null>(null)
+  const [startGameState, setStartGameState] = useState<StartGameState | null>(null)
+  const startRequestsInFlight = useRef(new Set<string>())
 
   const visibleState = lobbyState.roomCode === roomCode
     && lobbyState.retryVersion === retryVersion
@@ -89,6 +100,15 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
         isSaving: false,
         errorMessage: null,
         failedTargetScore: null,
+      }
+  const visibleStartGameState = startGameState?.roomCode === roomCode
+    && startGameState.retryVersion === retryVersion
+    ? startGameState
+    : {
+        roomCode,
+        retryVersion,
+        isStarting: false,
+        errorMessage: null,
       }
 
   useEffect(() => {
@@ -280,6 +300,97 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
   const playerCount = room?.players.length ?? 0
   const isRoomFull = room !== null && playerCount >= room.maximumPlayers
   const connectionStatusLabel = getConnectionStatusLabel(visibleState.connectionStatus)
+  const canStartGame = room !== null
+    && isWaitingForPlayers
+    && playerCount >= room.minimumPlayers
+  const startButtonDisabled = !canStartGame || visibleStartGameState.isStarting
+  const startButtonDescription = visibleStartGameState.isStarting
+    ? 'La solicitud de inicio está en curso.'
+    : !isWaitingForPlayers
+      ? 'La partida ya comenzó.'
+      : room !== null && playerCount < room.minimumPlayers
+        ? `Se necesitan al menos ${room.minimumPlayers} jugadores para iniciar. Hay ${playerCount}.`
+        : visibleStartGameState.errorMessage
+          ? 'El inicio no se completó. Puedes volver a intentarlo.'
+          : 'Inicia la partida desde la televisión.'
+
+  async function handleStartGame() {
+    const currentRoom = room
+
+    if (
+      !currentRoom
+      || !canStartGame
+      || visibleStartGameState.isStarting
+      || startRequestsInFlight.current.has(roomCode)
+    ) {
+      return
+    }
+
+    startRequestsInFlight.current.add(roomCode)
+    const pendingState: StartGameState = {
+      roomCode,
+      retryVersion,
+      isStarting: true,
+      errorMessage: null,
+    }
+    setStartGameState(pendingState)
+
+    try {
+      const startedRoom = await startRoom(roomCode)
+      setLobbyState((currentState) => {
+        if (
+          currentState.roomCode !== roomCode
+          || currentState.retryVersion !== retryVersion
+        ) {
+          return currentState
+        }
+
+        return {
+          ...currentState,
+          room: startedRoom,
+          isLoading: false,
+          errorMessage: null,
+        }
+      })
+      setStartGameState({ ...pendingState, isStarting: false })
+    } catch (error) {
+      let recoveredRoom: RoomStateResponse | null = null
+
+      try {
+        recoveredRoom = await getRoomState(roomCode)
+      } catch {
+        // Keep the start error visible if the authoritative snapshot is also unavailable.
+      }
+
+      if (recoveredRoom) {
+        const snapshot = recoveredRoom
+        setLobbyState((currentState) => {
+          if (
+            currentState.roomCode !== roomCode
+            || currentState.retryVersion !== retryVersion
+          ) {
+            return currentState
+          }
+
+          return {
+            ...currentState,
+            room: snapshot,
+            isLoading: false,
+          }
+        })
+      }
+
+      const startWasApplied = recoveredRoom !== null
+        && recoveredRoom.phase !== RoomPhase.WaitingForPlayers
+      setStartGameState({
+        ...pendingState,
+        isStarting: false,
+        errorMessage: startWasApplied ? null : getStartGameErrorMessage(error),
+      })
+    } finally {
+      startRequestsInFlight.current.delete(roomCode)
+    }
+  }
 
   return (
     <main
@@ -291,7 +402,11 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
         <header className="tv-lobby-screen__header">
           <p className="tv-lobby-screen__eyebrow">ImaginArte · Sala familiar</p>
           <h1 className="tv-lobby-screen__title" id="tv-lobby-title">
-            {room ? 'Todo empieza con una historia' : 'Abriendo la sala'}
+            {room?.phase === RoomPhase.StorytellerChoosing
+              ? 'El narrador prepara la historia'
+              : room
+                ? 'Todo empieza con una historia'
+                : 'Abriendo la sala'}
           </h1>
           {room && (
             <p
@@ -324,7 +439,9 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
           </div>
         )}
 
-        {room && (
+        {room?.phase === RoomPhase.StorytellerChoosing ? (
+          <TvWaitingForStorytellerScreen room={room} />
+        ) : room && (
           <>
             <div className="tv-lobby-screen__main-grid">
               <section
@@ -540,18 +657,47 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
               )}
             </section>
 
-            <div className="tv-lobby-screen__start-action">
+            <div className="tv-lobby-screen__start-region">
+              {visibleStartGameState.errorMessage && (
+                <div className="tv-lobby-screen__start-error" role="alert">
+                  <p>{visibleStartGameState.errorMessage}</p>
+                </div>
+              )}
               <span
-                className="tv-lobby-screen__start-ornament"
-                aria-hidden="true"
-              />
-              <span className="tv-lobby-screen__start-label">
-                Iniciar experiencia
+                className="visually-hidden"
+                id="tv-lobby-screen-start-description"
+              >
+                {startButtonDescription}
               </span>
-              <span
-                className="tv-lobby-screen__start-ornament tv-lobby-screen__start-ornament--right"
-                aria-hidden="true"
-              />
+              {visibleStartGameState.isStarting && (
+                <span className="visually-hidden" role="status" aria-live="polite">
+                  Iniciando la partida…
+                </span>
+              )}
+              <button
+                className="tv-lobby-screen__start-action"
+                type="button"
+                disabled={startButtonDisabled}
+                aria-describedby="tv-lobby-screen-start-description"
+                aria-busy={visibleStartGameState.isStarting}
+                onClick={() => void handleStartGame()}
+              >
+                <span
+                  className="tv-lobby-screen__start-ornament"
+                  aria-hidden="true"
+                />
+                <span className="tv-lobby-screen__start-label">
+                  {visibleStartGameState.isStarting
+                    ? 'Iniciando…'
+                    : visibleStartGameState.errorMessage
+                      ? 'Reintentar inicio'
+                      : 'Iniciar experiencia'}
+                </span>
+                <span
+                  className="tv-lobby-screen__start-ornament tv-lobby-screen__start-ornament--right"
+                  aria-hidden="true"
+                />
+              </button>
             </div>
             </div>
           </>
@@ -625,6 +771,22 @@ function getTargetScoreErrorMessage(error: unknown): string {
   }
 
   return 'No se pudo guardar el modo. Se conserva el último modo confirmado.'
+}
+
+function getStartGameErrorMessage(error: unknown): string {
+  if (error instanceof RoomsApiConfigurationError) {
+    return 'Falta configurar la dirección del servidor. No se inició la partida.'
+  }
+
+  if (error instanceof RoomApiError && error.status === 404) {
+    return 'No se encontró la sala. No se inició la partida.'
+  }
+
+  if (error instanceof RoomApiError && error.status === 400) {
+    return 'No se pudo iniciar la partida. Comprueba que la sala sigue esperando y que hay suficientes jugadores.'
+  }
+
+  return 'No se pudo confirmar el inicio. Se actualizó la sala; puedes volver a intentarlo si sigue esperando.'
 }
 
 function getConnectionStatusLabel(status: RoomRealtimeStatus): string {

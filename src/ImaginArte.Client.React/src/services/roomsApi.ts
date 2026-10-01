@@ -112,6 +112,25 @@ export async function updateRoomTargetScore(
   return payload
 }
 
+export async function startRoom(roomCode: string): Promise<RoomStateResponse> {
+  const response = await fetch(
+    `${getRoomsApiBaseUrl()}/rooms/${encodeURIComponent(roomCode)}/start`,
+    { method: 'POST' },
+  )
+
+  if (!response.ok) {
+    throw new RoomApiError(response.status)
+  }
+
+  const payload: unknown = await response.json()
+
+  if (!isRoomStateResponse(payload)) {
+    throw new Error('El servidor devolvió un snapshot de sala no válido.')
+  }
+
+  return payload
+}
+
 export async function checkRoomExists(
   roomCode: string,
   signal: AbortSignal,
