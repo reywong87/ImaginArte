@@ -580,7 +580,7 @@ public sealed class RoomUseCaseTests
     {
         var repository = new InMemoryRoomRepository();
         var castVote = new CastVoteHandler(repository);
-        var (_, bobId, carlaId, votingState) = await CreateRoomWaitingForVotingAsync(repository);
+        var (_, bobId, carlaId, _) = await CreateRoomWaitingForVotingAsync(repository);
         var storytellerVotingCardId = await GetStorytellerVotingCardIdAsync(repository);
         var bobVotingCardId = await GetVotingCardIdForOwnerAsync(repository, bobId);
 
@@ -591,54 +591,32 @@ public sealed class RoomUseCaseTests
         Assert.Equal(1, firstVote.Room.VoteCount);
         Assert.Equal(2, firstVote.Room.ExpectedVoteCount);
         Assert.Empty(firstVote.Room.RevealedCards);
-        Assert.Equal(GamePhase.Reveal, result.Room.Phase);
+        Assert.Equal(GamePhase.VoteReveal, result.Room.Phase);
         Assert.Equal(2, result.Room.VoteCount);
         Assert.Equal(2, result.Room.ExpectedVoteCount);
     }
 
     [Fact]
-    public async Task CastVote_WithLastVote_ReturnsRevealStateWithAllRevealedCards()
+    public async Task CastVote_WithLastVote_ReturnsVoteRevealStateWithoutRevealedCards()
     {
         var repository = new InMemoryRoomRepository();
         var castVote = new CastVoteHandler(repository);
-        var (_, bobId, carlaId, votingState) = await CreateRoomWaitingForVotingAsync(repository);
+        var (_, bobId, carlaId, _) = await CreateRoomWaitingForVotingAsync(repository);
         var storytellerVotingCardId = await GetStorytellerVotingCardIdAsync(repository);
         var bobVotingCardId = await GetVotingCardIdForOwnerAsync(repository, bobId);
 
         await castVote.HandleAsync(new CastVoteCommand("ABC123", bobId, storytellerVotingCardId));
         var result = await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
 
-        Assert.Equal(GamePhase.Reveal, result.Room.Phase);
-        Assert.Equal(3, result.Room.RevealedCards.Count);
-        Assert.Equal(
-            votingState.VotingCards.Select(card => (card.VotingCardId, card.CardId, card.DisplayNumber)),
-            result.Room.RevealedCards.Select(card => (card.VotingCardId, card.CardId, card.DisplayNumber)));
-
-        var storytellerCard = result.Room.RevealedCards.Single(card => card.IsStorytellerCard);
-        Assert.Equal("Alice", storytellerCard.OwnerName);
-        Assert.Collection(
-            storytellerCard.Votes,
-            vote =>
-            {
-                Assert.Equal(bobId, vote.VoterPlayerId);
-                Assert.Equal("Bob", vote.VoterName);
-            });
-
-        var bobCard = result.Room.RevealedCards.Single(card => card.OwnerPlayerId == bobId);
-        Assert.Equal("Bob", bobCard.OwnerName);
-        Assert.False(bobCard.IsStorytellerCard);
-        Assert.Collection(
-            bobCard.Votes,
-            vote =>
-            {
-                Assert.Equal(carlaId, vote.VoterPlayerId);
-                Assert.Equal("Carla", vote.VoterName);
-            });
-
-        var carlaCard = result.Room.RevealedCards.Single(card => card.OwnerPlayerId == carlaId);
-        Assert.Equal("Carla", carlaCard.OwnerName);
-        Assert.False(carlaCard.IsStorytellerCard);
-        Assert.Empty(carlaCard.Votes);
+        Assert.Equal(GamePhase.VoteReveal, result.Room.Phase);
+        Assert.Equal(3, result.Room.VotingCards.Count);
+        Assert.Empty(result.Room.RevealedCards);
+        Assert.Contains(
+            result.Room.VotingCards.Single(card => card.VotingCardId == storytellerVotingCardId).Votes,
+            vote => vote.VoterPlayerId == bobId && vote.VoterName == "Bob");
+        Assert.Contains(
+            result.Room.VotingCards.Single(card => card.VotingCardId == bobVotingCardId).Votes,
+            vote => vote.VoterPlayerId == carlaId && vote.VoterName == "Carla");
     }
 
     [Fact]
@@ -1151,6 +1129,10 @@ public sealed class RoomUseCaseTests
         await castVote.HandleAsync(new CastVoteCommand("ABC123", bobId, storytellerVotingCardId));
         await castVote.HandleAsync(new CastVoteCommand("ABC123", carlaId, bobVotingCardId));
 
+        var room = await GetRequiredRoomAsync(repository);
+        room.RevealStorytellerCard();
+        await repository.SaveAsync(room);
+
         return (aliceId, bobId, carlaId);
     }
 
@@ -1235,6 +1217,7 @@ public sealed class RoomUseCaseTests
 
         room.CastVote(bobPlayerId, storytellerVotingCardId);
         room.CastVote(carlaPlayerId, bobVotingCardId);
+        room.RevealStorytellerCard();
 
         await repository.AddAsync(room);
 

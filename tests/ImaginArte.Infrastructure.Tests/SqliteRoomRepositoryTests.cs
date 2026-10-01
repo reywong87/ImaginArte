@@ -62,6 +62,61 @@ public sealed class SqliteRoomRepositoryTests
     }
 
     [Fact]
+    public async Task VoteRevealPhase_PersistsAcrossRepositoryInstances()
+    {
+        await using var database = TemporarySqliteDatabase.Create();
+        var firstRepository = database.CreateRepository();
+        var room = Room.Create(new RoomCode("ABC123"));
+        var aliceId = PlayerId.New();
+        var bobId = PlayerId.New();
+        var carlaId = PlayerId.New();
+        room.Join(aliceId, "Alice");
+        room.Join(bobId, "Bob");
+        room.Join(carlaId, "Carla");
+        room.StartGame();
+
+        var storytellerId = room.CurrentStorytellerId
+            ?? throw new InvalidOperationException("Test setup requires a storyteller.");
+        room.ChooseStorytellerCard(storytellerId, room.GetHandFor(storytellerId).First().Id, "A clue");
+
+        foreach (var guesser in room.Players.Where(player => player.Id != storytellerId))
+        {
+            room.SubmitGuessCard(guesser.Id, room.GetHandFor(guesser.Id).First().Id);
+        }
+
+        var storytellerVotingCardId = room.VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var guessers = room.Players.Where(player => player.Id != storytellerId).ToArray();
+        room.CastVote(guessers[0].Id, storytellerVotingCardId);
+        room.CastVote(guessers[1].Id, storytellerVotingCardId);
+
+        Assert.Equal(GamePhase.VoteReveal, room.Phase);
+        await firstRepository.AddAsync(room);
+
+        var secondRepository = database.CreateRepository();
+        var savedRoom = await secondRepository.GetByCodeAsync(new RoomCode("ABC123"));
+
+        Assert.NotNull(savedRoom);
+        Assert.Equal(GamePhase.VoteReveal, savedRoom.Phase);
+        Assert.Equal(2, savedRoom.VoteCount);
+        Assert.Equal(
+            room.VotingCards
+                .SelectMany(card => card.Votes.Select(vote => (
+                    VotingCardId: card.VotingCardId.Value,
+                    VoterId: vote.VoterPlayerId.Value)))
+                .OrderBy(vote => vote.VotingCardId)
+                .ThenBy(vote => vote.VoterId),
+            savedRoom.VotingCards
+                .SelectMany(card => card.Votes.Select(vote => (
+                    VotingCardId: card.VotingCardId.Value,
+                    VoterId: vote.VoterPlayerId.Value)))
+                .OrderBy(vote => vote.VotingCardId)
+                .ThenBy(vote => vote.VoterId));
+        Assert.Empty(savedRoom.RevealedVotingCards);
+    }
+
+    [Fact]
     public async Task AddAsync_WhenRoomCodeAlreadyExists_Throws()
     {
         await using var database = TemporarySqliteDatabase.Create();

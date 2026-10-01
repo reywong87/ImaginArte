@@ -9,5 +9,6 @@ public enum GamePhase
     Reveal = 4,
     Scoring = 5,
     RoundComplete = 6,
-    GameComplete = 7
+    GameComplete = 7,
+    VoteReveal = 8
 }

@@ -22,5 +22,6 @@ public enum DomainErrorCode
     RoomNotReadyForScoring = 17,
     RoomNotInScoring = 18,
     RoomNotRoundComplete = 19,
-    InvalidTargetScore = 20
+    InvalidTargetScore = 20,
+    RoomNotReadyForStorytellerReveal = 21
 }

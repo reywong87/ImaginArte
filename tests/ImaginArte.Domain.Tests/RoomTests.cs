@@ -79,6 +79,15 @@ public sealed class RoomTests
         Assert.Equal(35, restoredRoom.TargetScore);
     }
 
+    [Fact]
+    public void GamePhase_VoteRevealIsAppendedWithoutChangingExistingValues()
+    {
+        Assert.Equal(3, (int)GamePhase.Voting);
+        Assert.Equal(4, (int)GamePhase.Reveal);
+        Assert.Equal(7, (int)GamePhase.GameComplete);
+        Assert.Equal(8, (int)GamePhase.VoteReveal);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
@@ -818,7 +827,7 @@ public sealed class RoomTests
     }
 
     [Fact]
-    public void CastVote_WhenAllGuessersVote_MovesRoomToReveal()
+    public void CastVote_WhenAllGuessersVote_MovesRoomToVoteReveal()
     {
         var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
         var storytellerVotingCardId = room
@@ -833,13 +842,98 @@ public sealed class RoomTests
         room.CastVote(bobId, storytellerVotingCardId);
         room.CastVote(carlaId, bobVotingCardId);
 
-        Assert.Equal(GamePhase.Reveal, room.Phase);
+        Assert.Equal(GamePhase.VoteReveal, room.Phase);
         Assert.Equal(2, room.VoteCount);
         Assert.Equal(2, room.ExpectedVoteCount);
+        Assert.Empty(room.RevealedVotingCards);
     }
 
     [Fact]
-    public void RevealedVotingCards_WhenAllGuessersVote_IncludesEveryVotableCard()
+    public void VotingCards_InVoteReveal_IncludeVotesWithoutRevealingStorytellerCard()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room.VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var bobVotingCardId = room.VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobId)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+        room.CastVote(carlaId, bobVotingCardId);
+
+        Assert.Equal(GamePhase.VoteReveal, room.Phase);
+        Assert.Contains(
+            room.VotingCards.Single(card => card.VotingCardId == storytellerVotingCardId).Votes,
+            vote => vote.VoterPlayerId == bobId && vote.VoterName == "Bob");
+        Assert.Contains(
+            room.VotingCards.Single(card => card.VotingCardId == bobVotingCardId).Votes,
+            vote => vote.VoterPlayerId == carlaId && vote.VoterName == "Carla");
+        Assert.Empty(room.RevealedVotingCards);
+    }
+
+    [Fact]
+    public void RevealStorytellerCard_WhenVotesAreLocked_MovesRoomToReveal()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room.VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+        var bobVotingCardId = room.VotingCardOwnerships
+            .Single(card => card.OwnerPlayerId == bobId)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+        room.CastVote(carlaId, bobVotingCardId);
+        room.RevealStorytellerCard();
+
+        Assert.Equal(GamePhase.Reveal, room.Phase);
+        Assert.Contains(room.RevealedVotingCards, card => card.IsStorytellerCard);
+    }
+
+    [Fact]
+    public void RevealStorytellerCard_BeforeAllVotesAreLocked_Throws()
+    {
+        var (room, _, _, _) = CreateRoomWaitingForVoting();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(room.RevealStorytellerCard);
+
+        Assert.Equal(DomainErrorCode.RoomNotReadyForStorytellerReveal, exception.Code);
+        Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void VoteReveal_IsPreservedBySnapshotRestore()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var votingCardIds = room.VotingCardOwnerships
+            .ToDictionary(card => card.OwnerPlayerId, card => card.VotingCardId);
+
+        room.CastVote(bobId, votingCardIds[room.CurrentStorytellerId!.Value]);
+        room.CastVote(carlaId, votingCardIds[bobId]);
+
+        var restoredRoom = Room.Restore(room.ToSnapshot());
+
+        Assert.Equal(GamePhase.VoteReveal, restoredRoom.Phase);
+        Assert.Equal(room.VoteCount, restoredRoom.VoteCount);
+        Assert.Equal(
+            room.VotingCards
+                .SelectMany(card => card.Votes.Select(vote => (
+                    VotingCardId: card.VotingCardId.Value,
+                    VoterId: vote.VoterPlayerId.Value)))
+                .OrderBy(vote => vote.VotingCardId)
+                .ThenBy(vote => vote.VoterId),
+            restoredRoom.VotingCards
+                .SelectMany(card => card.Votes.Select(vote => (
+                    VotingCardId: card.VotingCardId.Value,
+                    VoterId: vote.VoterPlayerId.Value)))
+                .OrderBy(vote => vote.VotingCardId)
+                .ThenBy(vote => vote.VoterId));
+        Assert.Empty(restoredRoom.RevealedVotingCards);
+    }
+
+    [Fact]
+    public void RevealedVotingCards_AfterStorytellerCardReveal_IncludesEveryVotableCard()
     {
         var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
         var votingOrder = room.VotingCards
@@ -856,6 +950,11 @@ public sealed class RoomTests
 
         room.CastVote(bobId, storytellerVotingCardId);
         room.CastVote(carlaId, bobVotingCardId);
+
+        Assert.Equal(GamePhase.VoteReveal, room.Phase);
+        Assert.Empty(room.RevealedVotingCards);
+
+        room.RevealStorytellerCard();
 
         Assert.Equal(GamePhase.Reveal, room.Phase);
         Assert.Equal(3, room.RevealedVotingCards.Count);
@@ -943,6 +1042,24 @@ public sealed class RoomTests
         Assert.Equal(DomainErrorCode.RoomNotReadyForScoring, exception.Code);
         Assert.Empty(room.RoundScores);
         Assert.Equal(GamePhase.Voting, room.Phase);
+    }
+
+    [Fact]
+    public void ScoreRound_DuringVoteReveal_Throws()
+    {
+        var (room, _, bobId, carlaId) = CreateRoomWaitingForVoting();
+        var storytellerVotingCardId = room.VotingCardOwnerships
+            .Single(card => card.IsStorytellerCard)
+            .VotingCardId;
+
+        room.CastVote(bobId, storytellerVotingCardId);
+        room.CastVote(carlaId, storytellerVotingCardId);
+
+        var exception = Assert.Throws<DomainRuleViolationException>(room.ScoreRound);
+
+        Assert.Equal(DomainErrorCode.RoomNotReadyForScoring, exception.Code);
+        Assert.Equal(GamePhase.VoteReveal, room.Phase);
+        Assert.Empty(room.RoundScores);
     }
 
     [Fact]
@@ -1358,6 +1475,7 @@ public sealed class RoomTests
 
         room.CastVote(bobId, storytellerVotingCardId);
         room.CastVote(carlaId, bobVotingCardId);
+        room.RevealStorytellerCard();
 
         return (room, aliceId, bobId, carlaId);
     }
@@ -1411,6 +1529,7 @@ public sealed class RoomTests
             room.CastVote(guesser.Id, storytellerVotingCardId);
         }
 
+        room.RevealStorytellerCard();
         room.ScoreRound();
         room.CompleteRound();
     }
@@ -1426,6 +1545,7 @@ public sealed class RoomTests
 
         room.CastVote(bobId, storytellerVotingCardId);
         room.CastVote(carlaId, storytellerVotingCardId);
+        room.RevealStorytellerCard();
 
         return (room, aliceId, bobId, carlaId);
     }
@@ -1445,6 +1565,7 @@ public sealed class RoomTests
 
         room.CastVote(bobId, carlaVotingCardId);
         room.CastVote(carlaId, bobVotingCardId);
+        room.RevealStorytellerCard();
 
         return (room, aliceId, bobId, carlaId);
     }

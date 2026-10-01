@@ -51,6 +51,15 @@ public sealed class RoomRealtimeContractTests
     }
 
     [Fact]
+    public void RoomPhase_VoteRevealIsAppendedWithoutChangingExistingValues()
+    {
+        Assert.Equal(3, (int)RoomPhase.Voting);
+        Assert.Equal(4, (int)RoomPhase.Reveal);
+        Assert.Equal(7, (int)RoomPhase.GameComplete);
+        Assert.Equal(8, (int)RoomPhase.VoteReveal);
+    }
+
+    [Fact]
     public void PublicRoomSnapshot_DoesNotExposePrivateHands()
     {
         var publicSnapshotTypes = new[]

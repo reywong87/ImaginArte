@@ -47,7 +47,7 @@ public sealed class Room
 
     public IReadOnlyCollection<GuessCardSubmission> GuessCardSubmissions => _guessCardSubmissions.AsReadOnly();
 
-    public IReadOnlyCollection<VotingCard> VotingCards => Phase == GamePhase.Voting
+    public IReadOnlyCollection<VotingCard> VotingCards => Phase is GamePhase.Voting or GamePhase.VoteReveal
         ? _votingCardOwnerships
             .Select((card, index) =>
             {
@@ -423,8 +423,20 @@ public sealed class Room
 
         if (VoteCount == ExpectedVoteCount)
         {
-            Phase = GamePhase.Reveal;
+            Phase = GamePhase.VoteReveal;
         }
+    }
+
+    public void RevealStorytellerCard()
+    {
+        if (Phase != GamePhase.VoteReveal)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.RoomNotReadyForStorytellerReveal,
+                "The storyteller card can only be revealed after all votes have been locked.");
+        }
+
+        Phase = GamePhase.Reveal;
     }
 
     public RoundScoreResult ScoreRound()
