@@ -160,11 +160,22 @@
   opacity: 1;
 }
 
+.mobile-join__input[aria-invalid='true'] {
+  border-color: #9d2d2d;
+}
+
 .mobile-join__input--code {
   font-family: 'Atkinson Hyperlegible', Arial, sans-serif;
   font-size: 1.25rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.mobile-join__field-error {
+  margin: 0;
+  color: #ffdc91;
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .mobile-join__input:focus-visible {
