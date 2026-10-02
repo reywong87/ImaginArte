@@ -35,6 +35,7 @@ internal static class RoomHttpMappings
                 IsConnected = presenceTracker.IsConnected(room.RoomCode, player.PlayerId)
             })
             .ToArray();
+        var exposeIndividualVotes = room.Phase is not GamePhase.Voting;
 
         return new RoomStateResponse(
             room.RoomCode,
@@ -57,11 +58,13 @@ internal static class RoomHttpMappings
                     card.VotingCardId,
                     card.CardId,
                     card.DisplayNumber,
-                    card.Votes
-                        .Select(vote => new VotingCardVoteStateResponse(
-                            vote.VoterPlayerId,
-                            vote.VoterName))
-                        .ToArray()))
+                    exposeIndividualVotes
+                        ? card.Votes
+                            .Select(vote => new VotingCardVoteStateResponse(
+                                vote.VoterPlayerId,
+                                vote.VoterName))
+                            .ToArray()
+                        : Array.Empty<VotingCardVoteStateResponse>()))
                 .ToArray(),
             room.RevealedCards
                 .Select(card => new RevealCardStateResponse(

@@ -424,7 +424,7 @@ public sealed class RoomEndpointTests
     }
 
     [Fact]
-    public async Task PostVotes_WithFirstValidVote_ReturnsPrivateVotingState()
+    public async Task PostVotes_WithFirstValidVote_ReturnsAggregatePublicState()
     {
         using var application = CreateApplication();
         using var client = application.CreateClient();
@@ -448,35 +448,25 @@ public sealed class RoomEndpointTests
         Assert.DoesNotContain("ownerPlayerId", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ownerName", responseBody, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("isStorytellerCard", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("voterPlayerId", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("voterName", responseBody, StringComparison.OrdinalIgnoreCase);
+        Assert.All(state.VotingCards, card => Assert.Empty(card.Votes));
 
-        var votedCard = state.VotingCards.Single(card => card.VotingCardId == storytellerVotingCardId);
-        Assert.Collection(
-            votedCard.Votes,
-            vote =>
-            {
-                Assert.Equal(room.BobId, vote.VoterPlayerId);
-                Assert.Equal("Bob", vote.VoterName);
-            });
-        Assert.All(
-            state.VotingCards.Where(card => card.VotingCardId != storytellerVotingCardId),
-            card => Assert.Empty(card.Votes));
+        var publicSnapshot = await GetRoomAsync(client, "ABC123");
+        var privateSnapshot = await GetPlayerPrivateStateAsync(client, "ABC123", room.BobId);
+        Assert.Equal(1, publicSnapshot.VoteCount);
+        Assert.All(publicSnapshot.VotingCards, card => Assert.Empty(card.Votes));
+        Assert.Equal(1, privateSnapshot.Room.VoteCount);
+        Assert.All(privateSnapshot.Room.VotingCards, card => Assert.Empty(card.Votes));
 
         using var json = JsonDocument.Parse(responseBody);
         foreach (var votingCard in json.RootElement.GetProperty("votingCards").EnumerateArray())
         {
             Assert.True(votingCard.TryGetProperty("votes", out var votes));
+            Assert.Empty(votes.EnumerateArray());
             Assert.False(votingCard.TryGetProperty("ownerPlayerId", out _));
             Assert.False(votingCard.TryGetProperty("ownerName", out _));
             Assert.False(votingCard.TryGetProperty("isStorytellerCard", out _));
-
-            foreach (var vote in votes.EnumerateArray())
-            {
-                Assert.True(vote.TryGetProperty("voterPlayerId", out _));
-                Assert.True(vote.TryGetProperty("voterName", out _));
-                Assert.False(vote.TryGetProperty("ownerPlayerId", out _));
-                Assert.False(vote.TryGetProperty("ownerName", out _));
-                Assert.False(vote.TryGetProperty("isStorytellerCard", out _));
-            }
         }
     }
 
@@ -492,6 +482,10 @@ public sealed class RoomEndpointTests
         Assert.Equal(state.ExpectedVoteCount, state.VoteCount);
         Assert.Equal(room.VotingState.VotingCards.Count, state.VotingCards.Count);
         Assert.Empty(state.RevealedCards);
+        var serializedState = JsonSerializer.Serialize(state, JsonSerializerOptions.Web);
+        Assert.DoesNotContain("ownerPlayerId", serializedState, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ownerName", serializedState, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("isStorytellerCard", serializedState, StringComparison.OrdinalIgnoreCase);
 
         var storytellerCard = state.VotingCards.Single(card => card.CardId == room.StorytellerCardId);
         Assert.Collection(
@@ -768,6 +762,23 @@ public sealed class RoomEndpointTests
 
         var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
         Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
+    }
+
+    [Fact]
+    public async Task PostScore_DuringVoteReveal_ReturnsBadRequestWithoutScoring()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        await PrepareVoteRevealRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsync("/rooms/ABC123/score", content: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var room = await GetRoomAsync(client, "ABC123");
+        Assert.Equal(RoomPhase.VoteReveal, room.Phase);
+        Assert.Empty(room.RoundScores);
+        Assert.All(room.Scoreboard, score => Assert.Equal(0, score.TotalPoints));
+        Assert.Empty(room.RevealedCards);
     }
 
     [Fact]

@@ -855,15 +855,10 @@ public sealed class RoomHubTests
                 new CastVoteRequest(bobId, storytellerVotingCardId)));
         Assert.Equal(RoomPhase.Voting, firstVoteResponse.Phase);
         Assert.Equal(1, firstVoteResponse.VoteCount);
-        var votedCard = firstVoteResponse.VotingCards.Single(
-            card => card.VotingCardId == storytellerVotingCardId);
-        Assert.Collection(
-            votedCard.Votes,
-            vote =>
-            {
-                Assert.Equal(bobId, vote.VoterPlayerId);
-                Assert.Equal("Bob", vote.VoterName);
-            });
+        Assert.All(firstVoteResponse.VotingCards, card => Assert.Empty(card.Votes));
+        var firstVoteSnapshot = JsonSerializer.Serialize(firstVoteResponse);
+        Assert.DoesNotContain("voterPlayerId", firstVoteSnapshot, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("voterName", firstVoteSnapshot, StringComparison.OrdinalIgnoreCase);
 
         var voteRevealResponse = await PostAndAssertRealtimeUpdateAsync(
             httpClient,
@@ -873,6 +868,17 @@ public sealed class RoomHubTests
                 "/rooms/ABC123/votes",
                 new CastVoteRequest(carlaId, bobVotingCardId)));
         Assert.Equal(RoomPhase.VoteReveal, voteRevealResponse.Phase);
+        Assert.Empty(voteRevealResponse.RevealedCards);
+        Assert.Contains(
+            voteRevealResponse.VotingCards
+                .Single(card => card.VotingCardId == storytellerVotingCardId)
+                .Votes,
+            vote => vote.VoterPlayerId == bobId && vote.VoterName == "Bob");
+        Assert.Contains(
+            voteRevealResponse.VotingCards
+                .Single(card => card.VotingCardId == bobVotingCardId)
+                .Votes,
+            vote => vote.VoterPlayerId == carlaId && vote.VoterName == "Carla");
 
         var revealResponse = await PostAndAssertPublicRealtimeUpdateAsync(
             tvConnection,

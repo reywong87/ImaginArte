@@ -1,6 +1,6 @@
 # SPEC 03 — Lobby TV con presencia en vivo
 
-> **Estado:** Approved  
+> **Estado:** Implemented  
 > **Depende de:** SPEC 02 — Inicio TV: creación y reanudación de sala  
 > **Fecha:** 2026-09-28  
 > **Objetivo:** Implementar el lobby de TV en React con QR móvil, roster en tiempo real, selección del puntaje objetivo y transición animada desde `/tv`, manteniendo fijo el paisaje.
@@ -150,9 +150,9 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 - [x] `/tv/{roomCode}` muestra el lobby real, obtiene sus datos del servidor y no muestra el texto «Sala de juego».
   - Evidencia: `App.tsx:48-72` renderiza `TvLobbyScreen`; `TvLobbyScreen.tsx:149-193` carga el snapshot HTTP y se suscribe a SignalR. La captura accesible `.playwright-mcp/page-2026-10-01T19-30-50-686Z.yml` muestra el lobby y no contiene «Sala de juego».
 - [ ] **Parcial:** El código de sala es legible a distancia y puede introducirse manualmente.
-  - Evidencia: `TvLobbyScreen.css:150-165` aplica figuras grandes y `JoinRoom.razor` acepta `/join/{RoomCode}`; se probó la entrada manual en el navegador. No se comprobó la legibilidad física a 2–3 m en una TV.
+  - Evidencia: la captura `.playwright-mcp/spec03-verify-tv-1920x1080.png` muestra el código en una vista de 1920×1080; `JoinRoom.razor` declara `/join/{RoomCode}`. No se midió la legibilidad física a 2–3 m en una TV ni se confirmó la entrada manual en un teléfono.
 - [ ] **Parcial:** Con `VITE_MOBILE_JOIN_BASE_URL` configurada, el QR representa una URL accesible del cliente Blazor con `/join/{roomCode}`.
-  - Evidencia: `TvLobbyScreen.tsx:290-298, 471-487, 710-728` crea el QR con la base configurada y la ruta codificada; `JoinRoom.razor:1-2` declara esa ruta y `.env.example` documenta la variable. El QR se ve en `.playwright-mcp/page-2026-10-01T19-30-50-686Z.yml`; se probó la ruta manualmente en navegador, pero no se escaneó con un teléfono en la red local.
+  - Evidencia: `TvLobbyScreen.tsx:290-298, 471-487` construye el QR desde la base configurada; `src/ImaginArte.Client.React/.env.example:2` y `README.md:175,229` documentan la configuración y `/join/{roomCode}`. El QR aparece en `.playwright-mcp/spec03-verify-tv-1920x1080.yml`. Al abrir el cliente local Blazor se observó un 404 del módulo `_framework/dotnet.octvxs4wm8.js` (`.playwright-mcp/console-2026-10-01T23-00-47-703Z.log`); por tanto no se confirmó que la URL abra correctamente ni se escaneó con un teléfono en la misma red.
 - [x] Sin esa configuración, no aparece un QR inválido; el código manual permanece disponible y se comunica el problema con texto accesible.
   - Evidencia: `TvLobbyScreen.tsx:456-496` conserva el código y, si la URL no se puede construir, omite `QRCodeSVG` y presenta el aviso con `role="status"`.
 - [x] Al unirse un jugador, su nombre, avatar y el contador se actualizan en la TV sin recargar la página.
@@ -165,8 +165,8 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
   - Evidencia: `TvLobbyScreen.tsx:58-61` define las tres etiquetas y puntajes; `:605-610` compara la selección con `room.targetScore` y guarda mediante el endpoint. Las capturas `.playwright-mcp/page-2026-10-01T19-37-13-892Z.yml` y `page-2026-10-01T19-38-44-866Z.yml` muestran las opciones y los valores seleccionados.
 - [x] Seleccionar un modo envía `PUT /rooms/{roomCode}/target-score`; el servidor valida el valor, guarda la sala, devuelve el snapshot actualizado y publica `RoomUpdated`.
   - Evidencia: `roomsApi.ts:87-113`, `Room.SetTargetScore` (`Room.cs:220-237`) y endpoint (`Program.cs:163-183`). `RoomEndpointTests.cs:53-121` cubre valores válidos, inválidos y sala iniciada; `RoomHubTests.cs:401-457` comprueba guardado, snapshot y publicación solo después de guardar.
-- [x] Tras recargar la TV o reconectar SignalR, el snapshot conserva el modo confirmado. Un fallo al guardar conserva la última selección confirmada, presenta un error accesible y permite reintentar.
-  - Evidencia: `RoomTests.cs:72-80` prueba restaurar el puntaje; `roomRealtime.ts:50-76` vuelve a suscribirse y pide un snapshot tras reconectar. `TvLobbyScreen.tsx:237-285, 605-610, 636-655` no aplica el valor optimistamente y presenta `role="alert"` con reintento en caso de fallo. La interacción de error/recarga no tiene una prueba React automatizada; queda incluida en la revisión manual pendiente del último criterio.
+- [ ] **Parcial:** Tras recargar la TV o reconectar SignalR, el snapshot conserva el modo confirmado. Un fallo al guardar conserva la última selección confirmada, presenta un error accesible y permite reintentar.
+  - Evidencia: `RoomTests.cs:72-80` prueba restaurar el puntaje y `roomRealtime.ts:50-76` vuelve a suscribirse y pide un snapshot tras reconectar. En la revisión Playwright, `.playwright-mcp/page-2026-10-01T23-03-08-399Z.yml` muestra el error accesible con **Media** aún confirmado; `.playwright-mcp/page-2026-10-01T23-03-17-888Z.yml` muestra **Corta** confirmada tras reintentar. `TvLobbyScreen.tsx:237-285, 605-610, 636-655` conserva la respuesta autoritativa y ofrece reintento. No se comprobó manualmente la recarga completa de la página.
 - [x] El selector solo está habilitado mientras la sala está en espera de jugadores. El servidor rechaza cambios después de iniciar la partida.
   - Evidencia: el `fieldset` depende de `WaitingForPlayers` (`TvLobbyScreen.tsx:595-598`); `Room.SetTargetScore` aplica la misma regla (`Room.cs:222-227`). Cubierto por `RoomTests.cs:55-69` y `RoomEndpointTests.cs:91-107`.
 - [x] Un jugador conectado tiene `IsConnected=true` mientras conserva al menos una conexión SignalR activa. Al cerrarse todas, su nombre permanece y la TV comunica «Reconectando».
@@ -191,30 +191,35 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
   - Evidencia: `TvLobbyScreen.tsx:411-419, 529-557, 792-802` presenta etiquetas textuales; `TvLobbyScreen.css:428-431, 494-497, 618-620` define foco visible. Captura de revisión de foco: `.playwright-mcp/page-2026-10-01T19-42-31-184Z.png`.
 - [x] Los snapshots públicos no contienen manos de jugadores.
   - Evidencia: `RoomStateResponse` y sus modelos públicos no tienen propiedad `Hand`; esa información está en `PlayerPrivateStateResponse` (`RoomHttpContracts.cs:24-34, 38-65`). `RoomRealtimeContractTests.cs:53-73` comprueba la separación.
-- [ ] Durante `Voting`, ni HTTP ni `RoomUpdated` incluyen votos individuales, identidades de votantes o su carta elegida; el snapshot conserva solo el progreso agregado.
-  - Evidencia previa: actualmente `RoomHttpMappings.cs:55-64` serializa `VotingCards[].Votes` durante la votación. Queda pendiente aplicar el filtro por fase y probar HTTP/SignalR.
-- [ ] Al recibirse el último voto, el servidor guarda y publica `VoteReveal`; ese snapshot permite ver el mapa votante-carta, pero no identifica la carta del narrador.
-  - Evidencia pendiente: la fase actual pasa directamente de `Voting` a `Reveal` en `Room.cs:424-427`; faltan la fase intermedia, persistencia, contrato y pruebas.
-- [ ] `POST /rooms/{roomCode}/reveal-storyteller-card` solo acepta `VoteReveal`, persiste la transición a `Reveal` y publica el snapshot actualizado después del guardado.
-  - Evidencia pendiente: el endpoint y la operación de aplicación aún no existen. Deben añadirse pruebas de fase válida, fase inválida, persistencia y publicación realtime.
-- [ ] El servidor rechaza el cálculo de puntos antes de `Reveal`, incluida la fase `VoteReveal`.
-  - Evidencia pendiente: ampliar las pruebas de `ScoreRound` para la nueva fase; `Room.ScoreRound` debe seguir admitiendo únicamente `Reveal`.
+- [x] Durante `Voting`, ni HTTP ni `RoomUpdated` incluyen votos individuales, identidades de votantes o su carta elegida; el snapshot conserva solo el progreso agregado.
+  - Evidencia: `RoomHttpMappings.cs:38-68` vacía los votos individuales mientras la fase es `Voting`. `RoomEndpointTests.cs:427-470` comprueba respuesta de voto y snapshots HTTP públicos/privados; `RoomHubTests.cs:849-862` comprueba que el `RoomUpdated` durante la votación conserva el progreso agregado y no contiene identidades. La suite Server enfocada pasó 74/74.
+- [x] Al recibirse el último voto, el servidor guarda y publica `VoteReveal`; ese snapshot permite ver el mapa votante-carta, pero no identifica la carta del narrador.
+  - Evidencia: `Room.cs:424-427` cambia a `VoteReveal`; `CastVote.cs:35-41` guarda antes de devolver el resultado. `RoomTests.cs:830-873` verifica fase, votos y `RevealedVotingCards` vacío; `RoomTests.cs:906-917` verifica restauración del snapshot. `RoomEndpointTests.cs:474-509` y `RoomHubTests.cs:863-881` validan HTTP y `RoomUpdated` después del último voto, con el mapa publicado pero sin revelar la carta del narrador.
+- [x] `POST /rooms/{roomCode}/reveal-storyteller-card` solo acepta `VoteReveal`, persiste la transición a `Reveal` y publica el snapshot actualizado después del guardado.
+  - Evidencia: `Room.cs:430-440` restringe la transición; `RevealStorytellerCard.cs:18-36` persiste antes de devolver el estado; `Program.cs:284-303` publica `RoomUpdated` después de que termina el handler. `RoomEndpointTests.cs:512-588` cubre fase válida, fase inválida y sala inexistente; `RoomHubTests.cs:460-539` comprueba que no se publique antes de completar el guardado. Suite Server enfocada: 74/74.
+- [x] El servidor rechaza el cálculo de puntos antes de `Reveal`, incluida la fase `VoteReveal`.
+  - Evidencia: `Room.ScoreRound` solo admite `GamePhase.Reveal` (`Room.cs:442-449`); `RoomTests.cs:1036-1060` y `RoomEndpointTests.cs:768-781` comprueban rechazo sin puntos durante `VoteReveal`. Suite Domain: 95/95; Server: 74/74.
 - [x] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente.
-  - Evidencia: los tres comandos terminaron con código 0 el 2026-10-01. Advertencia no bloqueante del build: Vite no resuelve `../assets/hola-lateral.png` en `TvLobbyScreen.css:180`; el recurso existente se llama `hoja-lateral.png`.
+  - Evidencia: los tres comandos terminaron con código 0 el 2026-10-02. Advertencia no bloqueante del build: Vite no resuelve `../assets/hola-lateral.png` en `TvLobbyScreen.css:180`; el recurso existente se llama `hoja-lateral.png`.
 - [x] Las pruebas de servidor cubren presencia, desconexión, reconexión y conexiones múltiples; las pruebas de contratos validan los nuevos campos públicos.
-  - Evidencia: `RoomHubTests.cs:98-205` cubre los estados de presencia y varias conexiones; `RoomRealtimeContractTests.cs:25-50` comprueba mínimo, máximo, anfitrión, conexión y solicitud. Suite ejecutada: Server 69/69; Contracts 7/7.
+  - Evidencia: `RoomHubTests.cs:98-205` cubre los estados de presencia y varias conexiones; `RoomRealtimeContractTests.cs:25-50` comprueba mínimo, máximo, anfitrión, conexión y solicitud. Suites enfocadas ejecutadas el 2026-10-02: Server 74/74; Contracts 8/8.
 - [x] Las pruebas de dominio y aplicación validan los puntajes permitidos y que el modo solo se pueda cambiar antes de iniciar; las pruebas de endpoint y SignalR verifican guardado, snapshot y publicación. Se usan los proyectos de prueba existentes, sin crear uno nuevo.
-  - Evidencia: `RoomTests.cs:26-80`, `RoomUseCaseTests.cs:136-205`, `RoomEndpointTests.cs:53-121` y `RoomHubTests.cs:401-457`. Suites ejecutadas: Domain 89/89, Application 53/53, Server 69/69 y Contracts 7/7.
+  - Evidencia: `RoomTests.cs:26-80`, `RoomUseCaseTests.cs:136-205`, `RoomEndpointTests.cs:53-121` y `RoomHubTests.cs:401-457`. Suites enfocadas ejecutadas el 2026-10-02: Domain 95/95, Application 56/56, Server 74/74 y Contracts 8/8.
 - [ ] **Parcial:** La revisión manual en una vista TV verifica roster, QR, ocupación completa, inicio y movimiento reducido. El QR se prueba con un teléfono conectado a la misma red.
-  - Evidencia: la revisión Playwright comprobó lobby/roster, 8/8, inicio y movimiento reducido; capturas `.playwright-mcp/page-2026-10-01T19-39-11-521Z.png`, `page-2026-10-01T19-40-05-285Z.png` y `page-2026-10-01T19-42-17-274Z.png`. No se probó en una TV física ni se escaneó el QR con un teléfono en la misma red.
+  - Evidencia: la revisión Playwright verificó la vista 1920×1080 y el roster 8/8, además del layout 390×844 y el inicio habilitado: `.playwright-mcp/spec03-verify-tv-1920x1080.yml`, `.playwright-mcp/spec03-verify-tv-full-1920x1080.png` y `.playwright-mcp/spec03-verify-tv-390x844.yml`. La transición con movimiento reducido se revisó en `.playwright-mcp/page-2026-10-01T19-42-17-274Z.png`. No se probó en una TV física ni se escaneó el QR con un teléfono en la misma red; la carga del módulo Blazor local también falló con 404 según el log citado arriba.
 - [ ] **Parcial:** La revisión manual comprueba los tres modos, el valor Media inicial, la persistencia tras recarga, el bloqueo al iniciar y la recuperación accesible tras un error de guardado.
-  - Evidencia: el servidor y la persistencia tienen pruebas automatizadas, y la revisión del navegador observó valores 15/25/35 en distintas capturas, incluido el valor 25 como «Media». No hay evidencia de revisión manual de recarga, bloqueo del selector tras iniciar ni fallo/reintento de guardado.
+  - Evidencia: se observaron 15/25/35 y **Media** inicial en las capturas `.playwright-mcp/page-2026-10-01T19-37-13-892Z.yml`, `page-2026-10-01T19-38-44-866Z.yml` y `spec03-verify-tv-1920x1080.yml`. El fallo/reintento accesible se comprobó en `.playwright-mcp/page-2026-10-01T23-03-08-399Z.yml` y `page-2026-10-01T23-03-17-888Z.yml`. Siguen sin comprobarse manualmente la recarga completa, el bloqueo del selector después de iniciar y la experiencia en una TV física.
 
-### Resultado de verificación — 2026-10-01
+### Resultado de verificación — 2026-10-02
 
-**Estado global: En implementación; no cerrar este spec todavía.** Los criterios originales del lobby siguen verificados según la revisión anterior; la ampliación de revelación añade cuatro criterios server-side pendientes. La revisión de navegador se realizó con Playwright del entorno; no se añadió una suite E2E al repositorio, según el alcance aprobado.
+**Estado global: En implementación; no cerrar este spec todavía.** Los cuatro criterios server-side de privacidad/revelación ahora están implementados y verificados. Quedan revisiones manuales parciales: lectura física del código a distancia, QR en un teléfono de la misma red, recarga de la página y bloqueo visible del selector tras iniciar.
 
-Comprobaciones ejecutadas: `npm run typecheck`, `npm run lint`, `npm run build`; `dotnet test` de Domain (89), Application (53), Server (69) y Contracts (7), todas correctas. El build conserva la advertencia de recurso CSS no resuelto descrita arriba. Evidencia visual local bajo `.playwright-mcp/` (ignorada por Git); los QR y la legibilidad física a distancia siguen pendientes.
+Comprobaciones ejecutadas el 2026-10-02:
+
+- `dotnet build ImaginArte.sln --no-restore`: correcto, 0 errores; advertencias NU1903 existentes para SSH.NET 2025.1.0.
+- Suites enfocadas: Domain 95/95, Application 56/56, Server 74/74 y Contracts 8/8. `npm run typecheck`, `npm run lint` y `npm run build`: correctos; el build mantiene la advertencia de `hola-lateral.png` descrita arriba.
+- `dotnet test ImaginArte.sln --no-restore -m:1`: no completó limpio. 9 pruebas de `Infrastructure.Tests` fallaron porque Docker/Testcontainers no está disponible. En esa ejecución también falló una prueba de SignalR (`PostNextRound_BroadcastsFinalPublicStateAndEachPlayersPrivateState`) por comparar fase esperada 1 con fase recibida 5; la suite Server enfocada, ejecutada por separado, pasó 74/74. El resto de proyectos de prueba del recorrido completo pasó.
+- Playwright del entorno: vistas de 1920×1080 y 390×844; roster 8/8, estado completo, inicio habilitado y recuperación accesible del error de guardado. Evidencia en `.playwright-mcp/` (ignorada por Git); no se añadió una suite E2E al repositorio. No se pudo validar el destino Blazor en este entorno: faltó el módulo `_framework/dotnet.octvxs4wm8.js` (404), y no se escaneó el QR con un teléfono ni se midió la legibilidad en una TV física.
 
 ## Decisiones
 
