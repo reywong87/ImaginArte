@@ -1,36 +1,90 @@
 .mobile-join {
-  display: grid;
-  min-height: 100vh;
-  min-height: 100svh;
-  padding:
-    max(1rem, env(safe-area-inset-top, 0px))
-    max(1rem, env(safe-area-inset-right, 0px))
-    max(1.5rem, env(safe-area-inset-bottom, 0px))
-    max(1rem, env(safe-area-inset-left, 0px));
+  position: fixed;
+  z-index: 1;
+  overflow: hidden;
+  background: #08263e;
+  inset: 0;
+}
+
+.mobile-join__backdrop {
+  position: absolute;
   background:
-    radial-gradient(ellipse at 50% 0%, rgb(35 83 103 / 42%), transparent 58%),
+    radial-gradient(ellipse at 50% 0%, rgb(35 83 103 / 38%), transparent 58%),
     linear-gradient(150deg, #10364f 0%, #08263e 52%, #061d31 100%);
-  place-items: center;
+  inset: 0;
+}
+
+.mobile-join__backdrop::before {
+  position: absolute;
+  background-image:
+    url('../assets/ventana-textura-botanica.png'),
+    url('../assets/ventana-textura-botanica.png');
+  background-position: left center, right center;
+  background-repeat: no-repeat, no-repeat;
+  background-size: auto 100%, auto 100%;
+  content: '';
+  inset: 12px;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.mobile-join__frame {
+  position: absolute;
+  z-index: 2;
+  border: 3px solid #a9792a;
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 2px #f2b632,
+    0 0 0 5px rgb(8 38 62 / 94%),
+    0 0 0 7px #a9792a;
+  inset:
+    max(8px, env(safe-area-inset-top, 0px))
+    max(8px, env(safe-area-inset-right, 0px))
+    max(8px, env(safe-area-inset-bottom, 0px))
+    max(8px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+
+.mobile-join__frame .ceremonial-window-decorations__texture {
+  display: none;
+}
+
+.mobile-join__scroll-region {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 0.75rem 0;
+  scrollbar-color: #c18a2e transparent;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  inset:
+    max(5rem, calc(env(safe-area-inset-top, 0px) + 4rem))
+    max(1.5rem, calc(env(safe-area-inset-right, 0px) + 1rem))
+    max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))
+    max(1.5rem, calc(env(safe-area-inset-left, 0px) + 1rem));
+}
+
+.mobile-join__scroll-region:focus-visible {
+  outline: 3px solid #f2b632;
+  outline-offset: -3px;
 }
 
 .mobile-join__panel {
   position: relative;
   isolation: isolate;
+  align-self: center;
   display: flex;
   width: min(100%, 31rem);
   min-height: stretch;
   flex-direction: column;
   gap: clamp(1.25rem, 4vh, 2rem);
-  padding: clamp(2.75rem, 10vw, 3.5rem) clamp(1.25rem, 7vw, 2rem);
-  border: 3px solid #a9792a;
-  border-radius: 28px;
-  background:
-    linear-gradient(135deg, rgb(15 48 70 / 97%), rgb(8 38 62 / 98%) 58%, rgb(8 32 53 / 98%));
-  box-shadow:
-    0 0 0 2px #f2b632,
-    0 0 0 5px rgb(8 38 62 / 94%),
-    0 0 0 7px #a9792a,
-    0 12px 28px rgb(4 21 34 / 42%);
+  justify-content: safe center;
+  padding: 0.75rem clamp(0.25rem, 2vw, 0.75rem);
+  border-radius: 16px;
   color: #fbf4e2;
 }
 
@@ -162,11 +216,26 @@
 
 @media (max-width: 380px) {
   .mobile-join__panel {
-    padding-right: 1rem;
-    padding-left: 1rem;
+    padding-right: 0.25rem;
+    padding-left: 0.25rem;
   }
 
   .mobile-join__introduction {
     font-size: 1.125rem;
+  }
+}
+
+@media (max-height: 620px) {
+  .mobile-join__scroll-region {
+    inset:
+      max(4.5rem, calc(env(safe-area-inset-top, 0px) + 3.5rem))
+      max(1.5rem, calc(env(safe-area-inset-right, 0px) + 1rem))
+      max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))
+      max(1.5rem, calc(env(safe-area-inset-left, 0px) + 1rem));
+  }
+
+  .mobile-join__panel {
+    gap: 1rem;
+    padding-block: 0.25rem;
   }
 }
