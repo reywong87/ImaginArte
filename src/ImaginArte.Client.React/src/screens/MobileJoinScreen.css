@@ -90,6 +90,7 @@
 
 .mobile-join__header,
 .mobile-join__form,
+.mobile-join__confirmation,
 .mobile-join__privacy {
   position: relative;
   z-index: 2;
@@ -178,6 +179,33 @@
   line-height: 1.4;
 }
 
+.mobile-join__form-error {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid #f2b632;
+  border-radius: 10px;
+  background: rgb(5 25 40 / 84%);
+  color: #ffdc91;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.mobile-join__confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.mobile-join__joined-status,
+.mobile-join__status {
+  margin: 0;
+  color: #fbf4e2;
+  font-size: 1.2rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .mobile-join__input:focus-visible {
   border-color: #10243a;
   outline: 3px solid #f2b632;
@@ -200,6 +228,11 @@
 
 .mobile-join__submit:hover {
   background: #ffcf63;
+}
+
+.mobile-join__submit:disabled {
+  cursor: wait;
+  opacity: 0.84;
 }
 
 .mobile-join__submit:focus-visible {

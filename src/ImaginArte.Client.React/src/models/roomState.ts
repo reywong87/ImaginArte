@@ -7,6 +7,7 @@ export const RoomPhase = {
   Scoring: 5,
   RoundComplete: 6,
   GameComplete: 7,
+  VoteReveal: 8,
 } as const
 
 export type RoomPhase = (typeof RoomPhase)[keyof typeof RoomPhase]
@@ -87,6 +88,24 @@ export interface RoomUpdatedEvent {
   room: RoomStateResponse
 }
 
+export interface PrivateCardStateResponse {
+  cardId: string
+}
+
+export interface PlayerPrivateStateResponse {
+  playerId: string
+  name: string
+  hand: PrivateCardStateResponse[]
+  isCurrentStoryteller: boolean
+  hasSubmittedGuessCard: boolean
+  submittedVotingCardId: string | null
+}
+
+export interface GetPlayerPrivateStateResponse {
+  room: RoomStateResponse
+  player: PlayerPrivateStateResponse
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -108,6 +127,25 @@ function isPlayerStateResponse(value: unknown): value is PlayerStateResponse {
     && isString(value.playerId)
     && isString(value.name)
     && typeof value.isConnected === 'boolean'
+}
+
+function isPrivateCardStateResponse(
+  value: unknown,
+): value is PrivateCardStateResponse {
+  return isRecord(value) && isString(value.cardId)
+}
+
+function isPlayerPrivateStateResponse(
+  value: unknown,
+): value is PlayerPrivateStateResponse {
+  return isRecord(value)
+    && isString(value.playerId)
+    && isString(value.name)
+    && Array.isArray(value.hand)
+    && value.hand.every(isPrivateCardStateResponse)
+    && typeof value.isCurrentStoryteller === 'boolean'
+    && typeof value.hasSubmittedGuessCard === 'boolean'
+    && isNullableString(value.submittedVotingCardId)
 }
 
 function isVotingCardVoteStateResponse(
@@ -177,7 +215,7 @@ export function isRoomStateResponse(value: unknown): value is RoomStateResponse 
     && isString(value.roomCode)
     && isInteger(value.phase)
     && value.phase >= RoomPhase.WaitingForPlayers
-    && value.phase <= RoomPhase.GameComplete
+    && value.phase <= RoomPhase.VoteReveal
     && isInteger(value.targetScore)
     && Array.isArray(value.players)
     && value.players.every(isPlayerStateResponse)
@@ -204,4 +242,12 @@ export function isRoomStateResponse(value: unknown): value is RoomStateResponse 
 
 export function isRoomUpdatedEvent(value: unknown): value is RoomUpdatedEvent {
   return isRecord(value) && isRoomStateResponse(value.room)
+}
+
+export function isGetPlayerPrivateStateResponse(
+  value: unknown,
+): value is GetPlayerPrivateStateResponse {
+  return isRecord(value)
+    && isRoomStateResponse(value.room)
+    && isPlayerPrivateStateResponse(value.player)
 }

@@ -1,5 +1,7 @@
 import {
+  isGetPlayerPrivateStateResponse,
   isRoomStateResponse,
+  type GetPlayerPrivateStateResponse,
   type RoomStateResponse,
 } from '../models/roomState'
 
@@ -79,6 +81,69 @@ export async function getRoomState(
 
   if (!isRoomStateResponse(payload)) {
     throw new Error('El servidor devolvió un snapshot de sala no válido.')
+  }
+
+  return payload
+}
+
+export async function joinRoomAsPlayer(
+  roomCode: string,
+  playerId: string,
+  playerName: string,
+  signal?: AbortSignal,
+): Promise<RoomStateResponse> {
+  const normalizedRoomCode = roomCode.trim().toUpperCase()
+  const response = await fetch(
+    `${getRoomsApiBaseUrl()}/rooms/${encodeURIComponent(normalizedRoomCode)}/players`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ playerId, playerName }),
+      signal,
+    },
+  )
+
+  if (!response.ok) {
+    throw new RoomApiError(response.status)
+  }
+
+  const payload: unknown = await response.json()
+
+  if (!isRoomStateResponse(payload)) {
+    throw new Error('El servidor devolvió un estado de sala no válido al unirse.')
+  }
+
+  return payload
+}
+
+export async function getPlayerPrivateState(
+  roomCode: string,
+  playerId: string,
+  signal?: AbortSignal,
+): Promise<GetPlayerPrivateStateResponse> {
+  const normalizedRoomCode = roomCode.trim().toUpperCase()
+  const response = await fetch(
+    `${getRoomsApiBaseUrl()}/rooms/${encodeURIComponent(normalizedRoomCode)}/players/${encodeURIComponent(playerId)}`,
+    { signal },
+  )
+
+  if (!response.ok) {
+    throw new RoomApiError(response.status)
+  }
+
+  const payload: unknown = await response.json()
+
+  if (!isGetPlayerPrivateStateResponse(payload)) {
+    throw new Error('El servidor devolvió una sesión de jugador no válida.')
+  }
+
+  if (
+    payload.room.roomCode.trim().toUpperCase() !== normalizedRoomCode ||
+    payload.player.playerId.toLowerCase() !== playerId.toLowerCase()
+  ) {
+    throw new Error('El servidor devolvió una sesión de otro jugador o sala.')
   }
 
   return payload
