@@ -200,7 +200,7 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 - [x] El servidor rechaza el cálculo de puntos antes de `Reveal`, incluida la fase `VoteReveal`.
   - Evidencia: `Room.ScoreRound` solo admite `GamePhase.Reveal` (`Room.cs:442-449`); `RoomTests.cs:1036-1060` y `RoomEndpointTests.cs:768-781` comprueban rechazo sin puntos durante `VoteReveal`. Suite Domain: 95/95; Server: 74/74.
 - [x] `npm run typecheck`, `npm run lint` y `npm run build` finalizan correctamente.
-  - Evidencia: los tres comandos terminaron con código 0 el 2026-10-02. Advertencia no bloqueante del build: Vite no resuelve `../assets/hola-lateral.png` en `TvLobbyScreen.css:180`; el recurso existente se llama `hoja-lateral.png`.
+  - Evidencia: los tres comandos terminaron con código 0 el 2026-10-02. La advertencia no bloqueante por la ruta con typo (`hola-lateral.png`) se corrigió el 2026-10-03 para usar el recurso existente `hoja-lateral.png`; el build posterior ya no muestra esa advertencia.
 - [x] Las pruebas de servidor cubren presencia, desconexión, reconexión y conexiones múltiples; las pruebas de contratos validan los nuevos campos públicos.
   - Evidencia: `RoomHubTests.cs:98-205` cubre los estados de presencia y varias conexiones; `RoomRealtimeContractTests.cs:25-50` comprueba mínimo, máximo, anfitrión, conexión y solicitud. Suites enfocadas ejecutadas el 2026-10-02: Server 74/74; Contracts 8/8.
 - [x] Las pruebas de dominio y aplicación validan los puntajes permitidos y que el modo solo se pueda cambiar antes de iniciar; las pruebas de endpoint y SignalR verifican guardado, snapshot y publicación. Se usan los proyectos de prueba existentes, sin crear uno nuevo.
@@ -217,7 +217,7 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 Comprobaciones ejecutadas el 2026-10-02:
 
 - `dotnet build ImaginArte.sln --no-restore`: correcto, 0 errores; advertencias NU1903 existentes para SSH.NET 2025.1.0.
-- Suites enfocadas: Domain 95/95, Application 56/56, Server 74/74 y Contracts 8/8. `npm run typecheck`, `npm run lint` y `npm run build`: correctos; el build mantiene la advertencia de `hola-lateral.png` descrita arriba.
+- Suites enfocadas: Domain 95/95, Application 56/56, Server 74/74 y Contracts 8/8. `npm run typecheck`, `npm run lint` y `npm run build`: correctos en esa ejecución del 2026-10-02; entonces el build todavía mostraba la advertencia de `hola-lateral.png`, corregida después el 2026-10-03.
 - `dotnet test ImaginArte.sln --no-restore -m:1`: no completó limpio. 9 pruebas de `Infrastructure.Tests` fallaron porque Docker/Testcontainers no está disponible. En esa ejecución también falló una prueba de SignalR (`PostNextRound_BroadcastsFinalPublicStateAndEachPlayersPrivateState`) por comparar fase esperada 1 con fase recibida 5; la suite Server enfocada, ejecutada por separado, pasó 74/74. El resto de proyectos de prueba del recorrido completo pasó.
 - Playwright del entorno: vistas de 1920×1080 y 390×844; roster 8/8, estado completo, inicio habilitado y recuperación accesible del error de guardado. Evidencia en `.playwright-mcp/` (ignorada por Git); no se añadió una suite E2E al repositorio. No se pudo validar el destino Blazor en este entorno: faltó el módulo `_framework/dotnet.octvxs4wm8.js` (404), y no se escaneó el QR con un teléfono ni se midió la legibilidad en una TV física.
 
