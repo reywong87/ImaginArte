@@ -15,6 +15,10 @@ import {
   RoomApiError,
   RoomsApiConfigurationError,
 } from '../services/roomsApi'
+import {
+  createMobileRoomRealtimeClient,
+  type MobileRoomRealtimeStatus,
+} from '../services/mobileRoomRealtime'
 import './MobileJoinScreen.css'
 
 const ROOM_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/
@@ -35,7 +39,27 @@ type JoinOperation = 'recovery' | 'join'
 
 interface JoinedPlayerSummary {
   roomCode: string
+  playerId: string
   playerName: string
+}
+
+function getRealtimeStatusMessage(
+  status: MobileRoomRealtimeStatus | null,
+  hasError: boolean,
+): string | null {
+  if (hasError || status === 'disconnected') {
+    return 'Se interrumpió la conexión en tiempo real. Tu unión sigue guardada.'
+  }
+
+  if (status === 'connecting') {
+    return 'Conectando con la sala…'
+  }
+
+  if (status === 'reconnecting') {
+    return 'Conexión interrumpida. Reconectando…'
+  }
+
+  return null
 }
 
 function isNotFoundError(error: unknown): error is RoomApiError {
@@ -103,6 +127,7 @@ async function requestPlayerJoin(
 
   return {
     roomCode: room.roomCode,
+    playerId: player.playerId,
     playerName: player.name,
   }
 }
@@ -114,6 +139,7 @@ function persistJoinedSession(
   const joinedSession: StoredMobilePlayerSession = {
     ...session,
     roomCode: player.roomCode,
+    playerId: player.playerId,
     playerName: player.playerName,
     status: 'joined',
   }
@@ -137,6 +163,10 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const [status, setStatus] = useState<MobileJoinStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [joinedPlayer, setJoinedPlayer] = useState<JoinedPlayerSummary | null>(null)
+  const [realtimeStatus, setRealtimeStatus] =
+    useState<MobileRoomRealtimeStatus | null>(null)
+  const [hasRealtimeError, setHasRealtimeError] = useState(false)
+  const [realtimeRetryVersion, setRealtimeRetryVersion] = useState(0)
   const roomCodeInputRef = useRef<HTMLInputElement>(null)
   const playerNameInputRef = useRef<HTMLInputElement>(null)
   const joinRequestInFlightRef = useRef(false)
@@ -176,6 +206,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
 
           const savedSession = persistJoinedSession(session, {
             roomCode: privateState.room.roomCode,
+            playerId: privateState.player.playerId,
             playerName: privateState.player.name,
           })
           setJoinedPlayer(savedSession.player)
@@ -241,6 +272,54 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   useEffect(() => () => {
     joinAbortControllerRef.current?.abort()
   }, [])
+
+  useEffect(() => {
+    if (!joinedPlayer) {
+      return
+    }
+
+    let isCurrent = true
+
+    const realtimeClient = createMobileRoomRealtimeClient(
+      joinedPlayer.roomCode,
+      joinedPlayer.playerId,
+      {
+        onStatusChanged(nextStatus) {
+          if (!isCurrent) {
+            return
+          }
+
+          setRealtimeStatus(nextStatus)
+          if (nextStatus === 'connected') {
+            setHasRealtimeError(false)
+          }
+        },
+        onError() {
+          if (isCurrent) {
+            setHasRealtimeError(true)
+          }
+        },
+      },
+    )
+
+    void Promise.resolve()
+      .then(() => {
+        if (isCurrent) {
+          return realtimeClient.start()
+        }
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setRealtimeStatus('disconnected')
+          setHasRealtimeError(true)
+        }
+      })
+
+    return () => {
+      isCurrent = false
+      void realtimeClient.stop()
+    }
+  }, [joinedPlayer, realtimeRetryVersion])
 
   function clearFieldError(field: MobileJoinField) {
     setFieldErrors((currentErrors) => {
@@ -313,6 +392,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
 
           const savedSession = persistJoinedSession(session, {
             roomCode: privateState.room.roomCode,
+            playerId: privateState.player.playerId,
             playerName: privateState.player.name,
           })
           setJoinedPlayer(savedSession.player)
@@ -380,6 +460,11 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
     }
   }
 
+  const realtimeStatusMessage = getRealtimeStatusMessage(
+    realtimeStatus,
+    hasRealtimeError,
+  )
+
   return (
     <main className="mobile-join" aria-labelledby="mobile-join-title">
       <div className="mobile-join__backdrop" aria-hidden="true" />
@@ -412,6 +497,28 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
               >
                 Esperando a que la TV inicie la partida
               </p>
+              {realtimeStatusMessage && (
+                <p
+                  className="mobile-join__realtime-status"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {realtimeStatusMessage}
+                </p>
+              )}
+              {(hasRealtimeError || realtimeStatus === 'disconnected') && (
+                <button
+                  className="mobile-join__submit"
+                  onClick={() => {
+                    setRealtimeStatus('connecting')
+                    setHasRealtimeError(false)
+                    setRealtimeRetryVersion((version) => version + 1)
+                  }}
+                  type="button"
+                >
+                  Reintentar conexión
+                </button>
+              )}
               {errorMessage && (
                 <p className="mobile-join__form-error" role="alert">
                   {errorMessage}

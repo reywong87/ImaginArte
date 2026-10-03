@@ -106,6 +106,10 @@ export interface GetPlayerPrivateStateResponse {
   player: PlayerPrivateStateResponse
 }
 
+export interface PlayerStateUpdatedEvent {
+  state: GetPlayerPrivateStateResponse
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -250,4 +254,10 @@ export function isGetPlayerPrivateStateResponse(
   return isRecord(value)
     && isRoomStateResponse(value.room)
     && isPlayerPrivateStateResponse(value.player)
+}
+
+export function isPlayerStateUpdatedEvent(
+  value: unknown,
+): value is PlayerStateUpdatedEvent {
+  return isRecord(value) && isGetPlayerPrivateStateResponse(value.state)
 }

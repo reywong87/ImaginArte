@@ -198,7 +198,8 @@
 }
 
 .mobile-join__joined-status,
-.mobile-join__status {
+.mobile-join__status,
+.mobile-join__realtime-status {
   margin: 0;
   color: #fbf4e2;
   font-size: 1.2rem;
