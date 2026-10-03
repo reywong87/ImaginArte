@@ -19,4 +19,5 @@ public sealed record RoomSnapshot(
 public sealed record PlayerSnapshot(
     PlayerId Id,
     string Name,
+    AvatarId AvatarId,
     IReadOnlyCollection<Card> Hand);

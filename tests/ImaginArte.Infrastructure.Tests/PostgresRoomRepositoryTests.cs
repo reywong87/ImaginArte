@@ -9,6 +9,27 @@ namespace ImaginArte.Infrastructure.Tests;
 public sealed class PostgresRoomRepositoryTests
     : IClassFixture<PostgresRoomRepositoryTests.PostgresFixture>
 {
+    private const string LegacyRoomJson = """
+        {
+          "roomCode": "OLD123",
+          "phase": "WaitingForPlayers",
+          "targetScore": 25,
+          "currentStorytellerId": null,
+          "storytellerCardId": null,
+          "clue": null,
+          "players": [
+            { "playerId": "b8a95cef-711d-42f8-ae45-183922f542c6", "name": "Alice", "hand": [] }
+          ],
+          "availableDeck": [],
+          "discardPile": [],
+          "guessCardSubmissions": [],
+          "votingCardOwnerships": [],
+          "votes": [],
+          "scoreboard": [],
+          "roundScores": []
+        }
+        """;
+
     private readonly PostgresFixture _fixture;
 
     public PostgresRoomRepositoryTests(PostgresFixture fixture)
@@ -47,6 +68,35 @@ public sealed class PostgresRoomRepositoryTests
         var player = Assert.Single(savedRoom.Players);
         Assert.Equal(playerId, player.Id);
         Assert.Equal("Alice", player.Name);
+        Assert.Equal(AvatarId.Fox, player.AvatarId);
+    }
+
+    [Fact]
+    public async Task GetByCodeAsync_WhenStoredRoomUsesPreviousSchema_ReturnsNull()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync(_fixture.ConnectionString);
+        var repository = database.CreateRepository();
+        await repository.AddAsync(Room.Create(new RoomCode("OLD123")));
+        await database.SetSerializedRoomAsync("OLD123", LegacyRoomJson);
+
+        var room = await repository.GetByCodeAsync(new RoomCode("OLD123"));
+
+        Assert.Null(room);
+    }
+
+    [Fact]
+    public async Task GetByCodeAsync_PreservesPlayerAvatarFromVersionedDocument()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync(_fixture.ConnectionString);
+        var repository = database.CreateRepository();
+        var room = Room.Create(new RoomCode("ABC123"));
+        room.Join(PlayerId.New(), "Alice", AvatarId.Snail);
+        await repository.AddAsync(room);
+
+        var savedRoom = await repository.GetByCodeAsync(new RoomCode("ABC123"));
+
+        Assert.NotNull(savedRoom);
+        Assert.Equal(AvatarId.Snail, Assert.Single(savedRoom.Players).AvatarId);
     }
 
     [Fact]
@@ -66,6 +116,7 @@ public sealed class PostgresRoomRepositoryTests
         var player = Assert.Single(savedRoom.Players);
         Assert.Equal(playerId, player.Id);
         Assert.Equal("Alice", player.Name);
+        Assert.Equal(AvatarId.Fox, player.AvatarId);
     }
 
     [Fact]
@@ -240,6 +291,19 @@ public sealed class PostgresRoomRepositoryTests
                 """,
                 connection);
             command.Parameters.AddWithValue("updatedAtUtc", updatedAtUtc);
+            command.Parameters.AddWithValue("roomCode", roomCode);
+
+            await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task SetSerializedRoomAsync(string roomCode, string serializedRoom)
+        {
+            await using var connection = new NpgsqlConnection(RepositoryConnectionString);
+            await connection.OpenAsync();
+            await using var command = new NpgsqlCommand(
+                "UPDATE \"Rooms\" SET \"SerializedRoom\" = @serializedRoom WHERE \"RoomCode\" = @roomCode;",
+                connection);
+            command.Parameters.AddWithValue("serializedRoom", serializedRoom);
             command.Parameters.AddWithValue("roomCode", roomCode);
 
             await command.ExecuteNonQueryAsync();

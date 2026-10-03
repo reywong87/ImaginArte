@@ -5,6 +5,7 @@ namespace ImaginArte.Infrastructure.Persistence;
 
 internal static class RoomJsonSerializer
 {
+    private const int CurrentSchemaVersion = 1;
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     public static string Serialize(Room room)
@@ -14,7 +15,7 @@ internal static class RoomJsonSerializer
         return JsonSerializer.Serialize(ToDocument(room.ToSnapshot()), SerializerOptions);
     }
 
-    public static Room Deserialize(string serializedRoom)
+    public static Room? Deserialize(string serializedRoom)
     {
         if (string.IsNullOrWhiteSpace(serializedRoom))
         {
@@ -24,12 +25,20 @@ internal static class RoomJsonSerializer
         var document = JsonSerializer.Deserialize<RoomDocument>(serializedRoom, SerializerOptions)
             ?? throw new InvalidOperationException("Stored room document could not be deserialized.");
 
+        if (document.SchemaVersion != CurrentSchemaVersion
+            || document.Players is null
+            || document.Players.Any(player => player is null || !AvatarId.TryParse(player.AvatarId, out _)))
+        {
+            return null;
+        }
+
         return Room.Restore(ToSnapshot(document));
     }
 
     private static RoomDocument ToDocument(RoomSnapshot snapshot)
     {
         return new RoomDocument(
+            CurrentSchemaVersion,
             snapshot.Code.Value,
             snapshot.Phase.ToString(),
             snapshot.TargetScore,
@@ -40,6 +49,7 @@ internal static class RoomJsonSerializer
                 .Select(player => new PlayerDocument(
                     player.Id.Value,
                     player.Name,
+                    player.AvatarId.Value,
                     player.Hand.Select(card => card.Id.Value).ToArray()))
                 .ToArray(),
             snapshot.AvailableDeck.Select(card => card.Id.Value).ToArray(),
@@ -88,6 +98,9 @@ internal static class RoomJsonSerializer
                 .Select(player => new PlayerSnapshot(
                     new PlayerId(player.PlayerId),
                     player.Name,
+                    AvatarId.TryParse(player.AvatarId, out var avatarId)
+                        ? avatarId
+                        : throw new InvalidOperationException("Stored player avatar ID is invalid."),
                     player.Hand.Select(cardId => new Card(new CardId(cardId))).ToArray()))
                 .ToArray(),
             document.AvailableDeck.Select(cardId => new Card(new CardId(cardId))).ToArray(),
@@ -124,6 +137,7 @@ internal static class RoomJsonSerializer
     }
 
     private sealed record RoomDocument(
+        int SchemaVersion,
         string RoomCode,
         string Phase,
         int TargetScore,
@@ -142,6 +156,7 @@ internal static class RoomJsonSerializer
     private sealed record PlayerDocument(
         Guid PlayerId,
         string Name,
+        string? AvatarId,
         string[] Hand);
 
     private sealed record GuessCardSubmissionDocument(

@@ -169,7 +169,7 @@ public sealed class Room
             StorytellerCardId,
             Clue,
             _players
-                .Select(player => new PlayerSnapshot(player.Id, player.Name, player.Hand.ToArray()))
+                .Select(player => new PlayerSnapshot(player.Id, player.Name, player.AvatarId, player.Hand.ToArray()))
                 .ToArray(),
             _availableDeck.ToArray(),
             _discardPile.ToArray(),
@@ -199,7 +199,15 @@ public sealed class Room
 
         foreach (var playerSnapshot in snapshot.Players)
         {
-            var player = new Player(playerSnapshot.Id, playerSnapshot.Name);
+            var player = new Player(playerSnapshot.Id, playerSnapshot.Name, playerSnapshot.AvatarId);
+
+            if (room._players.Any(existingPlayer => existingPlayer.AvatarId == player.AvatarId))
+            {
+                throw new DomainRuleViolationException(
+                    DomainErrorCode.AvatarAlreadyTaken,
+                    "A room cannot assign the same avatar to more than one player.");
+            }
+
             player.DealInitialHand(playerSnapshot.Hand);
             room._players.Add(player);
         }
@@ -236,7 +244,7 @@ public sealed class Room
         TargetScore = targetScore;
     }
 
-    public Player Join(PlayerId playerId, string playerName)
+    public Player Join(PlayerId playerId, string playerName, AvatarId? avatarId = null)
     {
         if (Phase != GamePhase.WaitingForPlayers)
         {
@@ -252,13 +260,29 @@ public sealed class Room
                 $"A room cannot have more than {MaximumPlayers} players.");
         }
 
-        var player = new Player(playerId, playerName);
+        if (avatarId is { } requestedAvatarId && !requestedAvatarId.IsDefined)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.InvalidAvatar,
+                "The avatar ID must be one of the supported avatars.");
+        }
+
+        var assignedAvatarId = avatarId ?? AvatarId.All.First(candidate =>
+            _players.All(existingPlayer => existingPlayer.AvatarId != candidate));
+        var player = new Player(playerId, playerName, assignedAvatarId);
 
         if (_players.Any(existingPlayer => existingPlayer.Id == player.Id))
         {
             throw new DomainRuleViolationException(
                 DomainErrorCode.PlayerAlreadyJoined,
                 "This player has already joined the room.");
+        }
+
+        if (_players.Any(existingPlayer => existingPlayer.AvatarId == player.AvatarId))
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.AvatarAlreadyTaken,
+                "This avatar has already been chosen by another player in the room.");
         }
 
         _players.Add(player);

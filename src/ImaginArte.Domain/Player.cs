@@ -4,7 +4,7 @@ public sealed class Player
 {
     private readonly List<Card> _hand = [];
 
-    public Player(PlayerId id, string name)
+    public Player(PlayerId id, string name, AvatarId avatarId)
     {
         if (id.Value == Guid.Empty)
         {
@@ -16,13 +16,23 @@ public sealed class Player
             throw new ArgumentException("Player name is required.", nameof(name));
         }
 
+        if (!avatarId.IsDefined)
+        {
+            throw new DomainRuleViolationException(
+                DomainErrorCode.InvalidAvatar,
+                "The avatar ID must be one of the supported avatars.");
+        }
+
         Id = id;
         Name = name.Trim();
+        AvatarId = avatarId;
     }
 
     public PlayerId Id { get; }
 
     public string Name { get; }
+
+    public AvatarId AvatarId { get; }
 
     internal IReadOnlyCollection<Card> Hand => _hand.AsReadOnly();
 

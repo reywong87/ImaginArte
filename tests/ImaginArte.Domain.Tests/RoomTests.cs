@@ -5,6 +5,27 @@ namespace ImaginArte.Domain.Tests;
 public sealed class RoomTests
 {
     [Fact]
+    public void AvatarId_ContainsOnlyTheCanonicalIds()
+    {
+        Assert.Equal(
+            new[]
+            {
+                "fox", "owl", "deer", "moth", "turtle", "octopus", "mushroom", "dragon",
+                "rabbit", "raven", "hummingbird", "koi", "lynx", "swan", "phoenix", "snail"
+            },
+            AvatarId.All.Select(avatarId => avatarId.Value));
+
+        foreach (var avatarId in AvatarId.All)
+        {
+            Assert.True(AvatarId.TryParse(avatarId.Value, out var parsedAvatarId));
+            Assert.Equal(avatarId, parsedAvatarId);
+        }
+
+        Assert.False(AvatarId.TryParse("unknown", out _));
+        Assert.False(AvatarId.TryParse("FOX", out _));
+    }
+
+    [Fact]
     public void Create_WithValidRoomCode_CreatesWaitingRoom()
     {
         var room = Room.Create(new RoomCode("family-room"));
@@ -106,6 +127,7 @@ public sealed class RoomTests
 
         Assert.Equal(playerId, player.Id);
         Assert.Equal("Alice", player.Name);
+        Assert.Equal(AvatarId.Fox, player.AvatarId);
         Assert.Collection(room.Players, joinedPlayer => Assert.Equal(playerId, joinedPlayer.Id));
         Assert.Collection(
             room.Scoreboard,
@@ -115,6 +137,75 @@ public sealed class RoomTests
                 Assert.Equal("Alice", score.PlayerName);
                 Assert.Equal(0, score.TotalPoints);
             });
+    }
+
+    [Fact]
+    public void Join_WithNoAvatar_AssignsFirstAvailableAvatar()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+
+        var alice = room.Join(PlayerId.New(), "Alice", AvatarId.Owl);
+        var bob = room.Join(PlayerId.New(), "Bob");
+        var carla = room.Join(PlayerId.New(), "Carla");
+
+        Assert.Equal(AvatarId.Owl, alice.AvatarId);
+        Assert.Equal(AvatarId.Fox, bob.AvatarId);
+        Assert.Equal(AvatarId.Deer, carla.AvatarId);
+        Assert.Equal(room.Players.Count, room.Players.Select(player => player.AvatarId).Distinct().Count());
+    }
+
+    [Fact]
+    public void Join_WithUndefinedAvatar_Throws()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.Join(PlayerId.New(), "Alice", default(AvatarId)));
+
+        Assert.Equal(DomainErrorCode.InvalidAvatar, exception.Code);
+        Assert.Empty(room.Players);
+    }
+
+    [Fact]
+    public void Join_WithAvatarAlreadyChosen_Throws()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        room.Join(PlayerId.New(), "Alice", AvatarId.Fox);
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => room.Join(PlayerId.New(), "Bob", AvatarId.Fox));
+
+        Assert.Equal(DomainErrorCode.AvatarAlreadyTaken, exception.Code);
+        Assert.Single(room.Players);
+    }
+
+    [Fact]
+    public void Restore_WithDuplicatePlayerAvatars_Throws()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        room.Join(PlayerId.New(), "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        var snapshot = room.ToSnapshot();
+        var firstAvatarId = snapshot.Players.First().AvatarId;
+        var players = snapshot.Players
+            .Select((player, index) => index == 1 ? player with { AvatarId = firstAvatarId } : player)
+            .ToArray();
+
+        var exception = Assert.Throws<DomainRuleViolationException>(
+            () => Room.Restore(snapshot with { Players = players }));
+
+        Assert.Equal(DomainErrorCode.AvatarAlreadyTaken, exception.Code);
+    }
+
+    [Fact]
+    public void AvatarId_IsPreservedBySnapshotRestore()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        room.Join(PlayerId.New(), "Alice", AvatarId.Phoenix);
+
+        var restoredRoom = Room.Restore(room.ToSnapshot());
+
+        Assert.Equal(AvatarId.Phoenix, Assert.Single(restoredRoom.Players).AvatarId);
     }
 
     [Fact]
