@@ -117,6 +117,7 @@
   font-size: clamp(2rem, 8vw, 2.35rem);
   font-weight: 600;
   line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .mobile-join__introduction {

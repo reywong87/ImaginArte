@@ -351,8 +351,8 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
 
     if (normalizedPlayerName.length === 0) {
       nextErrors.playerName = 'Introduce tu nombre.'
-    } else if (normalizedPlayerName.length > 40) {
-      nextErrors.playerName = 'El nombre debe tener entre 1 y 40 caracteres.'
+    } else if (normalizedPlayerName.length > 20) {
+      nextErrors.playerName = 'El nombre debe tener entre 1 y 20 caracteres.'
     }
 
     setEnteredRoomCode(normalizedRoomCode)
@@ -592,6 +592,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                     className="mobile-join__input"
                     disabled={isBusy}
                     id="mobile-join-player-name"
+                    maxLength={20}
                     name="playerName"
                     onChange={(event) => {
                       setPlayerName(event.currentTarget.value)
