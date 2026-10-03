@@ -55,6 +55,12 @@ The current documentation update only establishes these boundaries. React projec
 - Do not replace the current temporary deck or introduce a real card catalog without a dedicated spec covering IDs, manifest shape, missing assets, versioning, and tests. The current `TEMP-001` to `TEMP-120` deck is intentionally still present.
 - `docs/assets/cartas/` contains source/design assets currently; it is not automatically a runtime catalog.
 
+## Local Assets Ignored by Git
+
+- `docs/assets/` contains local design references and is intentionally ignored by Git.
+- When a task needs these assets, do not rely on the `@` file selector or `glob`, as they may omit Git-ignored files. Find files with the read-only command `find docs/assets -type f`, then read only the relevant files by their exact paths.
+- Do not modify `.gitignore` to expose these assets, force-add or stage them, or include them in a commit.
+
 ## Runtime gotchas
 
 - Local server development uses SQLite from `src/ImaginArte.Server/appsettings.Development.json`; supported `Persistence:Provider` values are `InMemory`, `SQLite`, and `PostgreSQL`.
