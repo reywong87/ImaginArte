@@ -4,7 +4,7 @@ ImaginArte is a family visual storytelling party game inspired by Dixit-style pl
 
 The project is built with a pragmatic Clean Architecture approach. Game rules live in the domain, use cases live in the application layer, persistence lives in infrastructure, and the user experience is being migrated from Blazor WebAssembly to an independent React application. ASP.NET Core and SignalR remain the backend boundary for both TV and mobile experiences.
 
-The React migration is intentionally being delivered in separate vertical slices. The independent React client currently includes the TV home, room creation/recovery, and a temporary room placeholder; the remaining game screens and realtime integrations will be added separately. This document records the target architecture and deployment decisions and does not imply that every screen has been implemented.
+The React migration is intentionally being delivered in separate vertical slices. The independent React client currently includes the TV home and live lobby, plus mobile join by room code with session recovery and realtime presence. The in-game TV/mobile screens remain future slices. This document records the target architecture and deployment decisions and does not imply that every screen has been implemented.
 
 ## Current Status
 
@@ -16,7 +16,7 @@ The codebase currently includes:
 - ASP.NET Core server with Minimal APIs, SignalR, CORS, health check, and state publishing.
 - Swappable persistence: in-memory, local SQLite, and PostgreSQL for deployment.
 - Periodic cleanup for inactive rooms when SQLite or PostgreSQL is used.
-- Initial Blazor WebAssembly client for TV and mobile flows, plus an independent React/TypeScript/Vite client with the TV home, room creation/recovery, and temporary room placeholder; the remaining game screens and realtime integrations are not yet complete.
+- Initial Blazor WebAssembly client for TV and mobile flows, plus an independent React/TypeScript/Vite client with the TV home/live lobby and mobile join, recovery, and realtime presence; the in-game screens are not yet complete.
 - Tests for domain, application, contracts, infrastructure, server, and client behavior.
 
 ## Stack
@@ -72,7 +72,7 @@ The dependency direction is intentional:
 - `ImaginArte.Contracts` contains shared DTOs for HTTP and realtime communication.
 - `ImaginArte.Server` composes dependencies, exposes APIs, and publishes SignalR events.
 - `ImaginArte.Client.Blazor` is the legacy/transition client and renders the initial TV/mobile views.
-- `ImaginArte.Client.React` will render the replacement TV/mobile views and send intents to the same HTTP and SignalR contracts. It must not duplicate game rules.
+- `ImaginArte.Client.React` is the independent replacement TV/mobile client. Its implemented slices send intents to the same HTTP and SignalR contracts and must not duplicate game rules.
 
 SignalR is used as a realtime delivery mechanism, not as the source of truth. State is recovered through use cases and repositories. A React client must fetch a fresh public or private snapshot after connection and reconnection; missed realtime events are not replayed.
 
@@ -87,7 +87,7 @@ The frontend migration is deliberately separate from the game implementation:
 - The board and visual behavior must follow `docs/06-design-system.md`, `docs/07-progress-board.md`, and the approved visual references. Mockups are visual references, not a source of game rules.
 - React migration work should be specified and implemented in separate vertical slices. Do not remove Blazor or change all screens in one unreviewed step.
 
-The React project scaffold establishes this boundary without changing the .NET solution. Migrating screens, adding service integrations, and removing Blazor remain future implementation work.
+The React project implements the initial TV and mobile slices without changing the .NET solution. Further game screens and eventual Blazor removal remain future implementation work.
 
 ## Documentation And Browser Validation
 
@@ -163,7 +163,7 @@ By default, the client HTTP profile listens on:
 http://localhost:5288
 ```
 
-For the React TV flow, keep the ASP.NET server running in one terminal and start the client in a second terminal:
+For the React TV/mobile flows, keep the ASP.NET server running in one terminal and start the client in a second terminal:
 
 ```bash
 cd src/ImaginArte.Client.React
@@ -172,7 +172,24 @@ npm ci
 npm run dev
 ```
 
-Vite serves the client at `http://localhost:5173`. Its port is fixed: startup fails if that port is occupied instead of selecting a different port. Open `http://localhost:5173/tv` for the TV home screen. The client reads `VITE_API_BASE_URL` from `.env.local`; the example value targets the local API at `http://localhost:5080`. The TV lobby loads its room snapshot over HTTP and uses SignalR for live updates. Its QR code uses `VITE_MOBILE_JOIN_BASE_URL` as the base of the existing Blazor client and opens `/join/{roomCode}`; the example points to `http://localhost:5288`. If this setting is missing or invalid, the lobby omits the QR and keeps the manual room code available.
+Vite serves the client at `http://localhost:5173`. Its port is fixed: startup fails if that port is occupied instead of selecting a different port. Open `http://localhost:5173/tv` for the TV home screen or `/join` to enter a room code manually. The example `.env.local` targets the local API at `http://localhost:5080` and the React client at `http://localhost:5173`. The TV lobby loads its room snapshot over HTTP, uses SignalR for live updates, and builds the QR destination as `/join/{roomCode}` from `VITE_MOBILE_JOIN_BASE_URL`. If this setting is missing or invalid, the lobby omits the QR and keeps the manual room code available.
+
+### Test the QR with a phone on the local network
+
+The React Vite server already listens on the computer's network interfaces. To let a phone open the QR, both devices must be on the same Wi-Fi, and `.env.local` must use the computer's LAN IP for both the API and React URL instead of `localhost`:
+
+```dotenv
+VITE_API_BASE_URL=http://<your-lan-ip>:5080
+VITE_MOBILE_JOIN_BASE_URL=http://<your-lan-ip>:5173
+```
+
+Start the API with its Wi-Fi profile so it accepts LAN connections:
+
+```bash
+dotnet run --project src/ImaginArte.Server --launch-profile wifi
+```
+
+Add the exact React origin `http://<your-lan-ip>:5173` to `Cors:AllowedOrigins` in `src/ImaginArte.Server/appsettings.Development.json` if it is not already listed. Do not use a wildcard origin. Then start Vite with `npm run dev` and scan the QR; it should open `http://<your-lan-ip>:5173/join/{roomCode}`. Restart Vite after changing `.env.local`, because `VITE_*` values are read by the client build. A phone's `localhost` refers to the phone, not the development computer. If the computer's LAN IP changes, update `.env.local` and CORS again; a DHCP reservation can keep the address stable.
 
 Run the client checks and create a production build with:
 
@@ -194,7 +211,7 @@ Main client routes:
 
 - `/` home screen.
 - `/tv` TV home and room-creation entry point.
-- `/tv/{roomCode}` temporary room-created confirmation; the full TV lobby is a later spec.
+- `/tv/{roomCode}` live TV room lobby.
 - `/join` join from mobile.
 - `/join/{roomCode}` join from mobile with a prefilled room code.
 
@@ -217,7 +234,7 @@ Supported providers:
 - `SQLite`
 - `PostgreSQL`
 
-The legacy Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings.json`:
+The legacy Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings.json`; these settings apply only when running that legacy client:
 
 ```json
 {
@@ -226,9 +243,7 @@ The legacy Blazor client reads `src/ImaginArte.Client.Blazor/wwwroot/appsettings
 }
 ```
 
-For testing with phones on the same network, replace `localhost` with your machine's LAN IP in the Blazor client settings and set `VITE_MOBILE_JOIN_BASE_URL` to the Blazor address reachable from the phone, for example `http://<your-lan-ip>:5288`. A phone's `localhost` refers to the phone itself, not the development computer. Use the `wifi` launch profiles and ensure the Blazor client and API are reachable from the local network.
-
-The React client uses `VITE_API_BASE_URL` for the ASP.NET API and `VITE_MOBILE_JOIN_BASE_URL` for the Blazor join page. For local development, copy `.env.example` to `.env.local`; the example values target `http://localhost:5080` and `http://localhost:5288` respectively. These build-time variables are public configuration included in browser code, so never put secrets in any `VITE_*` variable. Development CORS allows the exact React origin `http://localhost:5173` in addition to the existing Blazor development origins; it does not allow alternate React ports. Production CORS must be configured externally with the exact deployed React origin, and the production React host must use HTTPS so SignalR can use `wss://`.
+For the React client, `VITE_API_BASE_URL` is the ASP.NET API origin and `VITE_MOBILE_JOIN_BASE_URL` is the React origin encoded in the TV QR. Copy `.env.example` to `.env.local` for local development; its defaults use `localhost`, so use the LAN setup above when testing with a phone. These `VITE_*` values are public build-time configuration included in browser code; never put secrets in them. Development CORS must allow the exact React origin (the default is `http://localhost:5173`); production CORS must allow the exact deployed React origin. Keep HTTPS enabled in production so the client can use HTTPS and SignalR `wss://`.
 
 ## HTTP API
 
@@ -320,6 +335,15 @@ Card images    -> Cloudflare R2/CDN
 ```
 
 The simpler transition option is to serve the React build from the ASP.NET Core host on Render. Independent Cloudflare Pages hosting is preferred for the target architecture because it keeps the UI deployable independently while preserving the existing HTTP and SignalR boundary.
+
+For Cloudflare Pages, set the project root directory to `src/ImaginArte.Client.React`, the build command to `npm run build`, and the build output directory to `dist`. Configure these variables in the Pages build settings for each deployment environment; use that environment's public frontend origin for the QR base (including preview deployments, if their QR is being tested):
+
+```text
+VITE_API_BASE_URL=https://<api-host>
+VITE_MOBILE_JOIN_BASE_URL=https://<react-frontend-origin>
+```
+
+`VITE_*` values are embedded in the static client during the build, so changing them requires a new deployment; they must not contain secrets. Point the QR base at the public React origin, not the API or legacy Blazor client. Cloudflare Pages serves the SPA entry point for deep links such as `/join/{roomCode}` when the deployment has no top-level `404.html`, so do not add a static `404.html` that would override this behavior. On the API host, configure CORS with the exact frontend origin (for example, `Cors__AllowedOrigins__0=https://<react-frontend-origin>`); do not allow every origin. Use HTTPS for both deployed origins.
 
 On Render, configure:
 
