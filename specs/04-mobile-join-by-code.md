@@ -1,6 +1,6 @@
 # SPEC 04 — Unión móvil a sala por código
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** SPEC 02 — Inicio TV: creación y reanudación de sala; SPEC 03 — Lobby TV con presencia en vivo
 > **Date:** 2026-10-02
 > **Objective:** Implementar la pantalla móvil React para unirse a una sala con código y nombre, recordar la identidad por sala y confirmar la unión sin implementar el lobby móvil completo.
