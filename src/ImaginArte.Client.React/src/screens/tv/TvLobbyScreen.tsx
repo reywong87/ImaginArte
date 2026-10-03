@@ -3,21 +3,21 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
   RoomPhase,
   type RoomStateResponse,
-} from '../models/roomState'
+} from '../../models/roomState'
 import {
   getRoomState,
   RoomApiError,
   RoomsApiConfigurationError,
   startRoom,
   updateRoomTargetScore,
-} from '../services/roomsApi'
+} from '../../services/roomsApi'
 import {
   createRoomRealtimeClient,
   type RoomRealtimeClient,
   type RoomRealtimeStatus,
-} from '../services/roomRealtime'
-import { assignPlayerAvatars } from '../services/playerAvatarAssignments'
-import CeremonialWindowDecorations from '../components/CeremonialWindowDecorations'
+} from '../../services/roomRealtime'
+import { assignPlayerAvatars } from '../../services/playerAvatarAssignments'
+import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
 import TvWaitingForStorytellerScreen from './TvWaitingForStorytellerScreen'
 import './TvLobbyScreen.css'
 

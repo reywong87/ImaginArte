@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import './TvHomeScreen.css'
-import seedIllustration from '../assets/semilla-circulo-estrellas.png'
-import CeremonialWindowDecorations from '../components/CeremonialWindowDecorations'
-import { createRoomCode } from '../services/roomCode'
+import seedIllustration from '../../assets/semilla-circulo-estrellas.png'
+import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
+import { createRoomCode } from '../../services/roomCode'
 import {
   checkRoomExists,
   createRoom,
   RoomApiError,
   RoomsApiConfigurationError,
-} from '../services/roomsApi'
+} from '../../services/roomsApi'
 
 interface TvHomeScreenProps {
   onRoomCreated: (roomCode: string) => void

@@ -6,9 +6,9 @@ import {
   useReducedMotion,
 } from 'motion/react'
 import './App.css'
-import MobileJoinScreen from './screens/MobileJoinScreen'
-import TvHomeScreen from './screens/TvHomeScreen'
-import TvLobbyScreen from './screens/TvLobbyScreen'
+import MobileJoinScreen from './screens/mobile/MobileJoinScreen'
+import TvHomeScreen from './screens/tv/TvHomeScreen'
+import TvLobbyScreen from './screens/tv/TvLobbyScreen'
 
 type AppRoute =
   | { type: 'home' }

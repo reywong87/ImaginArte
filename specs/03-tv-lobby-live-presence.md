@@ -117,8 +117,8 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 - `src/ImaginArte.Client.React/src/App.tsx`
 - `src/ImaginArte.Client.React/src/App.css`
 - `src/ImaginArte.Client.React/src/services/roomsApi.ts`
-- `src/ImaginArte.Client.React/src/screens/TvHomeScreen.tsx`
-- `src/ImaginArte.Client.React/src/screens/TvHomeScreen.css`
+- `src/ImaginArte.Client.React/src/screens/tv/TvHomeScreen.tsx`
+- `src/ImaginArte.Client.React/src/screens/tv/TvHomeScreen.css`
 - `src/ImaginArte.Client.React/src/screens/TvLobbyPlaceholder.tsx`
 - `src/ImaginArte.Client.React/src/screens/TvLobbyPlaceholder.css`
 
@@ -130,10 +130,10 @@ La asignación de avatar es estado visual temporal, no un dato de jugador ni una
 - `src/ImaginArte.Client.React/src/models/roomState.ts`
 - `src/ImaginArte.Client.React/src/services/roomRealtime.ts`
 - `src/ImaginArte.Client.React/src/services/playerAvatarAssignments.ts`
-- `src/ImaginArte.Client.React/src/screens/TvLobbyScreen.tsx`
-- `src/ImaginArte.Client.React/src/screens/TvLobbyScreen.css`
-- `src/ImaginArte.Client.React/src/screens/TvWaitingForStorytellerScreen.tsx`
-- `src/ImaginArte.Client.React/src/screens/TvWaitingForStorytellerScreen.css`
+- `src/ImaginArte.Client.React/src/screens/tv/TvLobbyScreen.tsx`
+- `src/ImaginArte.Client.React/src/screens/tv/TvLobbyScreen.css`
+- `src/ImaginArte.Client.React/src/screens/tv/TvWaitingForStorytellerScreen.tsx`
+- `src/ImaginArte.Client.React/src/screens/tv/TvWaitingForStorytellerScreen.css`
 - `src/ImaginArte.Client.React/src/assets/player-avatars-atlas.png`, copiado del atlas mockup.
 
 ## Tutoría React
@@ -273,7 +273,7 @@ Comprobaciones ejecutadas el 2026-10-02:
 - `docs/01-game-rules.md`
 - `docs/assets/visual-references/mockups/02-lobby-sala-tv.png`
 - `docs/assets/visual-references/mockups/avatares-jugadores-16.png`
-- `src/ImaginArte.Client.React/src/screens/TvHomeScreen.tsx`
+- `src/ImaginArte.Client.React/src/screens/tv/TvHomeScreen.tsx`
 - `src/ImaginArte.Client.React/src/screens/TvLobbyPlaceholder.tsx`
 - `src/ImaginArte.Client.Blazor/Pages/TvLobby.razor`
 - `src/ImaginArte.Client.Blazor/Pages/JoinRoom.razor`

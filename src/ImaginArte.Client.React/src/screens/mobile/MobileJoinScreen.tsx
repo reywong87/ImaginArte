@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import CeremonialWindowDecorations from '../components/CeremonialWindowDecorations'
+import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
 import {
   clearMobilePlayerSession,
   createMobilePlayerId,
@@ -8,17 +8,17 @@ import {
   readMobilePlayerSession,
   writeMobilePlayerSession,
   type StoredMobilePlayerSession,
-} from '../services/mobilePlayerSession'
+} from '../../services/mobilePlayerSession'
 import {
   getPlayerPrivateState,
   joinRoomAsPlayer,
   RoomApiError,
   RoomsApiConfigurationError,
-} from '../services/roomsApi'
+} from '../../services/roomsApi'
 import {
   createMobileRoomRealtimeClient,
   type MobileRoomRealtimeStatus,
-} from '../services/mobileRoomRealtime'
+} from '../../services/mobileRoomRealtime'
 import './MobileJoinScreen.css'
 
 const ROOM_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/

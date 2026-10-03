@@ -1,5 +1,5 @@
-import type { RoomStateResponse } from '../models/roomState'
-import CeremonialWindowDecorations from '../components/CeremonialWindowDecorations'
+import type { RoomStateResponse } from '../../models/roomState'
+import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
 import './TvWaitingForStorytellerScreen.css'
 
 interface TvWaitingForStorytellerScreenProps {

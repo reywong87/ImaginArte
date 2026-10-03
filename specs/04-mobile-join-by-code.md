@@ -66,8 +66,8 @@ localStorage["imaginarte.mobile.v1.room.{ROOM_CODE}.player"]
 
 **Nuevos:**
 
-- `src/ImaginArte.Client.React/src/screens/MobileJoinScreen.tsx`
-- `src/ImaginArte.Client.React/src/screens/MobileJoinScreen.css`
+- `src/ImaginArte.Client.React/src/screens/mobile/MobileJoinScreen.tsx`
+- `src/ImaginArte.Client.React/src/screens/mobile/MobileJoinScreen.css`
 - `src/ImaginArte.Client.React/src/services/mobilePlayerSession.ts`
 - `src/ImaginArte.Client.React/src/services/mobileRoomRealtime.ts`
 
@@ -92,7 +92,7 @@ localStorage["imaginarte.mobile.v1.room.{ROOM_CODE}.player"]
 
 ## Acceptance Criteria
 
-- [x] `/join` muestra el formulario móvil y `/join/{roomCode}` precarga el código sin bloquear su edición. Evidencia: Playwright en `/join` y `/join/tst234` (campo inicialmente vacío o precargado `TST234` y editable); `src/ImaginArte.Client.React/src/App.tsx:29-44`, `src/ImaginArte.Client.React/src/screens/MobileJoinScreen.tsx:157-160,549-571`.
+- [x] `/join` muestra el formulario móvil y `/join/{roomCode}` precarga el código sin bloquear su edición. Evidencia: Playwright en `/join` y `/join/tst234` (campo inicialmente vacío o precargado `TST234` y editable); `src/ImaginArte.Client.React/src/App.tsx:29-44`, `src/ImaginArte.Client.React/src/screens/mobile/MobileJoinScreen.tsx:157-160,549-571`.
 - [x] La pantalla se compone con React/CSS y capas reutilizables del sistema visual; no renderiza el PNG del mockup como pantalla. Evidencia: `MobileJoinScreen.tsx:3,472-474`, `MobileJoinScreen.css:9-45`; screenshot `.playwright-mcp/spec04-join-390x844.png` muestra capas CSS/ornamentos y campos renderizados, no una pantalla-imagen.
 - [x] No aparece selector de avatar, QR ni control de cámara en esta entrega. Evidencia: accessibility snapshots y screenshots Playwright `.playwright-mcp/spec04-join-390x844.png` y `.playwright-mcp/spec04-joined-390x844.png`; `MobileJoinScreen.tsx:468-657` solo renderiza formulario/confirmación y privacidad.
 - [x] El formulario conserva siempre la entrada manual y valida exactamente seis caracteres de `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`; recorta espacios exteriores y normaliza a mayúsculas. Evidencia: `MobileJoinScreen.tsx:24-25,336-360`; Playwright rechazó `LUNA-482` sin petición y envió código ` mNp234 ` normalizado como `/rooms/MNP234/players`; el enlace minúsculo `/join/tst234` precargó `TST234`.
@@ -150,6 +150,6 @@ localStorage["imaginarte.mobile.v1.room.{ROOM_CODE}.player"]
 - `src/ImaginArte.Client.Blazor/Rooms/MobilePlayerSessionStore.cs`
 - `src/ImaginArte.Client.React/src/App.tsx`
 - `src/ImaginArte.Client.React/src/services/roomsApi.ts`
-- `src/ImaginArte.Client.React/src/screens/TvLobbyScreen.tsx`
+- `src/ImaginArte.Client.React/src/screens/tv/TvLobbyScreen.tsx`
 - `src/ImaginArte.Server/RoomHub.cs`
 - `src/ImaginArte.Contracts/Rooms/RoomHttpContracts.cs`

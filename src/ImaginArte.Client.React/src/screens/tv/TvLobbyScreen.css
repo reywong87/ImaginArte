@@ -177,7 +177,7 @@
   width: clamp(1.5rem, 1.8vw, 2rem);
   height: clamp(3.25rem, 8.5vh, 5.25rem);
   flex: 0 1 auto;
-  background-image: url('../assets/hoja-lateral.png');
+  background-image: url('../../assets/hoja-lateral.png');
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
@@ -209,7 +209,7 @@
   aspect-ratio: 90 / 256;
   height: clamp(10rem, 26vh, 18rem);
   flex: 0 1 auto;
-  background-image: url('../assets/rama.png');
+  background-image: url('../../assets/rama.png');
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
@@ -318,7 +318,7 @@
   display: block;
   width: clamp(2rem, 4.5vh, 3.25rem);
   height: clamp(2rem, 4.5vh, 3.25rem);
-  background-image: url('../assets/player-avatars-atlas.png');
+  background-image: url('../../assets/player-avatars-atlas.png');
   background-repeat: no-repeat;
   background-size: 420% 420%;
 }
@@ -519,7 +519,7 @@
   z-index: 1;
   width: clamp(2.75rem, 5.5vw, 4.5rem);
   height: 70%;
-  background-image: url('../assets/hoja-lateral.png');
+  background-image: url('../../assets/hoja-lateral.png');
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
