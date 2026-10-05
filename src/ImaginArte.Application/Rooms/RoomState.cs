@@ -2,7 +2,7 @@ using ImaginArte.Domain;
 
 namespace ImaginArte.Application.Rooms;
 
-public sealed record PlayerState(Guid PlayerId, string Name);
+public sealed record PlayerState(Guid PlayerId, string Name, AvatarId AvatarId);
 
 public sealed record VotingCardState(
     string VotingCardId,
@@ -62,7 +62,7 @@ public sealed record RoomState(
     public static RoomState FromRoom(Room room)
     {
         var players = room.Players
-            .Select(player => new PlayerState(player.Id.Value, player.Name))
+            .Select(player => new PlayerState(player.Id.Value, player.Name, player.AvatarId))
             .ToArray();
         var currentStoryteller = room.CurrentStorytellerId is { } storytellerId
             ? players.Single(player => player.PlayerId == storytellerId.Value)

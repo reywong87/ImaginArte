@@ -146,7 +146,47 @@ public sealed class RoomEndpointTests
             {
                 Assert.Equal(playerId, player.PlayerId);
                 Assert.Equal("Alice", player.Name);
+                Assert.Equal("fox", player.AvatarId);
             });
+
+        Assert.Equal("fox", (await GetRoomAsync(client, "ABC123")).Players.Single().AvatarId);
+    }
+
+    [Fact]
+    public async Task PostPlayers_WithUnknownAvatar_ReturnsBadRequestWithoutJoining()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        await CreateRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/players",
+            new JoinRoomRequest(Guid.NewGuid(), "Alice", "unicorn"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty((await GetRoomAsync(client, "ABC123")).Players);
+    }
+
+    [Fact]
+    public async Task PostPlayers_WithAvatarAlreadyChosen_ReturnsConflictWithoutJoining()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        await CreateRoomAsync(client, "ABC123");
+        await client.PostAsJsonAsync(
+            "/rooms/ABC123/players",
+            new JoinRoomRequest(Guid.NewGuid(), "Alice", "owl"));
+
+        var response = await client.PostAsJsonAsync(
+            "/rooms/ABC123/players",
+            new JoinRoomRequest(Guid.NewGuid(), "Bob", "owl"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.Conflict, problem.Status);
+        var player = Assert.Single((await GetRoomAsync(client, "ABC123")).Players);
+        Assert.Equal("Alice", player.Name);
+        Assert.Equal("owl", player.AvatarId);
     }
 
     [Fact]

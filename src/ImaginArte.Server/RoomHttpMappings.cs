@@ -30,7 +30,7 @@ internal static class RoomHttpMappings
         ArgumentNullException.ThrowIfNull(presenceTracker);
 
         var players = room.Players
-            .Select(player => new PlayerStateResponse(player.PlayerId, player.Name)
+            .Select(player => new PlayerStateResponse(player.PlayerId, player.Name, player.AvatarId.Value)
             {
                 IsConnected = presenceTracker.IsConnected(room.RoomCode, player.PlayerId)
             })
@@ -43,7 +43,7 @@ internal static class RoomHttpMappings
             room.TargetScore,
             players,
             room.CurrentStoryteller is { } storyteller
-                ? new PlayerStateResponse(storyteller.PlayerId, storyteller.Name)
+                ? new PlayerStateResponse(storyteller.PlayerId, storyteller.Name, storyteller.AvatarId.Value)
                 {
                     IsConnected = presenceTracker.IsConnected(room.RoomCode, storyteller.PlayerId)
                 }

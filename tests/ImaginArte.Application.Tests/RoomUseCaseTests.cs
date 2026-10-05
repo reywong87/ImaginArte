@@ -49,6 +49,7 @@ public sealed class RoomUseCaseTests
 
         Assert.Equal(playerId, result.Player.PlayerId);
         Assert.Equal("Alice", result.Player.Name);
+        Assert.Equal(AvatarId.Fox, result.Player.AvatarId);
         Assert.Equal("ABC123", result.Room.RoomCode);
         Assert.Collection(
             result.Room.Players,
@@ -56,6 +57,7 @@ public sealed class RoomUseCaseTests
             {
                 Assert.Equal(playerId, player.PlayerId);
                 Assert.Equal("Alice", player.Name);
+                Assert.Equal(AvatarId.Fox, player.AvatarId);
             });
         Assert.Collection(
             result.Room.Scoreboard,
@@ -65,6 +67,56 @@ public sealed class RoomUseCaseTests
                 Assert.Equal("Alice", score.PlayerName);
                 Assert.Equal(0, score.TotalPoints);
             });
+    }
+
+    [Fact]
+    public async Task JoinRoom_WithRequestedAvatar_PersistsAndReturnsAvatar()
+    {
+        var repository = new InMemoryRoomRepository();
+        await new CreateRoomHandler(repository).HandleAsync(new CreateRoomCommand("ABC123"));
+        var handler = new JoinRoomHandler(repository);
+
+        var result = await handler.HandleAsync(
+            new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "phoenix"));
+
+        Assert.Equal(AvatarId.Phoenix, result.Player.AvatarId);
+        Assert.Equal(AvatarId.Phoenix, Assert.Single(result.Room.Players).AvatarId);
+        var persistedRoom = await new GetRoomStateHandler(repository)
+            .HandleAsync(new GetRoomStateQuery("ABC123"));
+        Assert.Equal(AvatarId.Phoenix, Assert.Single(persistedRoom.Room.Players).AvatarId);
+    }
+
+    [Fact]
+    public async Task JoinRoom_WithUnknownAvatar_ThrowsWithoutChangingRoom()
+    {
+        var repository = new InMemoryRoomRepository();
+        await new CreateRoomHandler(repository).HandleAsync(new CreateRoomCommand("ABC123"));
+        var handler = new JoinRoomHandler(repository);
+
+        var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
+            () => handler.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "unicorn")));
+        var persistedRoom = await new GetRoomStateHandler(repository)
+            .HandleAsync(new GetRoomStateQuery("ABC123"));
+
+        Assert.Equal(DomainErrorCode.InvalidAvatar, exception.Code);
+        Assert.Empty(persistedRoom.Room.Players);
+    }
+
+    [Fact]
+    public async Task JoinRoom_WithAvatarAlreadyChosen_ThrowsWithoutChangingRoom()
+    {
+        var repository = new InMemoryRoomRepository();
+        await new CreateRoomHandler(repository).HandleAsync(new CreateRoomCommand("ABC123"));
+        var handler = new JoinRoomHandler(repository);
+        await handler.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "owl"));
+
+        var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
+            () => handler.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob", "owl")));
+        var persistedRoom = await new GetRoomStateHandler(repository)
+            .HandleAsync(new GetRoomStateQuery("ABC123"));
+
+        Assert.Equal(DomainErrorCode.AvatarAlreadyTaken, exception.Code);
+        Assert.Equal(AvatarId.Owl, Assert.Single(persistedRoom.Room.Players).AvatarId);
     }
 
     [Fact]

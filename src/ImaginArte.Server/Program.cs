@@ -122,7 +122,7 @@ app.MapPost("/rooms/{roomCode}/players", async (
         async () =>
         {
             var result = await handler.HandleAsync(
-                new JoinRoomCommand(roomCode, request.PlayerId, request.PlayerName),
+                new JoinRoomCommand(roomCode, request.PlayerId, request.PlayerName, request.AvatarId),
                 cancellationToken);
             var response = result.Room.ToHttpResponse(presenceTracker);
 
@@ -466,6 +466,10 @@ static async Task<IResult> HandleRoomRequestAsync<TResponse>(
     catch (PlayerNotFoundInRoomException exception)
     {
         return Results.Problem(exception.Message, statusCode: StatusCodes.Status404NotFound);
+    }
+    catch (DomainRuleViolationException exception) when (exception.Code == DomainErrorCode.AvatarAlreadyTaken)
+    {
+        return Results.Problem(exception.Message, statusCode: StatusCodes.Status409Conflict);
     }
     catch (DomainRuleViolationException exception)
     {

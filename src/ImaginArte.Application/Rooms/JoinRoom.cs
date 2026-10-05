@@ -2,7 +2,11 @@ using ImaginArte.Domain;
 
 namespace ImaginArte.Application.Rooms;
 
-public sealed record JoinRoomCommand(string RoomCode, Guid PlayerId, string PlayerName);
+public sealed record JoinRoomCommand(
+    string RoomCode,
+    Guid PlayerId,
+    string PlayerName,
+    string? AvatarId = null);
 
 public sealed record JoinRoomResult(PlayerState Player, RoomState Room);
 
@@ -29,12 +33,25 @@ public sealed class JoinRoomHandler
             throw new RoomNotFoundException(roomCode.Value);
         }
 
-        var joinedPlayer = room.Join(new PlayerId(command.PlayerId), command.PlayerName);
+        AvatarId? avatarId = null;
+        if (command.AvatarId is not null)
+        {
+            if (!AvatarId.TryParse(command.AvatarId, out var parsedAvatarId))
+            {
+                throw new DomainRuleViolationException(
+                    DomainErrorCode.InvalidAvatar,
+                    "The avatar ID must be one of the supported avatars.");
+            }
+
+            avatarId = parsedAvatarId;
+        }
+
+        var joinedPlayer = room.Join(new PlayerId(command.PlayerId), command.PlayerName, avatarId);
 
         await _rooms.SaveAsync(room, cancellationToken);
 
         return new JoinRoomResult(
-            new PlayerState(joinedPlayer.Id.Value, joinedPlayer.Name),
+            new PlayerState(joinedPlayer.Id.Value, joinedPlayer.Name, joinedPlayer.AvatarId),
             RoomState.FromRoom(room));
     }
 }

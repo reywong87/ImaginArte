@@ -37,6 +37,13 @@ public sealed class RoomRealtimeContractTests
         Assert.Equal(
             typeof(bool),
             typeof(PlayerStateResponse).GetProperty(nameof(PlayerStateResponse.IsConnected))?.PropertyType);
+        Assert.Equal(
+            typeof(string),
+            typeof(PlayerStateResponse).GetProperty(nameof(PlayerStateResponse.AvatarId))?.PropertyType);
+        Assert.Equal(
+            typeof(string),
+            typeof(JoinRoomRequest).GetProperty(nameof(JoinRoomRequest.AvatarId))?.PropertyType);
+        Assert.True(typeof(JoinRoomRequest).GetConstructors().Single().GetParameters()[2].IsOptional);
     }
 
     [Fact]

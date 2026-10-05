@@ -4,7 +4,7 @@ public sealed record CreateRoomRequest(string RoomCode);
 
 public sealed record UpdateRoomTargetScoreRequest(int TargetScore);
 
-public sealed record JoinRoomRequest(Guid PlayerId, string PlayerName);
+public sealed record JoinRoomRequest(Guid PlayerId, string PlayerName, string? AvatarId = null);
 
 public sealed record ChooseStorytellerCardRequest(
     Guid PlayerId,
@@ -59,7 +59,7 @@ public sealed record RoomStateResponse(
     public Guid? HostPlayerId { get; init; }
 }
 
-public sealed record PlayerStateResponse(Guid PlayerId, string Name)
+public sealed record PlayerStateResponse(Guid PlayerId, string Name, string AvatarId = "")
 {
     public bool IsConnected { get; init; }
 }

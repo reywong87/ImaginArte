@@ -45,7 +45,7 @@ public sealed class RoomHubTests
         var receivedEvent = await roomUpdated.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal("ABC123", receivedEvent.Room.RoomCode);
-        Assert.Single(receivedEvent.Room.Players);
+        Assert.Equal("fox", Assert.Single(receivedEvent.Room.Players).AvatarId);
         Assert.DoesNotContain(
             "\"hand\"",
             JsonSerializer.Serialize(receivedEvent),
@@ -353,6 +353,7 @@ public sealed class RoomHubTests
             {
                 Assert.Equal(playerId, player.PlayerId);
                 Assert.Equal("Alice", player.Name);
+                Assert.Equal("fox", player.AvatarId);
             });
         Assert.Equal(
             JsonSerializer.Serialize(responseRoom),
