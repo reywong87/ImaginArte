@@ -1,6 +1,6 @@
 # SPEC 05 — Avatares compartidos y persistentes
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** SPEC 03 — Lobby TV con presencia en vivo; SPEC 04 — Unión móvil a sala por código
 > **Date:** 2026-10-03
 > **Objective:** Asignar a cada jugador un avatar único y persistente que la TV renderice desde el estado autoritativo de la sala.
@@ -121,18 +121,18 @@ Los nuevos documentos JSON de sala llevan una versión de esquema y el ID de cad
 
 ## Acceptance Criteria
 
-- [ ] El dominio acepta solamente los 16 `AvatarId` definidos en esta spec.
-- [ ] Una sala no puede contener dos jugadores con el mismo `AvatarId`; un duplicado solicitado produce HTTP 409.
-- [ ] Un ID inexistente produce un error de validación HTTP 400.
-- [ ] En esta etapa, una unión sin `avatarId` recibe un ID libre único y sigue siendo funcional mientras se prepara SPEC 06.
-- [ ] La respuesta HTTP de unión, los snapshots de sala y los eventos `RoomUpdated` contienen el avatar estable de cada jugador.
-- [ ] El JSON nuevo conserva los IDs al guardar y restaurar una sala.
-- [ ] Una sala persistida con el esquema anterior se considera inexistente y no recibe IDs inventados.
-- [ ] La TV obtiene cada retrato de `player.avatarId`; actualizar el roster o reconectar no cambia su identidad visual.
-- [ ] El cliente React ya no genera asignaciones de avatar ni las guarda en `sessionStorage`.
-- [ ] El código del cliente Blazor permanece intacto.
-- [ ] Blazor compila sin cambios mediante el parámetro HTTP nullable opcional mientras el fallback temporal sigue activo.
-- [ ] `dotnet build ImaginArte.sln`, `npm run typecheck`, `npm run lint`, `npm run build` y las suites .NET enfocadas indicadas terminan correctamente.
+- [x] El dominio acepta solamente los 16 `AvatarId` definidos en esta spec. — Evidencia: `src/ImaginArte.Domain/AvatarId.cs:5-78` limita los valores al conjunto canónico; `tests/ImaginArte.Domain.Tests/RoomTests.cs:7-26` comprueba los 16 IDs y rechaza desconocidos/mayúsculas (Domain: 101/101).
+- [x] Una sala no puede contener dos jugadores con el mismo `AvatarId`; un duplicado solicitado produce HTTP 409. — Evidencia: `src/ImaginArte.Domain/Room.cs:281-286` aplica unicidad; `src/ImaginArte.Server/Program.cs:470-472` mapea el conflicto a 409; `tests/ImaginArte.Server.Tests/RoomEndpointTests.cs:170-190` lo verifica (Server: 76/76).
+- [x] Un ID inexistente produce un error de validación HTTP 400. — Evidencia: `src/ImaginArte.Application/Rooms/JoinRoom.cs:36-45` rechaza el ID desconocido y `src/ImaginArte.Server/Program.cs:474-476` devuelve 400; `tests/ImaginArte.Server.Tests/RoomEndpointTests.cs:155-168` lo comprueba (Server: 76/76).
+- [x] En esta etapa, una unión sin `avatarId` recibe un ID libre único y sigue siendo funcional mientras se prepara SPEC 06. — Evidencia: `src/ImaginArte.Domain/Room.cs:247-272` asigna el primer ID disponible; `tests/ImaginArte.Domain.Tests/RoomTests.cs:142-155` verifica asignaciones únicas consecutivas y `tests/ImaginArte.Server.Tests/RoomEndpointTests.cs:123-153` prueba una unión HTTP sin el campo (Domain: 101/101; Server: 76/76).
+- [x] La respuesta HTTP de unión, los snapshots de sala y los eventos `RoomUpdated` contienen el avatar estable de cada jugador. — Evidencia: `src/ImaginArte.Server/RoomHttpMappings.cs:32-49` mapea `AvatarId` en jugadores y narrador; `src/ImaginArte.Server/RoomRealtimePublisher.cs:13-24` publica `RoomUpdated`; `tests/ImaginArte.Server.Tests/RoomEndpointTests.cs:123-153` verifica respuesta y snapshot HTTP, y `tests/ImaginArte.Server.Tests/RoomHubTests.cs:31-53` verifica el evento público (Server: 76/76).
+- [x] El JSON nuevo conserva los IDs al guardar y restaurar una sala. — Evidencia: `src/ImaginArte.Infrastructure/Persistence/RoomJsonSerializer.cs:8-35,38-53,88-105` versiona y serializa/restaura cada ID; `tests/ImaginArte.Infrastructure.Tests/SqliteRoomRepositoryTests.cs:78-91` verifica round-trip con `snail`; suite SQLite enfocada: 13/13.
+- [x] Una sala persistida con el esquema anterior se considera inexistente y no recibe IDs inventados. — Evidencia: `src/ImaginArte.Infrastructure/Persistence/RoomJsonSerializer.cs:28-35` devuelve `null` ante versión anterior/ausencia de avatar; `tests/ImaginArte.Infrastructure.Tests/SqliteRoomRepositoryTests.cs:65-76` comprueba la sala legacy como inexistente; suite SQLite enfocada: 13/13.
+- [x] La TV obtiene cada retrato de `player.avatarId`; actualizar el roster o reconectar no cambia su identidad visual. — Evidencia: `src/ImaginArte.Client.React/src/screens/tv/TvLobbyScreen.tsx:121-130,498-513` aplica snapshots y mapea cada ID al atlas; `src/ImaginArte.Client.React/src/services/roomRealtime.ts:50-76` se resuscribe y carga snapshot al reconectar. Playwright: la unión de Dora actualizó el roster sin alterar Zorro/Búho/Tortuga; tras reiniciar el servidor la TV volvió a `Conectado en tiempo real`, recibió GET de snapshot HTTP 200 con los mismos IDs y mantuvo los retratos. Screenshots: `.playwright-mcp/spec05-tv-lobby-after-reconnect-1920x1080.png` y `.playwright-mcp/spec05-tv-lobby-after-reconnect-1280x720.png`; ambos viewports sin overflow (documento igual al viewport).
+- [x] El cliente React ya no genera asignaciones de avatar ni las guarda en `sessionStorage`. — Evidencia: el servicio `playerAvatarAssignments.ts` está eliminado y no hay coincidencias de `playerAvatarAssignments`/`avatarAssignments` en `src/ImaginArte.Client.React/src`; el uso restante de `sessionStorage` en `TvHomeScreen.tsx:22-30` conserva solo el código de sala, no avatares.
+- [x] El código del cliente Blazor permanece intacto. — Evidencia: `git diff --quiet main...HEAD -- src/ImaginArte.Client.Blazor` termina con código 0 y no lista cambios.
+- [x] Blazor compila sin cambios mediante el parámetro HTTP nullable opcional mientras el fallback temporal sigue activo. — Evidencia: `JoinRoomRequest.AvatarId` es `string?` opcional en `src/ImaginArte.Contracts/Rooms/RoomHttpContracts.cs:7`; fallback en `Room.cs:247-272`; `dotnet build ImaginArte.sln` compiló el proyecto Blazor con 0 errores.
+- [x] `dotnet build ImaginArte.sln`, `npm run typecheck`, `npm run lint`, `npm run build` y las suites .NET enfocadas indicadas terminan correctamente. — Evidencia: build .NET (0 errores); `npm run typecheck`, `npm run lint` y `npm run build`; Domain (101/101), Application (59/59), Infrastructure (24/24), Contracts (8/8) y Server (76/76), todas correctas. La suite Infrastructure completa se repitió con `dotnet test tests/ImaginArte.Infrastructure.Tests/ImaginArte.Infrastructure.Tests.csproj --no-restore -m:1` y pasó (24/24), incluidas las pruebas PostgreSQL. Se mantienen advertencias NU1903 existentes sobre SSH.NET 2025.1.0; no afectan el resultado de las pruebas.
 
 ## Decisions
 
