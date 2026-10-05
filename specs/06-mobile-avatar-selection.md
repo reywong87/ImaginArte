@@ -1,6 +1,6 @@
 # SPEC 06 — Selector de avatar en la unión móvil
 
-> **Status:** Draft
+> **Status:** Approved
 > **Depends on:** SPEC 04 — Unión móvil a sala por código; SPEC 05 — Avatares compartidos y persistentes
 > **Date:** 2026-10-03
 > **Objective:** Permitir que cada persona elija uno de los 16 avatares libres antes de unirse y confirmar después la identidad visual que quedó guardada.
