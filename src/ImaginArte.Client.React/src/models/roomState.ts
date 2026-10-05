@@ -1,3 +1,5 @@
+import { isAvatarId, type AvatarId } from './playerAvatars'
+
 export const RoomPhase = {
   WaitingForPlayers: 0,
   StorytellerChoosing: 1,
@@ -15,6 +17,7 @@ export type RoomPhase = (typeof RoomPhase)[keyof typeof RoomPhase]
 export interface PlayerStateResponse {
   playerId: string
   name: string
+  avatarId: AvatarId
   isConnected: boolean
 }
 
@@ -130,6 +133,7 @@ function isPlayerStateResponse(value: unknown): value is PlayerStateResponse {
   return isRecord(value)
     && isString(value.playerId)
     && isString(value.name)
+    && isAvatarId(value.avatarId)
     && typeof value.isConnected === 'boolean'
 }
 

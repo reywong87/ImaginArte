@@ -4,6 +4,7 @@ import {
   RoomPhase,
   type RoomStateResponse,
 } from '../../models/roomState'
+import { getPlayerAvatar } from '../../models/playerAvatars'
 import {
   getRoomState,
   RoomApiError,
@@ -16,7 +17,6 @@ import {
   type RoomRealtimeClient,
   type RoomRealtimeStatus,
 } from '../../services/roomRealtime'
-import { assignPlayerAvatars } from '../../services/playerAvatarAssignments'
 import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
 import TvWaitingForStorytellerScreen from './TvWaitingForStorytellerScreen'
 import './TvLobbyScreen.css'
@@ -32,12 +32,6 @@ interface LobbyViewState {
   isLoading: boolean
   errorMessage: string | null
   connectionStatus: RoomRealtimeStatus
-}
-
-interface AvatarViewState {
-  roomCode: string
-  retryVersion: number
-  assignments: Record<string, number>
 }
 
 interface TargetScoreSaveState {
@@ -77,7 +71,6 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
   const [lobbyState, setLobbyState] = useState<LobbyViewState>(() =>
     createLoadingState(roomCode, 0),
   )
-  const [avatarState, setAvatarState] = useState<AvatarViewState | null>(null)
   const [targetScoreSaveState, setTargetScoreSaveState] =
     useState<TargetScoreSaveState | null>(null)
   const [startGameState, setStartGameState] = useState<StartGameState | null>(null)
@@ -87,10 +80,6 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
     && lobbyState.retryVersion === retryVersion
     ? lobbyState
     : createLoadingState(roomCode, retryVersion)
-  const visibleAvatarAssignments = avatarState?.roomCode === roomCode
-    && avatarState.retryVersion === retryVersion
-    ? avatarState.assignments
-    : {}
   const visibleTargetScoreSaveState = targetScoreSaveState?.roomCode === roomCode
     && targetScoreSaveState.retryVersion === retryVersion
     ? targetScoreSaveState
@@ -139,11 +128,6 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
         isLoading: false,
         errorMessage: null,
       })
-      setAvatarState({
-        roomCode,
-        retryVersion,
-        assignments: assignPlayerAvatars(roomCode, updatedRoom.players),
-      })
     }
 
     async function loadRoomAndSubscribe() {
@@ -162,12 +146,6 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
           errorMessage: null,
           connectionStatus: 'connecting',
         })
-        setAvatarState({
-          roomCode,
-          retryVersion,
-          assignments: assignPlayerAvatars(roomCode, initialRoom.players),
-        })
-
         realtimeClient = createRoomRealtimeClient(roomCode, {
           onRoomUpdated: applyRoomSnapshot,
           onStatusChanged(status) {
@@ -266,11 +244,6 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
         }
 
         return { ...currentState, room: updatedRoom }
-      })
-      setAvatarState({
-        roomCode,
-        retryVersion,
-        assignments: assignPlayerAvatars(roomCode, updatedRoom.players),
       })
       setTargetScoreSaveState({
         ...requestState,
@@ -523,7 +496,7 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
                   aria-label="Plazas de la sala"
                 >
                   {room.players.map((player) => {
-                    const avatarIndex = visibleAvatarAssignments[player.playerId]
+                    const avatar = getPlayerAvatar(player.avatarId)
                     const isHost = player.playerId.toLowerCase()
                       === room.hostPlayerId?.toLowerCase()
                     const statusLabel = player.isConnected
@@ -534,8 +507,9 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
                       <li className="tv-lobby-screen__player" key={player.playerId}>
                         <span
                           className="tv-lobby-screen__avatar"
-                          style={getAvatarStyle(avatarIndex)}
-                          aria-hidden="true"
+                          style={getAvatarStyle(avatar.atlasCrop)}
+                          role="img"
+                          aria-label={`Avatar ${avatar.accessibleName}`}
                         />
                         <span className="tv-lobby-screen__player-name">
                           {player.name}
@@ -728,16 +702,9 @@ function buildMobileJoinUrl(baseUrl: string, roomCode: string): string | null {
   }
 }
 
-function getAvatarStyle(avatarIndex: number | undefined) {
-  if (avatarIndex === undefined) {
-    return undefined
-  }
-
-  const column = avatarIndex % 4
-  const row = Math.floor(avatarIndex / 4)
-
+function getAvatarStyle(crop: { column: number; row: number }) {
   return {
-    backgroundPosition: `${(column / 3) * 95 + 3}% ${(row / 3) * 95 + 4}%`,
+    backgroundPosition: `${(crop.column / 3) * 95 + 3}% ${(crop.row / 3) * 95 + 4}%`,
   }
 }
 
