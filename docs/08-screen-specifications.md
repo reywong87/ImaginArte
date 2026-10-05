@@ -55,7 +55,7 @@ Bring players into a room and let the host begin when the room is ready.
 All players view the shared TV; only the host acts on the TV.
 
 ### Visible Information
-Room code, QR code, joined-player names, player count, configured target score, board context, and host-ready status.
+Room code, QR code, joined-player names and public avatars from the authoritative room snapshot, player count, configured target score, board context, and host-ready status. The TV maps each player's stable `avatarId` to its portrait in the atlas; it does not assign or persist avatar identities locally. Mobile avatar selection is deferred to SPEC 06.
 
 ### Prohibited Information
 Hands, player card identities, future storyteller, private session details, or a start control for non-hosts.
@@ -64,7 +64,7 @@ Hands, player card identities, future storyteller, private session details, or a
 Host selects **Start game** and explicitly confirms it.
 
 ### States And Transitions
-Empty, joining, ready, and host-confirmation states; on start, transition to **Waiting for storyteller**. If a player disconnects, retain their name with a public neutral reconnecting status.
+Empty, joining, ready, and host-confirmation states; on start, transition to **Waiting for storyteller**. If a player disconnects, retain their name with a public neutral reconnecting status. After the TV reconnects, load a fresh room snapshot and render each avatar from that snapshot rather than inventing or replaying local assignments.
 
 ### Visual Composition
 Use the scenic illustrated TV background with a dark, high-contrast content window. Room code and QR form the dominant central stage; roster sits in a quiet side or lower band. The 25-node board is background context, with no constellation entering the central stage.
@@ -76,7 +76,7 @@ Room code uses large tabular figures; QR has the manual-code alternative; roster
 `docs/assets/visual-references/mockups/02-lobby-sala-tv.png`.
 
 ### Acceptance Criteria
-From 2-3 m, a guest can read the room code, see how many players joined, and identify the host-only start action without seeing any private game data.
+From 2-3 m, a guest can read the room code, see how many players joined, and identify the host-only start action without seeing any private game data. Each roster portrait matches its `avatarId` in the authoritative room snapshot and remains consistent after room updates or TV reconnection.
 
 ## 2. Waiting For Storyteller
 
@@ -299,7 +299,7 @@ Night Wash stage with a restrained gold frame; place the room-code and display-n
 Manual code is always available alongside QR; fields have visible labels and errors; keyboard focus and touch targets meet system requirements.
 
 ### Visual Reference
-`docs/assets/visual-references/mockups/09-unirse-sala-movil-avatar-selector-sin-qr.png`. The visual shows an avatar selector, but it does not add avatar-selection behavior to this screen contract; define that behavior in a separate spec.
+`docs/assets/visual-references/mockups/09-unirse-sala-movil-avatar-selector-sin-qr.png`. The visual shows an avatar selector, but it does not add avatar-selection behavior to this screen contract; avatar selection is deferred to SPEC 06.
 
 ### Acceptance Criteria
 A player can join without scanning QR, receives a clear validation error for an invalid code, and sees no board or other private player data.
