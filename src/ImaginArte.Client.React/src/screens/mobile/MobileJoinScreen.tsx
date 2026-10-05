@@ -10,11 +10,13 @@ import {
   type StoredMobilePlayerSession,
 } from '../../services/mobilePlayerSession'
 import {
+  getRoomState,
   getPlayerPrivateState,
   joinRoomAsPlayer,
   RoomApiError,
   RoomsApiConfigurationError,
 } from '../../services/roomsApi'
+import type { RoomStateResponse } from '../../models/roomState'
 import {
   createMobileRoomRealtimeClient,
   type MobileRoomRealtimeStatus,
@@ -36,6 +38,10 @@ interface MobileJoinFieldErrors {
 
 type MobileJoinStatus = 'idle' | 'recovering' | 'joining' | 'joined'
 type JoinOperation = 'recovery' | 'join'
+
+type RoomSnapshotState =
+  | { roomCode: string; status: 'loaded'; snapshot: RoomStateResponse }
+  | { roomCode: string; status: 'error'; message: string }
 
 interface JoinedPlayerSummary {
   roomCode: string
@@ -68,6 +74,22 @@ function isNotFoundError(error: unknown): error is RoomApiError {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
+}
+
+function getRoomSnapshotErrorMessage(error: unknown): string {
+  if (error instanceof RoomsApiConfigurationError) {
+    return 'Falta configurar la dirección del servidor en VITE_API_BASE_URL.'
+  }
+
+  if (error instanceof RoomApiError && error.status === 404) {
+    return 'No encontramos esa sala. Comprueba el código e inténtalo de nuevo.'
+  }
+
+  if (error instanceof TypeError) {
+    return 'No se pudo conectar con el servidor. Comprueba la conexión e inténtalo de nuevo.'
+  }
+
+  return 'No se pudo consultar la sala. Inténtalo de nuevo.'
 }
 
 function getJoinErrorMessage(
@@ -158,6 +180,8 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const [enteredRoomCode, setEnteredRoomCode] = useState(() =>
     roomCode.trim().toUpperCase(),
   )
+  const [roomSnapshotState, setRoomSnapshotState] =
+    useState<RoomSnapshotState | null>(null)
   const [playerName, setPlayerName] = useState('')
   const [fieldErrors, setFieldErrors] = useState<MobileJoinFieldErrors>({})
   const [status, setStatus] = useState<MobileJoinStatus>('idle')
@@ -172,6 +196,59 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const joinRequestInFlightRef = useRef(false)
   const joinAbortControllerRef = useRef<AbortController | null>(null)
   const isBusy = status === 'recovering' || status === 'joining'
+  const normalizedEnteredRoomCode = enteredRoomCode.trim().toUpperCase()
+  const hasValidEnteredRoomCode = ROOM_CODE_PATTERN.test(normalizedEnteredRoomCode)
+  const visibleRoomSnapshotState = hasValidEnteredRoomCode
+    && roomSnapshotState?.roomCode === normalizedEnteredRoomCode
+    ? roomSnapshotState
+    : null
+  const isLoadingRoomSnapshot = hasValidEnteredRoomCode
+    && visibleRoomSnapshotState === null
+
+  useEffect(() => {
+    if (!ROOM_CODE_PATTERN.test(normalizedEnteredRoomCode)) {
+      return
+    }
+
+    const abortController = new AbortController()
+    let isCurrent = true
+
+    async function loadRoomSnapshot() {
+      try {
+        const snapshot = await getRoomState(
+          normalizedEnteredRoomCode,
+          abortController.signal,
+        )
+
+        if (!isCurrent) {
+          return
+        }
+
+        setRoomSnapshotState({
+          roomCode: normalizedEnteredRoomCode,
+          status: 'loaded',
+          snapshot,
+        })
+      } catch (error) {
+        if (!isCurrent || isAbortError(error)) {
+          return
+        }
+
+        setRoomSnapshotState({
+          roomCode: normalizedEnteredRoomCode,
+          status: 'error',
+          message: getRoomSnapshotErrorMessage(error),
+        })
+      }
+    }
+
+    void loadRoomSnapshot()
+
+    return () => {
+      isCurrent = false
+      abortController.abort()
+    }
+  }, [normalizedEnteredRoomCode])
 
   useEffect(() => {
     const normalizedRoomCode = roomCode.trim().toUpperCase()
@@ -560,7 +637,12 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                     id="mobile-join-room-code"
                     name="roomCode"
                     onChange={(event) => {
-                      setEnteredRoomCode(event.currentTarget.value)
+                      const nextRoomCode = event.currentTarget.value
+                      const nextNormalizedRoomCode = nextRoomCode.trim().toUpperCase()
+                      setEnteredRoomCode(nextRoomCode)
+                      if (nextNormalizedRoomCode !== normalizedEnteredRoomCode) {
+                        setRoomSnapshotState(null)
+                      }
                       clearFieldError('roomCode')
                       setErrorMessage(null)
                     }}
@@ -615,6 +697,22 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                     </p>
                   )}
                 </div>
+
+                {isLoadingRoomSnapshot && (
+                  <p
+                    className="mobile-join__status"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Consultando la sala…
+                  </p>
+                )}
+
+                {visibleRoomSnapshotState?.status === 'error' && (
+                  <p className="mobile-join__form-error" role="alert">
+                    {visibleRoomSnapshotState.message}
+                  </p>
+                )}
 
                 {isBusy && (
                   <p
