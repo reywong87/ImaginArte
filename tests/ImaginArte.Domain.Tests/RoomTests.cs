@@ -77,9 +77,9 @@ public sealed class RoomTests
     public void SetTargetScore_AfterGameStarts_ThrowsAndKeepsCurrentTarget()
     {
         var room = Room.Create(new RoomCode("ABC123"));
-        room.Join(PlayerId.New(), "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(PlayerId.New(), "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
 
         var exception = Assert.Throws<DomainRuleViolationException>(
@@ -123,7 +123,7 @@ public sealed class RoomTests
         var room = Room.Create(new RoomCode("ABC123"));
         var playerId = PlayerId.New();
 
-        var player = room.Join(playerId, "Alice");
+        var player = room.Join(playerId, "Alice", AvatarId.Fox);
 
         Assert.Equal(playerId, player.Id);
         Assert.Equal("Alice", player.Name);
@@ -140,18 +140,13 @@ public sealed class RoomTests
     }
 
     [Fact]
-    public void Join_WithNoAvatar_AssignsFirstAvailableAvatar()
+    public void Join_WithExplicitAvatar_PreservesRequestedAvatar()
     {
         var room = Room.Create(new RoomCode("ABC123"));
 
-        var alice = room.Join(PlayerId.New(), "Alice", AvatarId.Owl);
-        var bob = room.Join(PlayerId.New(), "Bob");
-        var carla = room.Join(PlayerId.New(), "Carla");
+        var player = room.Join(PlayerId.New(), "Alice", AvatarId.Owl);
 
-        Assert.Equal(AvatarId.Owl, alice.AvatarId);
-        Assert.Equal(AvatarId.Fox, bob.AvatarId);
-        Assert.Equal(AvatarId.Deer, carla.AvatarId);
-        Assert.Equal(room.Players.Count, room.Players.Select(player => player.AvatarId).Distinct().Count());
+        Assert.Equal(AvatarId.Owl, player.AvatarId);
     }
 
     [Fact]
@@ -216,9 +211,9 @@ public sealed class RoomTests
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
 
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(carlaId, "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(carlaId, "Carla", AvatarId.Deer);
 
         Assert.Collection(
             room.Scoreboard,
@@ -249,7 +244,7 @@ public sealed class RoomTests
     {
         var room = Room.Create(new RoomCode("ABC123"));
 
-        Assert.Throws<ArgumentException>(() => room.Join(PlayerId.New(), playerName));
+        Assert.Throws<ArgumentException>(() => room.Join(PlayerId.New(), playerName, AvatarId.Fox));
     }
 
     [Fact]
@@ -257,7 +252,7 @@ public sealed class RoomTests
     {
         var room = Room.Create(new RoomCode("ABC123"));
 
-        Assert.Throws<ArgumentException>(() => room.Join(new PlayerId(Guid.Empty), "Alice"));
+        Assert.Throws<ArgumentException>(() => room.Join(new PlayerId(Guid.Empty), "Alice", AvatarId.Fox));
     }
 
     [Fact]
@@ -267,7 +262,7 @@ public sealed class RoomTests
 
         for (var i = 1; i <= Room.MaximumPlayers; i++)
         {
-            room.Join(PlayerId.New(), $"Player {i}");
+            room.Join(PlayerId.New(), $"Player {i}", AvatarId.All[i - 1]);
         }
 
         Assert.Equal(Room.MaximumPlayers, room.Players.Count);
@@ -280,10 +275,10 @@ public sealed class RoomTests
 
         for (var i = 1; i <= Room.MaximumPlayers; i++)
         {
-            room.Join(PlayerId.New(), $"Player {i}");
+            room.Join(PlayerId.New(), $"Player {i}", AvatarId.All[i - 1]);
         }
 
-        var exception = Assert.Throws<DomainRuleViolationException>(() => room.Join(PlayerId.New(), "Player 9"));
+        var exception = Assert.Throws<DomainRuleViolationException>(() => room.Join(PlayerId.New(), "Player 9", AvatarId.Snail));
         Assert.Equal(DomainErrorCode.RoomIsFull, exception.Code);
         Assert.Contains(Room.MaximumPlayers.ToString(), exception.Message);
     }
@@ -294,9 +289,9 @@ public sealed class RoomTests
         var room = Room.Create(new RoomCode("ABC123"));
         var playerId = PlayerId.New();
 
-        room.Join(playerId, "Alice");
+        room.Join(playerId, "Alice", AvatarId.Fox);
 
-        var exception = Assert.Throws<DomainRuleViolationException>(() => room.Join(playerId, "Bob"));
+        var exception = Assert.Throws<DomainRuleViolationException>(() => room.Join(playerId, "Bob", AvatarId.Owl));
         Assert.Equal(DomainErrorCode.PlayerAlreadyJoined, exception.Code);
     }
 
@@ -304,12 +299,12 @@ public sealed class RoomTests
     public void Join_AfterGameStarts_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));
-        room.Join(PlayerId.New(), "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(PlayerId.New(), "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
 
-        var exception = Assert.Throws<DomainRuleViolationException>(() => room.Join(PlayerId.New(), "Diego"));
+        var exception = Assert.Throws<DomainRuleViolationException>(() => room.Join(PlayerId.New(), "Diego", AvatarId.Phoenix));
         Assert.Equal(DomainErrorCode.RoomNotWaitingForPlayers, exception.Code);
     }
 
@@ -317,8 +312,8 @@ public sealed class RoomTests
     public void StartGame_WithTooFewPlayers_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));
-        room.Join(PlayerId.New(), "Alice");
-        room.Join(PlayerId.New(), "Bob");
+        room.Join(PlayerId.New(), "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
 
         var exception = Assert.Throws<DomainRuleViolationException>(room.StartGame);
         Assert.Equal(DomainErrorCode.NotEnoughPlayers, exception.Code);
@@ -330,9 +325,9 @@ public sealed class RoomTests
     public void StartGame_WithMinimumPlayers_MovesRoomToStorytellerChoosing()
     {
         var room = Room.Create(new RoomCode("ABC123"));
-        room.Join(PlayerId.New(), "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(PlayerId.New(), "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
 
         room.StartGame();
 
@@ -346,9 +341,9 @@ public sealed class RoomTests
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(carlaId, "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(carlaId, "Carla", AvatarId.Deer);
 
         room.StartGame();
 
@@ -364,9 +359,9 @@ public sealed class RoomTests
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(carlaId, "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(carlaId, "Carla", AvatarId.Deer);
 
         room.StartGame();
 
@@ -390,9 +385,9 @@ public sealed class RoomTests
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(carlaId, "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(carlaId, "Carla", AvatarId.Deer);
 
         Assert.Empty(room.GetHandFor(aliceId));
         Assert.Empty(room.GetHandFor(bobId));
@@ -404,9 +399,9 @@ public sealed class RoomTests
     {
         var room = Room.Create(new RoomCode("ABC123"));
         var aliceId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
 
         room.StartGame();
 
@@ -418,9 +413,9 @@ public sealed class RoomTests
     {
         var room = Room.Create(new RoomCode("ABC123"));
         var aliceId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
         var cardId = room.GetHandFor(aliceId).First().Id;
 
@@ -437,9 +432,9 @@ public sealed class RoomTests
         var room = Room.Create(new RoomCode("ABC123"));
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
         var bobCardId = room.GetHandFor(bobId).First().Id;
 
@@ -455,9 +450,9 @@ public sealed class RoomTests
     {
         var room = Room.Create(new RoomCode("ABC123"));
         var aliceId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
         var cardId = room.GetHandFor(aliceId).First().Id;
         room.ChooseStorytellerCard(aliceId, cardId, "A strange doorway");
@@ -474,9 +469,9 @@ public sealed class RoomTests
     {
         var room = Room.Create(new RoomCode("ABC123"));
         var aliceId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
 
         var exception = Assert.Throws<DomainRuleViolationException>(
@@ -495,9 +490,9 @@ public sealed class RoomTests
     {
         var room = Room.Create(new RoomCode("ABC123"));
         var aliceId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
         var cardId = room.GetHandFor(aliceId).First().Id;
 
@@ -543,9 +538,9 @@ public sealed class RoomTests
         var room = Room.Create(new RoomCode("ABC123"));
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
         var bobCardId = room.GetHandFor(bobId).First().Id;
 
@@ -1509,9 +1504,9 @@ public sealed class RoomTests
     public void StartGame_WhenAlreadyStarted_Throws()
     {
         var room = Room.Create(new RoomCode("ABC123"));
-        room.Join(PlayerId.New(), "Alice");
-        room.Join(PlayerId.New(), "Bob");
-        room.Join(PlayerId.New(), "Carla");
+        room.Join(PlayerId.New(), "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
         room.StartGame();
 
         var exception = Assert.Throws<DomainRuleViolationException>(room.StartGame);
@@ -1528,9 +1523,9 @@ public sealed class RoomTests
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(carlaId, "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(carlaId, "Carla", AvatarId.Deer);
         room.StartGame();
         var storytellerCardId = room.GetHandFor(aliceId).First().Id;
         room.ChooseStorytellerCard(aliceId, storytellerCardId, "A strange doorway");
@@ -1588,9 +1583,9 @@ public sealed class RoomTests
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(carlaId, "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(carlaId, "Carla", AvatarId.Deer);
         room.StartGame();
 
         return (room, aliceId, bobId, carlaId);

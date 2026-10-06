@@ -339,7 +339,7 @@ public sealed class RoomHubTests
 
         var response = await httpClient.PostAsJsonAsync(
             "/rooms/abc123/players",
-            new JoinRoomRequest(playerId, " Alice "));
+            new JoinRoomRequest(playerId, " Alice ", "fox"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var responseRoom = await response.Content.ReadFromJsonAsync<RoomStateResponse>();
@@ -391,7 +391,7 @@ public sealed class RoomHubTests
 
         var response = await httpClient.PostAsJsonAsync(
             "/rooms/ABC123/players",
-            new JoinRoomRequest(playerId, "Alice Again"));
+            new JoinRoomRequest(playerId, "Alice Again", "fox"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         await Task.Delay(TimeSpan.FromMilliseconds(300));
@@ -1213,7 +1213,15 @@ public sealed class RoomHubTests
     {
         var response = await client.PostAsJsonAsync(
             $"/rooms/{roomCode}/players",
-            new JoinRoomRequest(playerId, playerName));
+            new JoinRoomRequest(
+                playerId,
+                playerName,
+                playerName.Trim() switch
+                {
+                    "Bob" => "owl",
+                    "Carla" => "deer",
+                    _ => "fox"
+                }));
         response.EnsureSuccessStatusCode();
     }
 

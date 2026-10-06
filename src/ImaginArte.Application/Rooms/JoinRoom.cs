@@ -6,7 +6,7 @@ public sealed record JoinRoomCommand(
     string RoomCode,
     Guid PlayerId,
     string PlayerName,
-    string? AvatarId = null);
+    string AvatarId);
 
 public sealed record JoinRoomResult(PlayerState Player, RoomState Room);
 
@@ -33,17 +33,11 @@ public sealed class JoinRoomHandler
             throw new RoomNotFoundException(roomCode.Value);
         }
 
-        AvatarId? avatarId = null;
-        if (command.AvatarId is not null)
+        if (!AvatarId.TryParse(command.AvatarId, out var avatarId))
         {
-            if (!AvatarId.TryParse(command.AvatarId, out var parsedAvatarId))
-            {
-                throw new DomainRuleViolationException(
-                    DomainErrorCode.InvalidAvatar,
-                    "The avatar ID must be one of the supported avatars.");
-            }
-
-            avatarId = parsedAvatarId;
+            throw new DomainRuleViolationException(
+                DomainErrorCode.InvalidAvatar,
+                "The avatar ID must be one of the supported avatars.");
         }
 
         var joinedPlayer = room.Join(new PlayerId(command.PlayerId), command.PlayerName, avatarId);

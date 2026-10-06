@@ -45,7 +45,7 @@ public sealed class RoomUseCaseTests
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
 
-        var result = await joinRoom.HandleAsync(new JoinRoomCommand("abc123", playerId, "  Alice  "));
+        var result = await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("abc123", playerId, "  Alice  "));
 
         Assert.Equal(playerId, result.Player.PlayerId);
         Assert.Equal("Alice", result.Player.Name);
@@ -77,7 +77,7 @@ public sealed class RoomUseCaseTests
         var handler = new JoinRoomHandler(repository);
 
         var result = await handler.HandleAsync(
-            new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "phoenix"));
+            CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "phoenix"));
 
         Assert.Equal(AvatarId.Phoenix, result.Player.AvatarId);
         Assert.Equal(AvatarId.Phoenix, Assert.Single(result.Room.Players).AvatarId);
@@ -94,7 +94,7 @@ public sealed class RoomUseCaseTests
         var handler = new JoinRoomHandler(repository);
 
         var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
-            () => handler.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "unicorn")));
+            () => handler.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "unicorn")));
         var persistedRoom = await new GetRoomStateHandler(repository)
             .HandleAsync(new GetRoomStateQuery("ABC123"));
 
@@ -108,10 +108,10 @@ public sealed class RoomUseCaseTests
         var repository = new InMemoryRoomRepository();
         await new CreateRoomHandler(repository).HandleAsync(new CreateRoomCommand("ABC123"));
         var handler = new JoinRoomHandler(repository);
-        await handler.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "owl"));
+        await handler.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Alice", "owl"));
 
         var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
-            () => handler.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob", "owl")));
+            () => handler.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Bob", "owl")));
         var persistedRoom = await new GetRoomStateHandler(repository)
             .HandleAsync(new GetRoomStateQuery("ABC123"));
 
@@ -126,7 +126,7 @@ public sealed class RoomUseCaseTests
         var handler = new JoinRoomHandler(repository);
 
         var exception = await Assert.ThrowsAsync<RoomNotFoundException>(
-            () => handler.HandleAsync(new JoinRoomCommand("missing", Guid.NewGuid(), "Alice")));
+            () => handler.HandleAsync(CreateFixtureJoinRoomCommand("missing", Guid.NewGuid(), "Alice")));
 
         Assert.Equal("MISSING", exception.RoomCode);
     }
@@ -140,10 +140,10 @@ public sealed class RoomUseCaseTests
         var playerId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", playerId, "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", playerId, "Alice"));
 
         var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
-            () => joinRoom.HandleAsync(new JoinRoomCommand("ABC123", playerId, "Alice Again")));
+            () => joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", playerId, "Alice Again")));
 
         Assert.Equal(DomainErrorCode.PlayerAlreadyJoined, exception.Code);
     }
@@ -158,7 +158,7 @@ public sealed class RoomUseCaseTests
         var playerId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", playerId, "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", playerId, "Alice"));
 
         var result = await getRoomState.HandleAsync(new GetRoomStateQuery("abc123"));
 
@@ -245,9 +245,9 @@ public sealed class RoomUseCaseTests
         var setTargetScore = new SetRoomTargetScoreHandler(repository);
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
         await startGame.HandleAsync(new StartGameCommand("ABC123"));
 
         var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
@@ -268,9 +268,9 @@ public sealed class RoomUseCaseTests
         var bobId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", bobId, "Bob"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", bobId, "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
         await startGame.HandleAsync(new StartGameCommand("ABC123"));
 
         var result = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("abc123", bobId));
@@ -304,9 +304,9 @@ public sealed class RoomUseCaseTests
         var aliceId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
         await startGame.HandleAsync(new StartGameCommand("ABC123"));
 
         var result = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", aliceId));
@@ -352,7 +352,7 @@ public sealed class RoomUseCaseTests
         var missingPlayerId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
 
         var exception = await Assert.ThrowsAsync<PlayerNotFoundInRoomException>(
             () => handler.HandleAsync(new GetPlayerPrivateStateQuery("abc123", missingPlayerId)));
@@ -371,9 +371,9 @@ public sealed class RoomUseCaseTests
         var aliceId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
 
         var result = await startGame.HandleAsync(new StartGameCommand("abc123"));
 
@@ -394,9 +394,9 @@ public sealed class RoomUseCaseTests
         var startGame = new StartGameHandler(repository);
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
 
         var result = await startGame.HandleAsync(new StartGameCommand("abc123"));
 
@@ -418,8 +418,8 @@ public sealed class RoomUseCaseTests
         var startGame = new StartGameHandler(repository);
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
 
         var exception = await Assert.ThrowsAsync<DomainRuleViolationException>(
             () => startGame.HandleAsync(new StartGameCommand("ABC123")));
@@ -451,9 +451,9 @@ public sealed class RoomUseCaseTests
         var aliceId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
         await startGame.HandleAsync(new StartGameCommand("ABC123"));
         var storytellerState = await getPlayerPrivateState.HandleAsync(
             new GetPlayerPrivateStateQuery("ABC123", aliceId));
@@ -498,9 +498,9 @@ public sealed class RoomUseCaseTests
         var bobId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", bobId, "Bob"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", bobId, "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", Guid.NewGuid(), "Carla"));
         await startGame.HandleAsync(new StartGameCommand("ABC123"));
         var bobState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", bobId));
         var bobCardId = bobState.Player.Hand.First().CardId;
@@ -1185,9 +1185,9 @@ public sealed class RoomUseCaseTests
         var carlaId = Guid.NewGuid();
 
         await createRoom.HandleAsync(new CreateRoomCommand("ABC123"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", aliceId, "Alice"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", bobId, "Bob"));
-        await joinRoom.HandleAsync(new JoinRoomCommand("ABC123", carlaId, "Carla"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", aliceId, "Alice"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", bobId, "Bob"));
+        await joinRoom.HandleAsync(CreateFixtureJoinRoomCommand("ABC123", carlaId, "Carla"));
         await startGame.HandleAsync(new StartGameCommand("ABC123"));
         var storytellerState = await getPlayerPrivateState.HandleAsync(
             new GetPlayerPrivateStateQuery("ABC123", aliceId));
@@ -1305,9 +1305,9 @@ public sealed class RoomUseCaseTests
         var bobPlayerId = new PlayerId(bobId);
         var carlaPlayerId = new PlayerId(carlaId);
 
-        room.Join(alicePlayerId, "Alice");
-        room.Join(bobPlayerId, "Bob");
-        room.Join(carlaPlayerId, "Carla");
+        room.Join(alicePlayerId, "Alice", AvatarId.Fox);
+        room.Join(bobPlayerId, "Bob", AvatarId.Owl);
+        room.Join(carlaPlayerId, "Carla", AvatarId.Deer);
         room.StartGame();
         room.ChooseStorytellerCard(alicePlayerId, room.GetHandFor(alicePlayerId).First().Id, "A strange doorway");
         room.SubmitGuessCard(bobPlayerId, room.GetHandFor(bobPlayerId).First().Id);
@@ -1329,5 +1329,36 @@ public sealed class RoomUseCaseTests
         await repository.AddAsync(room);
 
         return (aliceId, bobId, carlaId);
+    }
+
+    private static JoinRoomCommand CreateFixtureJoinRoomCommand(
+        string roomCode,
+        Guid playerId,
+        string playerName)
+    {
+        return new JoinRoomCommand(
+            roomCode,
+            playerId,
+            playerName,
+            GetFixtureAvatarId(playerName));
+    }
+
+    private static JoinRoomCommand CreateFixtureJoinRoomCommand(
+        string roomCode,
+        Guid playerId,
+        string playerName,
+        string avatarId)
+    {
+        return new JoinRoomCommand(roomCode, playerId, playerName, avatarId);
+    }
+
+    private static string GetFixtureAvatarId(string playerName)
+    {
+        return playerName.Trim() switch
+        {
+            "Bob" => "owl",
+            "Carla" => "deer",
+            _ => "fox"
+        };
     }
 }

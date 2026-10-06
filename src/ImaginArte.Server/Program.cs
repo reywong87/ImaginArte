@@ -118,6 +118,13 @@ app.MapPost("/rooms/{roomCode}/players", async (
     RoomPresenceTracker presenceTracker,
     CancellationToken cancellationToken) =>
 {
+    if (string.IsNullOrWhiteSpace(request.AvatarId))
+    {
+        return Results.Problem(
+            "The avatar ID is required.",
+            statusCode: StatusCodes.Status400BadRequest);
+    }
+
     return await HandleRoomRequestAsync(
         async () =>
         {

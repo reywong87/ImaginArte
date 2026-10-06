@@ -244,7 +244,7 @@ public sealed class Room
         TargetScore = targetScore;
     }
 
-    public Player Join(PlayerId playerId, string playerName, AvatarId? avatarId = null)
+    public Player Join(PlayerId playerId, string playerName, AvatarId avatarId)
     {
         if (Phase != GamePhase.WaitingForPlayers)
         {
@@ -260,16 +260,14 @@ public sealed class Room
                 $"A room cannot have more than {MaximumPlayers} players.");
         }
 
-        if (avatarId is { } requestedAvatarId && !requestedAvatarId.IsDefined)
+        if (!avatarId.IsDefined)
         {
             throw new DomainRuleViolationException(
                 DomainErrorCode.InvalidAvatar,
                 "The avatar ID must be one of the supported avatars.");
         }
 
-        var assignedAvatarId = avatarId ?? AvatarId.All.First(candidate =>
-            _players.All(existingPlayer => existingPlayer.AvatarId != candidate));
-        var player = new Player(playerId, playerName, assignedAvatarId);
+        var player = new Player(playerId, playerName, avatarId);
 
         if (_players.Any(existingPlayer => existingPlayer.Id == player.Id))
         {

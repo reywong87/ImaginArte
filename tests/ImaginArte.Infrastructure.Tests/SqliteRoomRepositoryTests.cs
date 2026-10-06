@@ -49,7 +49,7 @@ public sealed class SqliteRoomRepositoryTests
         var repository = database.CreateRepository();
         var room = Room.Create(new RoomCode("ABC123"));
         var playerId = PlayerId.New();
-        room.Join(playerId, "Alice");
+        room.Join(playerId, "Alice", AvatarId.Fox);
         await repository.AddAsync(room);
 
         var savedRoom = await repository.GetByCodeAsync(new RoomCode("abc123"));
@@ -99,7 +99,7 @@ public sealed class SqliteRoomRepositoryTests
         await repository.AddAsync(room);
         var playerId = PlayerId.New();
 
-        room.Join(playerId, "Alice");
+        room.Join(playerId, "Alice", AvatarId.Fox);
         room.SetTargetScore(35);
         await repository.SaveAsync(room);
 
@@ -121,9 +121,9 @@ public sealed class SqliteRoomRepositoryTests
         var aliceId = PlayerId.New();
         var bobId = PlayerId.New();
         var carlaId = PlayerId.New();
-        room.Join(aliceId, "Alice");
-        room.Join(bobId, "Bob");
-        room.Join(carlaId, "Carla");
+        room.Join(aliceId, "Alice", AvatarId.Fox);
+        room.Join(bobId, "Bob", AvatarId.Owl);
+        room.Join(carlaId, "Carla", AvatarId.Deer);
         room.StartGame();
 
         var storytellerId = room.CurrentStorytellerId
@@ -211,7 +211,7 @@ public sealed class SqliteRoomRepositoryTests
         var firstRepository = database.CreateRepository();
         var room = Room.Create(new RoomCode("ABC123"));
         var playerId = PlayerId.New();
-        room.Join(playerId, "Alice");
+        room.Join(playerId, "Alice", AvatarId.Fox);
         await firstRepository.AddAsync(room);
 
         var secondRepository = database.CreateRepository();

@@ -132,7 +132,8 @@ public sealed class RoomEndpointTests
         var response = await client.PostAsJsonAsync("/rooms/abc123/players", new
         {
             PlayerId = playerId,
-            PlayerName = " Alice "
+            PlayerName = " Alice ",
+            AvatarId = "fox"
         });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -150,6 +151,25 @@ public sealed class RoomEndpointTests
             });
 
         Assert.Equal("fox", (await GetRoomAsync(client, "ABC123")).Players.Single().AvatarId);
+    }
+
+    [Fact]
+    public async Task PostPlayers_WithoutAvatarId_ReturnsBadRequestWithoutJoining()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        await CreateRoomAsync(client, "ABC123");
+
+        var response = await client.PostAsJsonAsync("/rooms/ABC123/players", new
+        {
+            PlayerId = Guid.NewGuid(),
+            PlayerName = "Alice"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await ReadRequiredJsonAsync<ProblemDetails>(response);
+        Assert.Equal((int)HttpStatusCode.BadRequest, problem.Status);
+        Assert.Empty((await GetRoomAsync(client, "ABC123")).Players);
     }
 
     [Fact]
@@ -1299,7 +1319,13 @@ public sealed class RoomEndpointTests
         var response = await client.PostAsJsonAsync($"/rooms/{roomCode}/players", new
         {
             PlayerId = playerId,
-            PlayerName = playerName
+            PlayerName = playerName,
+            AvatarId = playerName.Trim() switch
+            {
+                "Bob" => "owl",
+                "Carla" => "deer",
+                _ => "fox"
+            }
         });
 
         response.EnsureSuccessStatusCode();

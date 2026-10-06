@@ -58,7 +58,7 @@ public sealed class PostgresRoomRepositoryTests
         var repository = database.CreateRepository();
         var room = Room.Create(new RoomCode("ABC123"));
         var playerId = PlayerId.New();
-        room.Join(playerId, "Alice");
+        room.Join(playerId, "Alice", AvatarId.Fox);
         await repository.AddAsync(room);
 
         var savedRoom = await repository.GetByCodeAsync(new RoomCode("abc123"));
@@ -108,7 +108,7 @@ public sealed class PostgresRoomRepositoryTests
         await repository.AddAsync(room);
         var playerId = PlayerId.New();
 
-        room.Join(playerId, "Alice");
+        room.Join(playerId, "Alice", AvatarId.Fox);
         await repository.SaveAsync(room);
 
         var savedRoom = await repository.GetByCodeAsync(new RoomCode("ABC123"));
@@ -163,7 +163,7 @@ public sealed class PostgresRoomRepositoryTests
         var firstRepository = database.CreateRepository();
         var room = Room.Create(new RoomCode("ABC123"));
         var playerId = PlayerId.New();
-        room.Join(playerId, "Alice");
+        room.Join(playerId, "Alice", AvatarId.Fox);
         await firstRepository.AddAsync(room);
 
         var secondRepository = database.CreateRepository();
