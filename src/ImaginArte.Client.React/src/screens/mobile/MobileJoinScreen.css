@@ -352,6 +352,32 @@
   text-align: center;
 }
 
+.mobile-join__confirmed-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.mobile-join__confirmed-avatar-portrait {
+  display: block;
+  width: 5rem;
+  aspect-ratio: 1;
+  border: 3px solid #f2b632;
+  border-radius: 50%;
+  background-image: url('../../assets/player-avatars-atlas.png');
+  background-repeat: no-repeat;
+  background-size: 420% 420%;
+  box-shadow: 0 0 0 3px #10243a, 0 0 1rem rgb(242 182 50 / 35%);
+}
+
+.mobile-join__confirmed-avatar-label {
+  margin: 0;
+  color: #f3ead4;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
 .mobile-join__joined-status,
 .mobile-join__status,
 .mobile-join__realtime-status {
@@ -395,6 +421,33 @@
   outline: 3px solid #fbf4e2;
   outline-offset: 4px;
   box-shadow: 0 0 0 8px #10243a;
+}
+
+.mobile-join__snapshot-retry {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.85rem;
+  border: 2px solid #f2b632;
+  border-radius: 10px;
+  background: #10243a;
+  color: #fbf4e2;
+  cursor: pointer;
+  font: 600 1rem/1.3 Arial, sans-serif;
+}
+
+.mobile-join__snapshot-retry:hover {
+  background: #24445a;
+}
+
+.mobile-join__snapshot-retry:focus-visible {
+  outline: 3px solid #fbf4e2;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 8px #10243a;
+}
+
+.mobile-join__snapshot-retry:disabled {
+  cursor: wait;
+  opacity: 0.84;
 }
 
 .mobile-join__privacy {

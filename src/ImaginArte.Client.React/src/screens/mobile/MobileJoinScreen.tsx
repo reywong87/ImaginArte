@@ -46,6 +46,9 @@ interface MobileJoinFieldErrors {
 type MobileJoinStatus = 'idle' | 'recovering' | 'joining' | 'joined'
 type JoinOperation = 'recovery' | 'join'
 
+const AVATAR_CONFLICT_MESSAGE =
+  'Ese avatar acaba de ocuparse. Elige otro disponible; conservamos el código y tu nombre.'
+
 type RoomSnapshotState =
   | { roomCode: string; status: 'loaded'; snapshot: RoomStateResponse }
   | { roomCode: string; status: 'error'; message: string }
@@ -54,6 +57,7 @@ interface JoinedPlayerSummary {
   roomCode: string
   playerId: string
   playerName: string
+  avatarId: AvatarId
 }
 
 function getRealtimeStatusMessage(
@@ -79,8 +83,42 @@ function isNotFoundError(error: unknown): error is RoomApiError {
   return error instanceof RoomApiError && error.status === 404
 }
 
+function isAvatarConflictError(error: unknown): error is RoomApiError {
+  return error instanceof RoomApiError && error.status === 409
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
+}
+
+function getJoinedPlayerSummary(
+  room: RoomStateResponse,
+  playerId: string,
+): JoinedPlayerSummary {
+  const player = room.players.find(
+    (candidate) => candidate.playerId.toLowerCase() === playerId.toLowerCase(),
+  )
+
+  if (!player) {
+    throw new Error('El snapshot no confirmó la identidad del jugador unido.')
+  }
+
+  return {
+    roomCode: room.roomCode,
+    playerId: player.playerId,
+    playerName: player.name,
+    avatarId: player.avatarId,
+  }
+}
+
+function discardPendingJoinAfterAvatarConflict(roomCode: string): boolean {
+  try {
+    // A 409 confirms that this pending identity was not joined; discard it before choosing again.
+    clearMobilePlayerSession(roomCode)
+    return true
+  } catch {
+    return false
+  }
 }
 
 function getAvatarCropStyle(avatarId: AvatarId) {
@@ -129,7 +167,7 @@ function getJoinErrorMessage(
     }
 
     if (error.status === 409) {
-      return 'El servidor rechazó la unión. Comprueba que la sala siga esperando jugadores.'
+      return AVATAR_CONFLICT_MESSAGE
     }
   }
 
@@ -155,19 +193,8 @@ async function requestPlayerJoin(
     session.avatarId,
     signal,
   )
-  const player = room.players.find(
-    (candidate) => candidate.playerId.toLowerCase() === session.playerId.toLowerCase(),
-  )
 
-  if (!player) {
-    throw new Error('El servidor no confirmó la identidad del jugador unido.')
-  }
-
-  return {
-    roomCode: room.roomCode,
-    playerId: player.playerId,
-    playerName: player.name,
-  }
+  return getJoinedPlayerSummary(room, session.playerId)
 }
 
 function persistJoinedSession(
@@ -179,6 +206,7 @@ function persistJoinedSession(
     roomCode: player.roomCode,
     playerId: player.playerId,
     playerName: player.playerName,
+    avatarId: player.avatarId,
     status: 'joined',
   }
   let warning: string | null = null
@@ -198,6 +226,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   )
   const [roomSnapshotState, setRoomSnapshotState] =
     useState<RoomSnapshotState | null>(null)
+  const [roomSnapshotRetryVersion, setRoomSnapshotRetryVersion] = useState(0)
   const [playerName, setPlayerName] = useState('')
   const [selectedAvatarId, setSelectedAvatarId] = useState<AvatarId | null>(null)
   const [fieldErrors, setFieldErrors] = useState<MobileJoinFieldErrors>({})
@@ -282,7 +311,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
       isCurrent = false
       abortController.abort()
     }
-  }, [normalizedEnteredRoomCode])
+  }, [normalizedEnteredRoomCode, roomSnapshotRetryVersion])
 
   useEffect(() => {
     const normalizedRoomCode = roomCode.trim().toUpperCase()
@@ -316,11 +345,10 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
             return
           }
 
-          const savedSession = persistJoinedSession(session, {
-            roomCode: privateState.room.roomCode,
-            playerId: privateState.player.playerId,
-            playerName: privateState.player.name,
-          })
+          const savedSession = persistJoinedSession(
+            session,
+            getJoinedPlayerSummary(privateState.room, session.playerId),
+          )
           setJoinedPlayer(savedSession.player)
           setErrorMessage(savedSession.warning)
           setStatus('joined')
@@ -355,7 +383,19 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
               return
             }
 
-            setErrorMessage(getJoinErrorMessage(joinError, 'join'))
+            if (isAvatarConflictError(joinError)) {
+              const sessionCleared = discardPendingJoinAfterAvatarConflict(
+                normalizedRoomCode,
+              )
+              setSelectedAvatarId(null)
+              setRoomSnapshotState(null)
+              setRoomSnapshotRetryVersion((version) => version + 1)
+              setErrorMessage(sessionCleared
+                ? AVATAR_CONFLICT_MESSAGE
+                : `${AVATAR_CONFLICT_MESSAGE} No pudimos limpiar la sesión pendiente; vuelve a intentarlo.`)
+            } else {
+              setErrorMessage(getJoinErrorMessage(joinError, 'join'))
+            }
           }
         }
       } catch (error) {
@@ -524,11 +564,10 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
             return
           }
 
-          const savedSession = persistJoinedSession(session, {
-            roomCode: privateState.room.roomCode,
-            playerId: privateState.player.playerId,
-            playerName: privateState.player.name,
-          })
+          const savedSession = persistJoinedSession(
+            session,
+            getJoinedPlayerSummary(privateState.room, session.playerId),
+          )
           setJoinedPlayer(savedSession.player)
           setErrorMessage(savedSession.warning)
           setStatus('joined')
@@ -580,7 +619,19 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
       setStatus('joined')
     } catch (error) {
       if (!abortController.signal.aborted && !isAbortError(error)) {
-        setErrorMessage(getJoinErrorMessage(error, operation))
+        if (operation === 'join' && isAvatarConflictError(error)) {
+          const sessionCleared = discardPendingJoinAfterAvatarConflict(
+            normalizedRoomCode,
+          )
+          setSelectedAvatarId(null)
+          setRoomSnapshotState(null)
+          setRoomSnapshotRetryVersion((version) => version + 1)
+          setErrorMessage(sessionCleared
+            ? AVATAR_CONFLICT_MESSAGE
+            : `${AVATAR_CONFLICT_MESSAGE} No pudimos limpiar la sesión pendiente; vuelve a intentarlo.`)
+        } else {
+          setErrorMessage(getJoinErrorMessage(error, operation))
+        }
         setStatus('idle')
       }
     } finally {
@@ -625,6 +676,16 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                 <h1 className="mobile-join__title" id="mobile-join-title">
                   {joinedPlayer.playerName}
                 </h1>
+                <div className="mobile-join__confirmed-avatar">
+                  <span
+                    aria-hidden="true"
+                    className="mobile-join__confirmed-avatar-portrait"
+                    style={getAvatarCropStyle(joinedPlayer.avatarId)}
+                  />
+                  <p className="mobile-join__confirmed-avatar-label">
+                    Tu avatar: <strong>{getPlayerAvatar(joinedPlayer.avatarId).accessibleName}</strong>
+                  </p>
+                </div>
               </header>
               <p
                 className="mobile-join__joined-status"
@@ -881,9 +942,23 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                 </section>
 
                 {visibleRoomSnapshotState?.status === 'error' && (
-                  <p className="mobile-join__form-error" role="alert">
-                    {visibleRoomSnapshotState.message}
-                  </p>
+                  <>
+                    <p className="mobile-join__form-error" role="alert">
+                      {visibleRoomSnapshotState.message}
+                    </p>
+                    <button
+                      className="mobile-join__snapshot-retry"
+                      disabled={isBusy || isLoadingRoomSnapshot}
+                      onClick={() => {
+                        setRoomSnapshotState(null)
+                        setErrorMessage(null)
+                        setRoomSnapshotRetryVersion((version) => version + 1)
+                      }}
+                      type="button"
+                    >
+                      Volver a consultar disponibilidad
+                    </button>
+                  </>
                 )}
 
                 {isBusy && (
