@@ -21,7 +21,7 @@ Assets must remain separate, with transparency where appropriate. The background
 
 - The route contains exactly as many positions as the room's `TargetScore`: 15 for Corta, 25 for Media, and 35 for Larga.
 - It begins at the lower-left roots and ends before the upper-right golden portal.
-- Nodes are visual anchors of approximately 65 px in diameter on a `1920 x 1080` canvas.
+- Nodes are visual anchors of approximately 65 px in diameter on a `1920 x 1080` canvas. Keep every pair of node centers at least 100 reference units apart so circles do not overlap and retain a generous paper gap.
 - Each connector is a straight line between the centers of two consecutive nodes. A route with `N` nodes has `N - 1` connectors.
 - Each route length has an ordered list of node centers. All three arrangements of straight segments retain a continuous, organic, ascending reading and end before the portal.
 - Nodes are not token containers and do not imply effects, bonuses, or penalties.
@@ -37,12 +37,12 @@ Assets must remain separate, with transparency where appropriate. The background
 
 ## Overlay Safe Zones
 
-The board's central area is reserved for cards, clues, voting, results, and scoring. Tokens, threads, labels, and state effects must not enter it.
+The board's central area is reserved for cards, clues, voting, results, and scoring. Tokens, threads, labels, and state effects must not enter it. After the game starts, the upper band is available to the static route; phase and storyteller information use the central floating window instead. The live connection status occupies the lower-right corner, which route nodes must leave clear.
 
 - Primary central stage: `x 28%`, `y 30%`, width `44%`, height `40%`.
 - Wide card or voting area: `x 24%`, `y 25%`, width `52%`, height `50%`.
-- Upper phase or clue band: `x 28%`, `y 5%`, width `42%`, height `12%`.
 - Lower status or scoring band: `x 30%`, `y 76%`, width `40%`, height `15%`.
+- Lower-right connection status: reserve the corner for a readable text status; no route node may overlap it.
 
 ## Token System: Anchored Constellation
 

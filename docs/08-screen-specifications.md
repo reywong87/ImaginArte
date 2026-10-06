@@ -4,7 +4,7 @@
 
 This document is the screen source of truth for the shared TV and private mobile controllers. It specifies presentation and interaction only. Game rules, scoring, role rotation, and phase authority remain outside the interface.
 
-- TV is public, spacious, and readable from 2-3 metres. After the server confirms the game start, it may show the progress route as board context; the central safe area remains available for game content.
+- TV is public, spacious, and readable from 2-3 metres. After the server confirms the game start, it shows the progress route as board context. The upper band is available to the route; phase/storyteller information appears in the central floating window, while live connection status appears in the lower-right corner. Central safe areas remain available for game content.
 - Mobile is private and uses a Night Wash stage with a restrained ornamental gold frame; Paper Warm is reserved for readable cards, clues, fields, and content panels. It never shows the full board and presents one clear primary action. A selection remains reversible until explicit confirmation.
 - Playable cards remain portrait `2:3`; no title or text overlays the illustration. Voting numbers sit outside the art.
 - While voting remains open, TV never shows hands, any selected or submitted-card owner, the storyteller card identity, individual votes, or which players made pending choices. After the server locks all votes, the dedicated vote-reveal state may show who voted for each card while keeping the storyteller card hidden until a separate TV action.
@@ -87,7 +87,7 @@ Announce the active narrator and hold the room while they privately choose a car
 All players view TV; the narrator acts only on their mobile; host has no phase-advance action.
 
 ### Visible Information
-Narrator name, role label, concise waiting instruction, and the numbered route as a persistent background layer after the start is confirmed. Player tokens and their state effects are separate from the route-only implementation slice in SPEC 07.
+Narrator name, role label, concise waiting instruction in the central floating window, and the numbered route as a persistent background layer after the start is confirmed. Live connection status appears in the lower-right corner. Player tokens and their state effects are separate from the route-only implementation slice in SPEC 07.
 
 ### Prohibited Information
 Narrator hand, selected card, clue before submission, selection progress, and any other player's private state.
@@ -99,10 +99,10 @@ No TV action; the narrator completes the private mobile action.
 Waiting and narrator-reconnecting states; after valid narrator submission, transition to **Clue and submission progress**.
 
 ### Visual Composition
-Use the upper safe band for phase and narrator identity. Keep the central stage mostly open and the route peripheral; it must not cover the waiting message.
+Remove the top eyebrow **ImaginArte · Sala familiar** and the screen heading **El narrador prepara la historia** after the start is confirmed. Present phase, narrator identity, and waiting instruction in the central floating window. The upper band is available to the peripheral route; keep nodes and connectors outside the central safe zones. Place the live connection status at the lower-right corner without covering a route node.
 
 ### Accessibility
-Use a literal message such as “Ana is choosing a card and clue”; role is conveyed by text, label, halo, and token identity.
+Use a literal message such as “Ana is choosing a card and clue” in the central floating window; role is conveyed by text, label, halo, and token identity. The lower-right connection status remains textual and accessible.
 
 ### Visual Reference
 `docs/assets/visual-references/mockups/03-esperando-al-narrador-recorrido-v4-avatares-tv.png`.
