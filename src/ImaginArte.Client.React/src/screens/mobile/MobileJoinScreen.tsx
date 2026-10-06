@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
 import {
+  getPlayerAvatar,
+  PLAYER_AVATARS,
+  type AvatarId,
+} from '../../models/playerAvatars'
+import {
   clearMobilePlayerSession,
   createMobilePlayerId,
   MobilePlayerSessionStorageError,
@@ -24,16 +29,18 @@ import {
 import './MobileJoinScreen.css'
 
 const ROOM_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/
+const MOBILE_AVATAR_IDS = Object.keys(PLAYER_AVATARS) as AvatarId[]
 
 interface MobileJoinScreenProps {
   roomCode: string
 }
 
-type MobileJoinField = 'roomCode' | 'playerName'
+type MobileJoinField = 'roomCode' | 'playerName' | 'avatarId'
 
 interface MobileJoinFieldErrors {
   roomCode?: string
   playerName?: string
+  avatarId?: string
 }
 
 type MobileJoinStatus = 'idle' | 'recovering' | 'joining' | 'joined'
@@ -74,6 +81,14 @@ function isNotFoundError(error: unknown): error is RoomApiError {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
+}
+
+function getAvatarCropStyle(avatarId: AvatarId) {
+  const { column, row } = getPlayerAvatar(avatarId).atlasCrop
+
+  return {
+    backgroundPosition: `${(column / 3) * 95 + 2}% ${(row / 3) * 95 + 3 }%`,
+  }
 }
 
 function getRoomSnapshotErrorMessage(error: unknown): string {
@@ -137,6 +152,7 @@ async function requestPlayerJoin(
     session.roomCode,
     session.playerId,
     session.playerName,
+    session.avatarId,
     signal,
   )
   const player = room.players.find(
@@ -183,6 +199,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const [roomSnapshotState, setRoomSnapshotState] =
     useState<RoomSnapshotState | null>(null)
   const [playerName, setPlayerName] = useState('')
+  const [selectedAvatarId, setSelectedAvatarId] = useState<AvatarId | null>(null)
   const [fieldErrors, setFieldErrors] = useState<MobileJoinFieldErrors>({})
   const [status, setStatus] = useState<MobileJoinStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -193,6 +210,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const [realtimeRetryVersion, setRealtimeRetryVersion] = useState(0)
   const roomCodeInputRef = useRef<HTMLInputElement>(null)
   const playerNameInputRef = useRef<HTMLInputElement>(null)
+  const avatarFieldsetRef = useRef<HTMLFieldSetElement>(null)
   const joinRequestInFlightRef = useRef(false)
   const joinAbortControllerRef = useRef<AbortController | null>(null)
   const isBusy = status === 'recovering' || status === 'joining'
@@ -204,6 +222,22 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
     : null
   const isLoadingRoomSnapshot = hasValidEnteredRoomCode
     && visibleRoomSnapshotState === null
+  const currentRoomSnapshot = visibleRoomSnapshotState?.status === 'loaded'
+    ? visibleRoomSnapshotState.snapshot
+    : null
+  const occupiedAvatarIds = new Set(
+    currentRoomSnapshot?.players.map((player) => player.avatarId) ?? [],
+  )
+  const isSelectedAvatarAvailable = selectedAvatarId !== null
+    && currentRoomSnapshot !== null
+    && !occupiedAvatarIds.has(selectedAvatarId)
+  const avatarHelpMessage = currentRoomSnapshot
+    ? 'Los avatares elegidos por otras personas aparecen como «No disponible».'
+    : isLoadingRoomSnapshot
+      ? 'Consultando la disponibilidad antes de que puedas elegir.'
+      : visibleRoomSnapshotState?.status === 'error'
+        ? 'No es posible elegir hasta consultar la disponibilidad de la sala.'
+        : 'Introduce un código válido para consultar los avatares disponibles.'
 
   useEffect(() => {
     if (!ROOM_CODE_PATTERN.test(normalizedEnteredRoomCode)) {
@@ -268,6 +302,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
 
         setEnteredRoomCode(normalizedRoomCode)
         setPlayerName(session.playerName)
+        setSelectedAvatarId(session.avatarId)
         setErrorMessage(null)
         setStatus('recovering')
 
@@ -447,6 +482,28 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
       return
     }
 
+    if (
+      selectedAvatarId === null
+      || currentRoomSnapshot === null
+      || occupiedAvatarIds.has(selectedAvatarId)
+    ) {
+      setFieldErrors({
+        ...nextErrors,
+        avatarId: 'Elige un avatar disponible antes de unirte a la sala.',
+      })
+      const firstAvailableAvatar = avatarFieldsetRef.current?.querySelector<HTMLInputElement>(
+        'input[type="radio"]:not(:disabled)',
+      )
+      if (firstAvailableAvatar) {
+        firstAvailableAvatar.focus()
+      } else {
+        avatarFieldsetRef.current?.focus()
+      }
+      return
+    }
+
+    const selectedAvatarForJoin: AvatarId = selectedAvatarId
+
     joinRequestInFlightRef.current = true
     const abortController = new AbortController()
     joinAbortControllerRef.current = abortController
@@ -493,6 +550,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
               ...session,
               playerName: normalizedPlayerName,
             }
+            setSelectedAvatarId(session.avatarId)
             writeMobilePlayerSession(session)
           }
         }
@@ -503,6 +561,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
           roomCode: normalizedRoomCode,
           playerId: createMobilePlayerId(),
           playerName: normalizedPlayerName,
+          avatarId: selectedAvatarForJoin,
           status: 'joining',
         }
         // Save the stable ID before POST so an uncertain response can be recovered.
@@ -618,7 +677,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
               </header>
 
               <form
-                aria-busy={isBusy}
+                aria-busy={isBusy || isLoadingRoomSnapshot}
                 className="mobile-join__form"
                 noValidate
                 onSubmit={handleSubmit}
@@ -642,6 +701,8 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                       setEnteredRoomCode(nextRoomCode)
                       if (nextNormalizedRoomCode !== normalizedEnteredRoomCode) {
                         setRoomSnapshotState(null)
+                        setSelectedAvatarId(null)
+                        clearFieldError('avatarId')
                       }
                       clearFieldError('roomCode')
                       setErrorMessage(null)
@@ -698,15 +759,126 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                   )}
                 </div>
 
-                {isLoadingRoomSnapshot && (
-                  <p
-                    className="mobile-join__status"
-                    role="status"
-                    aria-live="polite"
+                <section
+                  aria-labelledby="mobile-join-avatar-title"
+                  className="mobile-join__avatar-section"
+                >
+                  <fieldset
+                    aria-describedby={fieldErrors.avatarId
+                      ? 'mobile-join-avatar-help mobile-join-avatar-error'
+                      : 'mobile-join-avatar-help'}
+                    className="mobile-join__avatar-fieldset"
+                    ref={avatarFieldsetRef}
+                    tabIndex={-1}
                   >
-                    Consultando la sala…
-                  </p>
-                )}
+                    <legend
+                      className="mobile-join__avatar-title"
+                      id="mobile-join-avatar-title"
+                    >
+                      Elige tu avatar
+                    </legend>
+
+                    <div
+                      aria-live="polite"
+                      className="mobile-join__avatar-preview"
+                    >
+                      {selectedAvatarId ? (
+                        <span
+                          aria-hidden="true"
+                          className="mobile-join__avatar-preview-portrait"
+                          style={getAvatarCropStyle(selectedAvatarId)}
+                        />
+                      ) : (
+                        <span
+                          aria-hidden="true"
+                          className="mobile-join__avatar-preview-portrait mobile-join__avatar-preview-portrait--empty"
+                        >
+                          ✦
+                        </span>
+                      )}
+                      <p className="mobile-join__avatar-preview-label">
+                        {selectedAvatarId
+                          ? `Avatar elegido: ${getPlayerAvatar(selectedAvatarId).accessibleName}`
+                          : 'Aún no has elegido ningún avatar.'}
+                      </p>
+                    </div>
+
+                    <p
+                      aria-live="polite"
+                      className="mobile-join__avatar-help"
+                      id="mobile-join-avatar-help"
+                      role="status"
+                    >
+                      {avatarHelpMessage}
+                    </p>
+
+                    <div className="mobile-join__avatar-grid">
+                      {MOBILE_AVATAR_IDS.map((avatarId) => {
+                        const avatar = getPlayerAvatar(avatarId)
+                        const isSelected = selectedAvatarId === avatarId
+                        const isOccupied = occupiedAvatarIds.has(avatarId)
+                        const isUnavailable = currentRoomSnapshot === null || isOccupied
+                        const optionStatus = isOccupied
+                          ? 'No disponible'
+                          : currentRoomSnapshot
+                            ? isSelected ? 'Elegido' : 'Disponible'
+                            : visibleRoomSnapshotState?.status === 'error'
+                              ? 'Sin verificar'
+                              : isLoadingRoomSnapshot
+                                ? 'Consultando'
+                                : 'Pendiente'
+                        const choiceClassName = [
+                          'mobile-join__avatar-choice',
+                          isSelected && 'mobile-join__avatar-choice--selected',
+                          isOccupied && 'mobile-join__avatar-choice--unavailable',
+                          isUnavailable && 'mobile-join__avatar-choice--disabled',
+                        ].filter(Boolean).join(' ')
+
+                        return (
+                          <label
+                            className={choiceClassName}
+                            key={avatarId}
+                          >
+                            <input
+                              aria-describedby="mobile-join-avatar-help"
+                              checked={isSelected}
+                              disabled={isBusy || isUnavailable}
+                              name="avatarId"
+                              onChange={() => {
+                                setSelectedAvatarId(avatarId)
+                                clearFieldError('avatarId')
+                                setErrorMessage(null)
+                              }}
+                              type="radio"
+                              value={avatarId}
+                            />
+                            <span
+                              aria-hidden="true"
+                              className="mobile-join__avatar-choice-portrait"
+                              style={getAvatarCropStyle(avatarId)}
+                            />
+                            <span className="mobile-join__avatar-choice-name">
+                              {avatar.accessibleName}
+                            </span>
+                            <span className="mobile-join__avatar-choice-status">
+                              {optionStatus}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </fieldset>
+
+                  {fieldErrors.avatarId && (
+                    <p
+                      className="mobile-join__field-error"
+                      id="mobile-join-avatar-error"
+                      role="alert"
+                    >
+                      {fieldErrors.avatarId}
+                    </p>
+                  )}
+                </section>
 
                 {visibleRoomSnapshotState?.status === 'error' && (
                   <p className="mobile-join__form-error" role="alert">
@@ -733,16 +905,18 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                 )}
 
                 <button
-                  aria-busy={isBusy}
+                  aria-busy={isBusy || isLoadingRoomSnapshot}
                   className="mobile-join__submit"
-                  disabled={isBusy}
+                  disabled={isBusy || (hasValidEnteredRoomCode && !isSelectedAvatarAvailable)}
                   type="submit"
                 >
                   {isBusy
                     ? status === 'recovering'
                       ? 'Recuperando…'
                       : 'Uniéndote…'
-                    : errorMessage
+                    : isLoadingRoomSnapshot
+                      ? 'Consultando…'
+                      : errorMessage
                       ? 'Reintentar'
                       : 'Unirme a la sala'}
                 </button>

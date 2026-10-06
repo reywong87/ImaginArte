@@ -4,6 +4,7 @@ import {
   type GetPlayerPrivateStateResponse,
   type RoomStateResponse,
 } from '../models/roomState'
+import type { AvatarId } from '../models/playerAvatars'
 
 interface CreatedRoom {
   roomCode: string
@@ -90,6 +91,7 @@ export async function joinRoomAsPlayer(
   roomCode: string,
   playerId: string,
   playerName: string,
+  avatarId: AvatarId,
   signal?: AbortSignal,
 ): Promise<RoomStateResponse> {
   const normalizedRoomCode = roomCode.trim().toUpperCase()
@@ -100,7 +102,7 @@ export async function joinRoomAsPlayer(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ playerId, playerName }),
+      body: JSON.stringify({ playerId, playerName, avatarId }),
       signal,
     },
   )

@@ -1,11 +1,15 @@
+import { isAvatarId, type AvatarId } from '../models/playerAvatars'
+
 export interface StoredMobilePlayerSession {
   roomCode: string
   playerId: string
   playerName: string
+  avatarId: AvatarId
   status: 'joining' | 'joined'
 }
 
-const SESSION_KEY_PREFIX = 'imaginarte.mobile.v1.room.'
+const SESSION_KEY_PREFIX = 'imaginarte.mobile.v2.room.'
+const LEGACY_SESSION_KEY_PREFIX = 'imaginarte.mobile.v1.room.'
 const PLAYER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export class MobilePlayerSessionStorageError extends Error {
@@ -25,6 +29,10 @@ function getSessionKey(roomCode: string): string {
   return `${SESSION_KEY_PREFIX}${normalizeRoomCode(roomCode)}.player`
 }
 
+function getLegacySessionKey(roomCode: string): string {
+  return `${LEGACY_SESSION_KEY_PREFIX}${normalizeRoomCode(roomCode)}.player`
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -41,6 +49,7 @@ function isStoredMobilePlayerSession(
     && typeof value.playerName === 'string'
     && value.playerName.trim().length >= 1
     && value.playerName.trim().length <= 40
+    && isAvatarId(value.avatarId)
     && (value.status === 'joining' || value.status === 'joined')
 }
 
@@ -56,10 +65,16 @@ export function readMobilePlayerSession(
   roomCode: string,
 ): StoredMobilePlayerSession | null {
   const normalizedRoomCode = normalizeRoomCode(roomCode)
+  const legacyKey = getLegacySessionKey(normalizedRoomCode)
   const key = getSessionKey(normalizedRoomCode)
   let storedValue: string | null
 
   try {
+    if (window.localStorage.getItem(legacyKey) !== null) {
+      // Legacy records have no explicit avatar choice, so never restore or retry them.
+      window.localStorage.removeItem(legacyKey)
+    }
+
     storedValue = window.localStorage.getItem(key)
   } catch {
     throw new MobilePlayerSessionStorageError()
@@ -86,6 +101,7 @@ export function readMobilePlayerSession(
     roomCode: normalizedRoomCode,
     playerId: parsedValue.playerId,
     playerName: parsedValue.playerName.trim(),
+    avatarId: parsedValue.avatarId,
     status: parsedValue.status,
   }
 }
