@@ -55,7 +55,7 @@ Bring players into a room and let the host begin when the room is ready.
 All players view the shared TV; only the host acts on the TV.
 
 ### Visible Information
-Room code, QR code, joined-player names and public avatars from the authoritative room snapshot, player count, configured target score, board context, and host-ready status. The TV maps each player's stable `avatarId` to its portrait in the atlas; it does not assign or persist avatar identities locally. Mobile avatar selection is deferred to SPEC 06.
+Room code, QR code, joined-player names and public avatars from the authoritative room snapshot, player count, configured target score, board context, and host-ready status. The TV maps each player's stable `avatarId` to its portrait in the atlas; it does not assign or persist avatar identities locally. Mobile avatar selection follows SPEC 06.
 
 ### Prohibited Information
 Hands, player card identities, future storyteller, private session details, or a start control for non-hosts.
@@ -275,34 +275,34 @@ The screen never announces a winner for a first-place tie, clearly exposes the h
 ## 8. Join By Code Or QR
 
 ### Purpose
-Let a player enter the room and establish a private display name.
+Let a player join by room code, choose an available avatar, and establish a private display name.
 
 ### User And Surface
 Prospective player on mobile; no TV or host action is required.
 
 ### Visible Information
-Room-code entry or QR deep-link result, display-name field, join status, and concise privacy reassurance.
+Room-code entry or QR deep-link result, display-name field, the 16 avatar options with Spanish accessible names and availability status, a large preview of the player's own selection, join status, and concise privacy reassurance. After a successful join, confirm the player's own server-saved avatar, display name, room code, and waiting message.
 
 ### Prohibited Information
-Other players' hands, room-private administrative data, board view, or a full TV replica.
+Other players' names or roster, which player chose an unavailable avatar, other players' hands, room-private administrative data, board view, or a full TV replica. Use other players' avatar IDs only to disable those choices; do not render a roster or attribute an avatar to a person.
 
 ### Primary Action
-Enter code/name and select **Join room**.
+Enter a valid code and display name, explicitly choose an available avatar, and select **Join room**. Do not submit until an available avatar is selected.
 
 ### States And Transitions
-Code entry, deep-link prefilled, validation error, joining, and joined states; successful join transitions to **Lobby waiting**.
+Code entry or deep-link prefilled; room availability loading, loaded, and error states; avatar selection and validation; joining; and joined confirmation. A public room snapshot determines which avatar choices are unavailable without exposing the roster, while the server enforces avatar uniqueness within the room. If a simultaneous join takes the selected avatar, handle HTTP 409 by refreshing availability, preserving the entered code and name, and asking the player to choose another. If a join response is uncertain, query the saved player identity first and reuse the same `playerId` and `avatarId` when retrying. A successful join confirms the avatar from the authoritative server snapshot and transitions to **Lobby waiting**; avatar editing is not offered after joining.
 
 ### Visual Composition
-Night Wash stage with a restrained gold frame; place the room-code and display-name fields on clear Paper Warm surfaces in one compact column. Keep the full-width primary action above the safe bottom inset.
+Night Wash stage with a restrained gold frame; place the room-code and display-name fields on clear Paper Warm surfaces in one compact column. Follow them with a responsive grid of 16 atlas portraits and a large preview of the selected portrait. Keep the full-width primary action and all avatar choices within the scrollable, safe-area-aware stage.
 
 ### Accessibility
-Manual code is always available alongside QR; fields have visible labels and errors; keyboard focus and touch targets meet system requirements.
+Manual code is always available alongside QR. Use a labelled radio group with Spanish avatar names, visible keyboard focus, and text states for selected, available, and unavailable choices; do not rely on color alone. Announce loading, errors, conflicts, and join confirmation. Avatar touch targets are at least 44 × 44 px, and the scrollable content remains usable above the safe-area inset.
 
 ### Visual Reference
-`docs/assets/visual-references/mockups/09-unirse-sala-movil-avatar-selector-sin-qr.png`. The visual shows an avatar selector, but it does not add avatar-selection behavior to this screen contract; avatar selection is deferred to SPEC 06.
+`docs/assets/visual-references/mockups/09-unirse-sala-movil-avatar-selector-sin-qr.png`. The mockup is a visual reference; this screen contract defines the required 16-option selector, privacy boundary, availability, conflict recovery, and server-confirmed identity.
 
 ### Acceptance Criteria
-A player can join without scanning QR, receives a clear validation error for an invalid code, and sees no board or other private player data.
+A player can join without scanning QR, receives a clear validation error for an invalid code, and cannot submit without choosing an available avatar. Each avatar is unique within a room, with the server as the final authority. The screen shows availability without exposing a roster or names, refreshes after an avatar conflict while preserving the code and name, and confirms the server-saved avatar with the player's name and room code. An uncertain join result recovers the same identity before retrying. No board or other private player data is shown.
 
 ## 9. Lobby Waiting
 
@@ -566,7 +566,7 @@ The screen mockups live in `docs/assets/visual-references/mockups/`. They are vi
 | `06-revelacion-puntuacion-recorrido-tv.png` | TV vote reveal and round points | Narrator-card marking, public per-card distribution, round points, cumulative scoreboard | Names under cards map voters to vote targets and violate privacy; replace them with anonymous counts per card. Cumulative totals are present in the mockup and remain part of the required scoreboard. Freeze tokens during this screen. |
 | `07-progreso-tablero-tv.png` | TV board progress after scoring | Scenic board, 25-node route, focused movement summary, next-round action | Apply route, node, constellation, central-safe-zone, and reduced-motion rules from `07-progress-board.md`; do not move tokens during reveal. |
 | `08-final-partida-ganador-tv.png` | TV resolved winner | Ceremonial winner panel, final ranking, portal context | This represents a resolved winner, not a first-place tie. Preserve portal and finalist positions per `07-progress-board.md`; keep host-only **Play again** and its confirmation. |
-| `09-unirse-sala-movil-avatar-selector-sin-qr.png` | Mobile join by code | Compact code/name flow and framed mobile stage | QR is not required for manual join. The avatar selector is visible in the mockup but does not define behavior; a separate spec is required for mobile avatar selection. |
+| `09-unirse-sala-movil-avatar-selector-sin-qr.png` | Mobile join by code | Compact code/name flow and framed mobile stage | QR is not required for manual join. The mockup is visual reference only; SPEC 06 defines avatar selection, availability, privacy, and confirmation behavior. |
 | `10-lobby-jugador-espera-anfitrion.png` | Mobile lobby waiting | Player identity, optional roster, host-waiting status | Show the roster only if enabled; do not add a full board or a player action that starts/advances the room. |
 | `11-turno-narrador-movil.png` | Mobile narrator card and clue selection | Private hand, clue field, explicit submission action | Selection labels intrude on card edges/art; place them outside the illustration. Keep the clue/action controls clear of the bottom inset. |
 | `12-turno-jugador-movil.png` | Mobile guesser card submission | Persistent clue, private hand, explicit send action | Keep selection labels outside card art and preserve a clear safe-bottom area for the action. |
