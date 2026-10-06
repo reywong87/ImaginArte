@@ -1,0 +1,34 @@
+.progress-route {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.progress-route__connector {
+  fill: none;
+  stroke: #c18a2e;
+  stroke-linecap: round;
+  stroke-width: 9;
+}
+
+.progress-route__node-circle {
+  fill: #fbf4e2;
+  stroke: #10243a;
+  stroke-width: 6;
+}
+
+.progress-route__node-inner-ring {
+  fill: none;
+  stroke: #c18a2e;
+  stroke-width: 2;
+}
+
+.progress-route__node-number {
+  fill: #10243a;
+  font-family: Arial, sans-serif;
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
