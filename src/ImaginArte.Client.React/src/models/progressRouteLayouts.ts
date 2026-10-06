@@ -1,0 +1,100 @@
+export interface ProgressRoutePoint {
+  readonly x: number
+  readonly y: number
+}
+
+export type ProgressRouteTargetScore = 15 | 25 | 35
+
+export const PROGRESS_ROUTE_VIEWBOX = {
+  width: 1920,
+  height: 1080,
+} as const
+
+// The 25-position route follows the numbered guide's order. Its upper arc is
+// lowered below the clue band, and its final loop stops before the portal.
+export const progressRouteLayouts = {
+  15: [
+    { x: 90, y: 1018 },
+    { x: 395, y: 998 },
+    { x: 530, y: 957 },
+    { x: 333, y: 817 },
+    { x: 199, y: 741 },
+    { x: 352, y: 571 },
+    { x: 283, y: 479 },
+    { x: 348, y: 384 },
+    { x: 450, y: 232 },
+    { x: 729, y: 230 },
+    { x: 1077, y: 230 },
+    { x: 1407, y: 220 },
+    { x: 1566, y: 185 },
+    { x: 1530, y: 445 },
+    { x: 1620, y: 330 },
+  ],
+  25: [
+    { x: 90, y: 1018 },
+    { x: 228, y: 972 },
+    { x: 395, y: 998 },
+    { x: 530, y: 957 },
+    { x: 497, y: 872 },
+    { x: 333, y: 817 },
+    { x: 199, y: 741 },
+    { x: 258, y: 646 },
+    { x: 352, y: 571 },
+    { x: 283, y: 479 },
+    { x: 348, y: 384 },
+    { x: 450, y: 232 },
+    { x: 586, y: 230 },
+    { x: 729, y: 230 },
+    { x: 911, y: 230 },
+    { x: 1077, y: 230 },
+    { x: 1247, y: 230 },
+    { x: 1407, y: 220 },
+    { x: 1566, y: 185 },
+    { x: 1620, y: 270 },
+    { x: 1600, y: 360 },
+    { x: 1530, y: 445 },
+    { x: 1605, y: 500 },
+    { x: 1660, y: 420 },
+    { x: 1620, y: 330 },
+  ],
+  35: [
+    { x: 90, y: 1018 },
+    { x: 228, y: 972 },
+    { x: 312, y: 985 },
+    { x: 395, y: 998 },
+    { x: 463, y: 978 },
+    { x: 530, y: 957 },
+    { x: 497, y: 872 },
+    { x: 415, y: 845 },
+    { x: 333, y: 817 },
+    { x: 266, y: 779 },
+    { x: 199, y: 741 },
+    { x: 258, y: 646 },
+    { x: 352, y: 571 },
+    { x: 283, y: 479 },
+    { x: 348, y: 384 },
+    { x: 399, y: 308 },
+    { x: 450, y: 232 },
+    { x: 586, y: 230 },
+    { x: 729, y: 230 },
+    { x: 820, y: 230 },
+    { x: 911, y: 230 },
+    { x: 994, y: 230 },
+    { x: 1077, y: 230 },
+    { x: 1162, y: 230 },
+    { x: 1247, y: 230 },
+    { x: 1327, y: 225 },
+    { x: 1407, y: 220 },
+    { x: 1487, y: 203 },
+    { x: 1566, y: 185 },
+    { x: 1620, y: 270 },
+    { x: 1600, y: 360 },
+    { x: 1530, y: 445 },
+    { x: 1605, y: 500 },
+    { x: 1660, y: 420 },
+    { x: 1620, y: 330 },
+  ],
+} as const satisfies Record<
+  ProgressRouteTargetScore,
+  readonly ProgressRoutePoint[]
+>
