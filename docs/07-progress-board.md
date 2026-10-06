@@ -2,37 +2,38 @@
 
 ## Purpose And Scope
 
-The progress board is ImaginArte's persistent public stage. It represents a dreamlike ascent from earth toward imagination: a 25-position route begins among roots and flowers in the lower-left corner and ends before a golden portal in the upper-right corner.
+The progress board is ImaginArte's persistent public stage after the TV confirms that the game has started. It represents a dreamlike ascent from earth toward imagination: the route begins among roots and flowers in the lower-left corner and ends before a golden portal in the upper-right corner. Its length matches the room's authoritative target score: 15, 25, or 35 positions.
 
-The board may remain visible during the lobby, turns, voting, revelation, and scoring. Cards, clues, votes, and results overlay its central area, which must remain quiet and free of progress elements.
+The route remains visible during turns, voting, revelation, and scoring, but not in the waiting lobby. Cards, clues, votes, and results overlay its central area, which must remain quiet and free of progress elements.
 
 This specification defines the board's visual layers. Game rules, scoring, and state transitions belong to the application layer, not the interface.
 
 ## References And Base Assets
 
 - Horizontal `16:9` illustrated background: the “Between Sky and Earth” watercolor world.
-- Functional route: a runtime SVG layer composed of 25 circular progress nodes and 24 straight connectors on top of the background.
-- Production guide: `recorrido-numerado-transparente.png`, showing the intended node positions and order from 1 through 25.
+- Functional route: a runtime SVG layer composed of a target-score number of circular progress nodes and one fewer straight connectors on top of the background.
+- Production guide: `recorrido-numerado-transparente.png`, showing the intended node positions and order for the 25-position medium route.
 - Player tokens: seed-comet medallions independent from the background.
 
 Assets must remain separate, with transparency where appropriate. The background does not include nodes, tokens, text, or interface elements. The production guide is reference-only and is not used as a single raster route asset; React composes the runtime route from reusable SVG primitives.
 
 ## Progress Route
 
-- The route contains exactly 25 positions, one for each point in the medium game target.
+- The route contains exactly as many positions as the room's `TargetScore`: 15 for Corta, 25 for Media, and 35 for Larga.
 - It begins at the lower-left roots and ends before the upper-right golden portal.
 - Nodes are visual anchors of approximately 65 px in diameter on a `1920 x 1080` canvas.
-- Each connector is a straight line between the centers of two consecutive nodes. With 25 nodes, the medium route has 24 connectors.
-- The ordered arrangement of straight segments must retain a continuous, organic, ascending reading.
+- Each connector is a straight line between the centers of two consecutive nodes. A route with `N` nodes has `N - 1` connectors.
+- Each route length has an ordered list of node centers. All three arrangements of straight segments retain a continuous, organic, ascending reading and end before the portal.
 - Nodes are not token containers and do not imply effects, bonuses, or penalties.
-- Node numbers `1` through `25` are visible on the public board. React renders each number as SVG `<text>` centered inside its corresponding `<circle>`; numbers are not baked into the background, guide image, or a node image asset.
+- Node numbers `1` through `N` are visible on the public board. React renders each number as SVG `<text>` centered inside its corresponding `<circle>`; numbers are not baked into the background, guide image, or a node image asset.
 
 ### Runtime Route Composition
 
-- The route layout is an ordered list of node centers in the reference `1920 x 1080` coordinate system. The numbered guide is used to establish and review these coordinates.
+- Each route layout is an ordered list of node centers in the reference `1920 x 1080` coordinate system. The numbered guide establishes and reviews the 25-position medium layout; the 15- and 35-position layouts preserve its visual language and safe zones.
 - React renders one reusable circular node for each position and one reusable straight-line connector for each consecutive pair. Connectors render below nodes so their endpoints remain visually hidden by the node surfaces.
 - The route is rendered in a responsive SVG with a matching `viewBox`, so the background, connectors, nodes, and labels scale together without losing alignment.
-- A future route length may provide a different ordered coordinate list and target position count while reusing the same node, connector, and text-rendering components. The visual layout does not define the game rules or scoring target.
+- The public room snapshot's `TargetScore` selects the matching coordinate list. This presentation mapping does not calculate scores or define game rules.
+- Future route lengths may provide a different ordered coordinate list while reusing the same node, connector, and text-rendering components.
 
 ## Overlay Safe Zones
 
@@ -134,13 +135,13 @@ Use two curved microtoken arcs. If needed, place a 14 px auxiliary `8` badge bes
 
 ### Orientation By Board Area
 
-| Position zone | Opening direction |
+| Board area | Opening direction |
 | --- | --- |
-| 1-7, roots and left side | Up and right |
-| 8-12, water and mist | Leftward or upward exterior, depending on route segment |
-| 13-18, upper arc | Upward, while preserving distance from islands |
-| 19-22, approach | Down and right, without entering the empty centre |
-| 23-25, portal | Down and left of the portal |
+| Roots and lower-left start | Up and right |
+| Water and mist | Leftward or upward exterior, depending on route segment |
+| Upper arc | Upward, while preserving distance from islands |
+| Approach to the portal | Down and right, without entering the empty centre |
+| Portal | Down and left of the portal |
 
 General rule: calculate an opening vector from the node toward the useful canvas perimeter; block vectors that enter the central overlay area, leave the canvas, cross the route, or invade the portal. If the first vector is blocked, rotate in 30-degree increments.
 
@@ -260,7 +261,7 @@ Maintain the following layers with transparency and without including the board 
 - Two neighboring constellations need at least 12 px between their outer halos when they occupy nearby segments.
 - Recognize the active player in less than one second through halo, contour, and label; do not depend only on text or color.
 - The `+N` marker must be readable without hiding the node or token.
-- Position 25 must remain readable as arrival at the portal, not as a token embedded in it.
+- The final position for the selected route must remain readable as arrival at the portal, not as a token embedded in it.
 - No tokens, threads, labels, or state effects may appear in the central overlay area.
 - With reduced motion enabled, every score change remains unambiguous.
 
@@ -268,8 +269,8 @@ For constellations of five to eight microtokens, the priority from a couch is to
 
 ## Acceptance Criteria
 
-- The route contains exactly 25 nodes and visually ends unambiguously before the portal.
-- Node labels `1` through `25` are visible, centered, and legible at the intended TV distance.
+- The route contains exactly `TargetScore` nodes (15, 25, or 35) and visually ends unambiguously before the portal.
+- Node labels `1` through `TargetScore` are visible, centered, and legible at the intended TV distance.
 - Tokens do not cover the progress node or enter the reserved central area.
 - Constellations of 1, 2, 4, and 8 tokens retain a clear association with their anchor node.
 - Constellations and labels reorient near edges, the portal, route, or other nodes.

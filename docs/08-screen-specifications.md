@@ -4,7 +4,7 @@
 
 This document is the screen source of truth for the shared TV and private mobile controllers. It specifies presentation and interaction only. Game rules, scoring, role rotation, and phase authority remain outside the interface.
 
-- TV is public, spacious, and readable from 2-3 metres. It may show board context, but the central safe area remains available for game content.
+- TV is public, spacious, and readable from 2-3 metres. After the server confirms the game start, it may show the progress route as board context; the central safe area remains available for game content.
 - Mobile is private and uses a Night Wash stage with a restrained ornamental gold frame; Paper Warm is reserved for readable cards, clues, fields, and content panels. It never shows the full board and presents one clear primary action. A selection remains reversible until explicit confirmation.
 - Playable cards remain portrait `2:3`; no title or text overlays the illustration. Voting numbers sit outside the art.
 - While voting remains open, TV never shows hands, any selected or submitted-card owner, the storyteller card identity, individual votes, or which players made pending choices. After the server locks all votes, the dedicated vote-reveal state may show who voted for each card while keeping the storyteller card hidden until a separate TV action.
@@ -55,7 +55,7 @@ Bring players into a room and let the host begin when the room is ready.
 All players view the shared TV; only the host acts on the TV.
 
 ### Visible Information
-Room code, QR code, joined-player names and public avatars from the authoritative room snapshot, player count, configured target score, board context, and host-ready status. The TV maps each player's stable `avatarId` to its portrait in the atlas; it does not assign or persist avatar identities locally. Mobile avatar selection follows SPEC 06.
+Room code, QR code, joined-player names and public avatars from the authoritative room snapshot, player count, configured target score, and host-ready status. The TV maps each player's stable `avatarId` to its portrait in the atlas; it does not assign or persist avatar identities locally. Mobile avatar selection follows SPEC 06. The progress route is hidden while the room is waiting for players.
 
 ### Prohibited Information
 Hands, player card identities, future storyteller, private session details, or a start control for non-hosts.
@@ -64,10 +64,10 @@ Hands, player card identities, future storyteller, private session details, or a
 Host selects **Start game** and explicitly confirms it.
 
 ### States And Transitions
-Empty, joining, ready, and host-confirmation states; on start, transition to **Waiting for storyteller**. If a player disconnects, retain their name with a public neutral reconnecting status. After the TV reconnects, load a fresh room snapshot and render each avatar from that snapshot rather than inventing or replaying local assignments.
+Empty, joining, ready, and host-confirmation states; after the server confirms the start, transition to **Waiting for storyteller** and reveal the progress route. If a player disconnects, retain their name with a public neutral reconnecting status. After the TV reconnects, load a fresh room snapshot and render each avatar from that snapshot rather than inventing or replaying local assignments.
 
 ### Visual Composition
-Use the scenic illustrated TV background with a dark, high-contrast content window. Room code and QR form the dominant central stage; roster sits in a quiet side or lower band. The 25-node board is background context, with no constellation entering the central stage.
+Use the scenic illustrated TV background with a dark, high-contrast content window. Room code and QR form the dominant central stage; roster sits in a quiet side or lower band. Keep the progress route hidden until the server confirms the start.
 
 ### Accessibility
 Room code uses large tabular figures; QR has the manual-code alternative; roster status uses text and icon, not color alone; host control has a persistent focus state.
@@ -76,7 +76,7 @@ Room code uses large tabular figures; QR has the manual-code alternative; roster
 `docs/assets/visual-references/mockups/02-lobby-sala-tv.png`.
 
 ### Acceptance Criteria
-From 2-3 m, a guest can read the room code, see how many players joined, and identify the host-only start action without seeing any private game data. Each roster portrait matches its `avatarId` in the authoritative room snapshot and remains consistent after room updates or TV reconnection.
+From 2-3 m, a guest can read the room code, see how many players joined, and identify the host-only start action without seeing any private game data. The progress route remains hidden until the server confirms the start. Each roster portrait matches its `avatarId` in the authoritative room snapshot and remains consistent after room updates or TV reconnection.
 
 ## 2. Waiting For Storyteller
 
@@ -87,7 +87,7 @@ Announce the active narrator and hold the room while they privately choose a car
 All players view TV; the narrator acts only on their mobile; host has no phase-advance action.
 
 ### Visible Information
-Narrator name, role label, concise waiting instruction, and optional board context with the active narrator token halo and contextual label.
+Narrator name, role label, concise waiting instruction, and the numbered route as a persistent background layer after the start is confirmed. Player tokens and their state effects are separate from the route-only implementation slice in SPEC 07.
 
 ### Prohibited Information
 Narrator hand, selected card, clue before submission, selection progress, and any other player's private state.
@@ -99,7 +99,7 @@ No TV action; the narrator completes the private mobile action.
 Waiting and narrator-reconnecting states; after valid narrator submission, transition to **Clue and submission progress**.
 
 ### Visual Composition
-Use the upper safe band for phase and narrator identity. Keep the central stage mostly open; the active token may use the board's Moon Gold halo outside the overlay zone.
+Use the upper safe band for phase and narrator identity. Keep the central stage mostly open and the route peripheral; it must not cover the waiting message.
 
 ### Accessibility
 Use a literal message such as “Ana is choosing a card and clue”; role is conveyed by text, label, halo, and token identity.
@@ -215,7 +215,7 @@ Make the resolved score changes a shared board moment before the next round.
 All players view TV; no player acts; host proceeds only after progress completes or is skipped through a clear confirmation.
 
 ### Visible Information
-Numbered 25-node route with visible labels `1` through `25`, token constellations, recent `+N` markers, movement trails, updated positions, active/leader context where applicable, and a concise next-round status.
+Numbered route whose node count matches the room's target score (15, 25, or 35), with visible labels `1` through the target, token constellations, recent `+N` markers, movement trails, updated positions, active/leader context where applicable, and a concise next-round status.
 
 ### Prohibited Information
 Hands, discarded or refilled cards, private actions, votes, and recalculated scoring details beyond already-resolved round changes.
@@ -236,7 +236,7 @@ Active and recently moved tokens use identity plus label, halo, and `+N`. Reduce
 `docs/assets/visual-references/mockups/07-progreso-tablero-tv.png`; validate node, token, route, and portal placement against `07-progress-board.md`.
 
 ### Acceptance Criteria
-All 25 nodes and their visible numbers remain legible, no constellation invades the central safe area, and each score change is understandable without relying on motion or color.
+All route nodes for the selected target score and their visible numbers remain legible, no constellation invades the central safe area, and each score change is understandable without relying on motion or color.
 
 ## 7. End Of Game And Tie
 
@@ -559,12 +559,12 @@ The screen mockups live in `docs/assets/visual-references/mockups/`. They are vi
 | File | Screen represented | Visual direction | Constraints or deviations not to reproduce |
 | --- | --- | --- | --- |
 | `01-inicio-seleccion-experiencia-tv.png` | TV home before room creation | Scenic stage, ImaginArte title, one prominent framed action | `specs/02-tv-home-room-creation.md` governs the screen: show only **Crear una sala**; omit **Abrir una sala**, **¿Cómo quieres comenzar?**, and **Entre cielo y tierra** as title. |
-| `02-lobby-sala-tv.png` | TV room lobby | Room-code/QR hierarchy, public roster, spacious board context, host action | Replace sample values and QR artwork with live data. Keep manual code entry available, reconnect status textual and icon-supported, and host start explicitly confirmed. |
+| `02-lobby-sala-tv.png` | TV room lobby | Room-code/QR hierarchy, public roster, spacious scenic backdrop, host action | Replace sample values and QR artwork with live data. Keep manual code entry available, reconnect status textual and icon-supported, and host start explicitly confirmed. Do not show the progress route before the server confirms the start. |
 | `03-esperando-al-narrador-recorrido-v4-avatares-tv.png` | TV waiting for storyteller | Narrator identity, waiting message, contextual active token | Do not show the narrator's hand, card, clue, or private selection progress; keep the central stage clear. |
 | `04-pista-progreso-envios-ruta-tv-ventana-oscura.png` | TV clue and submission progress | Framed clue window, aggregate submission count, quiet board periphery | Progress must remain aggregate; do not mark or identify pending players or expose submitted cards. |
 | `05-votacion-cartas-pista-recorrido-tv.png` | TV voting | Central card set, stable numbers, clue and aggregate vote progress | Keep order/numbers fixed; do not reveal ownership, votes, voter identity, pending-voter identity, or the narrator card. Validate legibility from 2-3 m. |
 | `06-revelacion-puntuacion-recorrido-tv.png` | TV vote reveal and round points | Narrator-card marking, public per-card distribution, round points, cumulative scoreboard | Names under cards map voters to vote targets and violate privacy; replace them with anonymous counts per card. Cumulative totals are present in the mockup and remain part of the required scoreboard. Freeze tokens during this screen. |
-| `07-progreso-tablero-tv.png` | TV board progress after scoring | Scenic board, 25-node route, focused movement summary, next-round action | Apply route, node, constellation, central-safe-zone, and reduced-motion rules from `07-progress-board.md`; do not move tokens during reveal. |
+| `07-progreso-tablero-tv.png` | TV board progress after scoring | Scenic board, target-sized numbered route, focused movement summary, next-round action | Compose the route in code using reusable SVG primitives; do not render the mockup as a complete screen. Apply route, node, constellation, central-safe-zone, and reduced-motion rules from `07-progress-board.md`; do not move tokens during reveal. |
 | `08-final-partida-ganador-tv.png` | TV resolved winner | Ceremonial winner panel, final ranking, portal context | This represents a resolved winner, not a first-place tie. Preserve portal and finalist positions per `07-progress-board.md`; keep host-only **Play again** and its confirmation. |
 | `09-unirse-sala-movil-avatar-selector-sin-qr.png` | Mobile join by code | Compact code/name flow and framed mobile stage | QR is not required for manual join. The mockup is visual reference only; SPEC 06 defines avatar selection, availability, privacy, and confirmation behavior. |
 | `10-lobby-jugador-espera-anfitrion.png` | Mobile lobby waiting | Player identity, optional roster, host-waiting status | Show the roster only if enabled; do not add a full board or a player action that starts/advances the room. |
@@ -618,7 +618,7 @@ The screen mockups live in `docs/assets/visual-references/mockups/`. They are vi
 3. Keep card selection and disabled-state labels outside illustrations; reject clipped controls, bottom-edge collisions, and content outside the viewport.
 4. Validate TV typography, card numbers, node visibility, and active-token recognition at 2-3 m.
 5. Validate mobile one-action flows, `44 x 44 px` minimum targets, safe-bottom spacing, and explicit confirmation on physical devices.
-6. Validate board constellations, labels, and movement against the 25-node safe zones with 3-8 players and reduced motion; do not infer a tie layout from the resolved-winner mockup.
+6. Validate board constellations, labels, and movement against the 15-, 25-, and 35-node safe zones with 3-8 players and reduced motion; do not infer a tie layout from the resolved-winner mockup.
 
 # Glossary
 
@@ -630,7 +630,7 @@ The screen mockups live in `docs/assets/visual-references/mockups/`. They are vi
 | Submission | A narrator's chosen card and clue, or a guesser's chosen matching card, sent for the round. |
 | Vote | One guesser's private selection of the card believed to be the narrator's. |
 | Reveal | The public phase showing the narrator card, vote distribution, and round points. |
-| Node | One of the 25 visible anchors on the TV progress route. |
+| Node | One visible anchor on the TV progress route; the route has as many nodes as the room's target score. |
 | Token | A player's seed-comet marker, linked outside a node by a short thread. |
 | Constellation | The outward arrangement of multiple tokens sharing one node. |
 
@@ -638,4 +638,4 @@ The screen mockups live in `docs/assets/visual-references/mockups/`. They are vi
 
 `06-design-system.md` governs palette, typography, spacing, card geometry, control behavior, contrast, focus, motion, and the public-TV/private-mobile visual distinction used here. This document applies those rules screen by screen without defining implementation components.
 
-`07-progress-board.md` governs the 25-node “Between Sky and Earth” route, central overlay safe zones, token identities, anchored constellations, state priorities, motion, and final portal behavior. This document determines when the board is contextual, when cards occupy its centre, and that token advancement occurs only on the post-scoring board-progress screen.
+`07-progress-board.md` governs the 15-, 25-, and 35-node “Between Sky and Earth” routes, central overlay safe zones, token identities, anchored constellations, state priorities, motion, and final portal behavior. This document determines when the board is contextual, when cards occupy its centre, and that token advancement occurs only on the post-scoring board-progress screen.
