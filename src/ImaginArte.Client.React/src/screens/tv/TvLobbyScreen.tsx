@@ -278,6 +278,7 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
       ? 'La dirección móvil configurada no es válida. Puedes unirte con el código de sala.'
       : null
   const isWaitingForPlayers = room?.phase === RoomPhase.WaitingForPlayers
+  const isGameStarted = room !== null && !isWaitingForPlayers
   const playerCount = room?.players.length ?? 0
   const isRoomFull = room !== null && playerCount >= room.maximumPlayers
   const connectionStatusLabel = getConnectionStatusLabel(visibleState.connectionStatus)
@@ -377,9 +378,10 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
     <main
       className="tv-lobby-screen"
       aria-busy={visibleState.isLoading}
-      aria-labelledby="tv-lobby-title"
+      aria-labelledby={isGameStarted ? undefined : 'tv-lobby-title'}
+      aria-label={isGameStarted ? 'Partida en curso' : undefined}
     >
-      {room && room.phase !== RoomPhase.WaitingForPlayers && progressRoutePoints && (
+      {isGameStarted && progressRoutePoints && (
         <div
           className="tv-lobby-screen__progress-route"
           aria-hidden="true"
@@ -388,26 +390,26 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
         </div>
       )}
       <div className="tv-lobby-screen__content">
-        <header className="tv-lobby-screen__header">
-          <p className="tv-lobby-screen__eyebrow">ImaginArte · Sala familiar</p>
-          <h1 className="tv-lobby-screen__title" id="tv-lobby-title">
-            {room?.phase === RoomPhase.StorytellerChoosing
-              ? 'El narrador prepara la historia'
-              : room
+        {!isGameStarted && (
+          <header className="tv-lobby-screen__header">
+            <p className="tv-lobby-screen__eyebrow">ImaginArte · Sala familiar</p>
+            <h1 className="tv-lobby-screen__title" id="tv-lobby-title">
+              {room
                 ? 'Todo empieza con una historia'
                 : 'Abriendo la sala'}
-          </h1>
-          {room && (
-            <p
-              className={`tv-lobby-screen__connection tv-lobby-screen__connection--${visibleState.connectionStatus}`}
-              role="status"
-              aria-live="polite"
-            >
-              <span className="tv-lobby-screen__connection-dot" aria-hidden="true" />
-              {connectionStatusLabel}
-            </p>
-          )}
-        </header>
+            </h1>
+            {room && (
+              <p
+                className={`tv-lobby-screen__connection tv-lobby-screen__connection--${visibleState.connectionStatus}`}
+                role="status"
+                aria-live="polite"
+              >
+                <span className="tv-lobby-screen__connection-dot" aria-hidden="true" />
+                {connectionStatusLabel}
+              </p>
+            )}
+          </header>
+        )}
 
         {visibleState.isLoading && (
           <p className="tv-lobby-screen__notice" role="status">
@@ -693,6 +695,16 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
           </>
         )}
       </div>
+      {isGameStarted && room && (
+        <p
+          className={`tv-lobby-screen__connection tv-lobby-screen__connection--corner tv-lobby-screen__connection--${visibleState.connectionStatus}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="tv-lobby-screen__connection-dot" aria-hidden="true" />
+          {connectionStatusLabel}
+        </p>
+      )}
     </main>
   )
 }
