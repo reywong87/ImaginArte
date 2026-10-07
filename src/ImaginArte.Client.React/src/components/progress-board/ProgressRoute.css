@@ -1,34 +1,46 @@
 .progress-route {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 177.7778vh);
+  width: max(100%, 177.7778svh);
+  aspect-ratio: 16 / 9;
+  transform: translate(-50%, -50%);
+  container-type: inline-size;
   pointer-events: none;
 }
 
 .progress-route__connector {
-  fill: none;
-  stroke: #c18a2e;
-  stroke-linecap: round;
-  stroke-width: 9;
+  position: absolute;
+  z-index: 0;
+  display: block;
+  aspect-ratio: 698 / 100;
+  background-image: url('../../assets/conector-dorado.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transform-origin: center;
 }
 
-.progress-route__node-circle {
-  fill: #fbf4e2;
-  stroke: #10243a;
-  stroke-width: 6;
-}
-
-.progress-route__node-inner-ring {
-  fill: none;
-  stroke: #c18a2e;
-  stroke-width: 2;
-}
-
-.progress-route__node-number {
-  fill: #10243a;
-  font-family: Arial, sans-serif;
-  font-size: 32px;
+.progress-route__node {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  width: calc(65 / 1920 * 100%);
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-image: url('../../assets/medallon-vacio.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  color: #4a1c0d;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.3cqw;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  transform: translate(-50%, -50%);
 }

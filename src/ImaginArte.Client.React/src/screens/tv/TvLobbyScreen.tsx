@@ -384,7 +384,6 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
       {isGameStarted && progressRoutePoints && (
         <div
           className="tv-lobby-screen__progress-route"
-          aria-hidden="true"
         >
           <ProgressRoute points={progressRoutePoints} />
         </div>

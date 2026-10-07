@@ -89,8 +89,8 @@ The corner ornament, texture, and CSS surface are decorative assets. They must n
 The board mockups establish a specific visual grammar for progress and scoring:
 
 - Use an illustrated world as the full background, with a readable route layered above it rather than a separate flat board panel.
-- Draw the route as a warm-gold chain of straight connectors between circular waypoints. Use cream nodes with visible dark numeric labels; React renders each label as SVG text rather than using numbers baked into an image. The active node gets a gold ring or glow.
-- Treat the node and connector as reusable SVG primitives. The route is an ordered set of coordinates rendered in a shared responsive viewBox; a different route can reuse the same primitives with a different coordinate list and number of positions.
+- Draw the route as a warm-gold chain between circular medallions. Use `medallon-vacio.png` and `conector-dorado.png` as separate transparent background assets; render each number as live, centered text over its medallion, never baked into an image. The active node may get a restrained gold emphasis.
+- Treat each node and connector as a reusable HTML `<span>` with a background image. Keep the route as an ordered set of coordinates on a shared responsive 16:9 plane; orient each connector span between consecutive node centers and layer nodes above connectors. A different route can reuse the same spans with a different coordinate list and number of positions.
 - Represent players with circular illustrated avatar medallions attached to dark nameplates. Keep names and positions readable before decorative detail.
 - Place the score panel in a dark Night Wash window with a gold frame, cream player names/numbers, and gold round-point changes. Highlight the active storyteller with a clear row treatment and icon, not color alone.
 - Keep the board scenic but subordinate to the current round result. On smaller TV layouts, reduce background detail before reducing route, player, or score legibility.

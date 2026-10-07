@@ -11,29 +11,32 @@ This specification defines the board's visual layers. Game rules, scoring, and s
 ## References And Base Assets
 
 - Horizontal `16:9` illustrated background: the “Between Sky and Earth” watercolor world.
-- Functional route: a runtime SVG layer composed of a target-score number of circular progress nodes and one fewer straight connectors on top of the background.
+- Functional route: a runtime HTML layer composed of a target-score number of medallion nodes and one fewer connector spans on top of the background.
 - Production guide: `recorrido-numerado-transparente.png`, showing the intended node positions and order for the 25-position medium route.
+- Runtime node asset: `src/ImaginArte.Client.React/src/assets/medallon-vacio.png` (`200 x 200`, transparent).
+- Runtime connector asset: `src/ImaginArte.Client.React/src/assets/conector-dorado.png` (`698 x 100`, transparent).
 - Player tokens: seed-comet medallions independent from the background.
 
-Assets must remain separate, with transparency where appropriate. The background does not include nodes, tokens, text, or interface elements. The production guide is reference-only and is not used as a single raster route asset; React composes the runtime route from reusable SVG primitives.
+Assets must remain separate, with transparency where appropriate. The background does not include nodes, tokens, text, or interface elements. The production guide is reference-only and is not used as a single raster route asset; React composes the runtime route from reusable HTML spans using the separate medallion and connector assets. Node numbers remain live text over the medallion background.
 
 ## Progress Route
 
 - The route contains exactly as many positions as the room's `TargetScore`: 15 for Corta, 25 for Media, and 35 for Larga.
 - It begins at the lower-left roots and ends before the upper-right golden portal.
-- Nodes are visual anchors of approximately 65 px in diameter on a `1920 x 1080` canvas. Keep every pair of node centers at least 100 reference units apart so circles do not overlap and retain a generous paper gap.
-- Each connector is a straight line between the centers of two consecutive nodes. A route with `N` nodes has `N - 1` connectors.
+- Nodes use the transparent `200 x 200` medallion asset, scaled to approximately `65 x 65` reference units on a `1920 x 1080` canvas. Keep every pair of node centers at least 100 reference units apart so medallions do not overlap and retain a generous gap.
+- Each connector uses the transparent `698 x 100` gold asset. Its long axis spans the centers of two consecutive nodes; its span is centered at the midpoint, rotated to the segment angle, and sized at its native aspect ratio. A route with `N` nodes has `N - 1` connectors.
 - Each route length has an ordered list of node centers. All three arrangements of straight segments retain a continuous, organic, ascending reading and end before the portal.
 - Nodes are not token containers and do not imply effects, bonuses, or penalties.
-- Node numbers `1` through `N` are visible on the public board. React renders each number as SVG `<text>` centered inside its corresponding `<circle>`; numbers are not baked into the background, guide image, or a node image asset.
+- Node numbers `1` through `N` are visible on the public board. React renders each number as centered HTML text over its corresponding medallion span; numbers are not baked into the background, guide image, or a node image asset.
 
 ### Runtime Route Composition
 
-- Each route layout is an ordered list of node centers in the reference `1920 x 1080` coordinate system. The numbered guide establishes and reviews the 25-position medium layout; the 15- and 35-position layouts preserve its visual language and safe zones.
-- React renders one reusable circular node for each position and one reusable straight-line connector for each consecutive pair. Connectors render below nodes so their endpoints remain visually hidden by the node surfaces.
-- The route is rendered in a responsive SVG with a matching `viewBox`, so the background, connectors, nodes, and labels scale together without losing alignment.
+- Each route layout remains an ordered list of node centers in the reference `1920 x 1080` coordinate system. The numbered guide establishes and reviews the 25-position medium layout; the 15- and 35-position layouts preserve its visual language and safe zones.
+- React renders one reusable absolutely positioned `<span>` for each node and connector. Connector spans use the gold connector image and render below medallion spans so their end beads meet the node edges cleanly.
+- The HTML route uses a centered responsive `16:9` coordinate plane and the same scale/crop as the background. Node centers and connector geometry continue to come from the existing coordinate lists; only their visual treatment changes.
+- The route is an accessible list of numbered positions; decorative connector spans are hidden from assistive technology.
 - The public room snapshot's `TargetScore` selects the matching coordinate list. This presentation mapping does not calculate scores or define game rules.
-- Future route lengths may provide a different ordered coordinate list while reusing the same node, connector, and text-rendering components.
+- Future route lengths may provide a different ordered coordinate list while reusing the same node, connector, and overlaid-text spans.
 
 ## Overlay Safe Zones
 

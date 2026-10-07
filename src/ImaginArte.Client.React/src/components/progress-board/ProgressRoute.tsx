@@ -19,76 +19,76 @@ interface ProgressRouteNodeProps {
 }
 
 function ProgressRouteConnector({ start, end }: ProgressRouteConnectorProps) {
+  const deltaX = end.x - start.x
+  const deltaY = end.y - start.y
+  const length = Math.hypot(deltaX, deltaY)
+  const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI)
+  const midpointX = (start.x + end.x) / 2
+  const midpointY = (start.y + end.y) / 2
+
   return (
-    <line
+    <span
       className="progress-route__connector"
-      x1={start.x}
-      y1={start.y}
-      x2={end.x}
-      y2={end.y}
+      aria-hidden="true"
+      style={{
+        left: `${(midpointX / PROGRESS_ROUTE_VIEWBOX.width) * 100}%`,
+        top: `${(midpointY / PROGRESS_ROUTE_VIEWBOX.height) * 100}%`,
+        width: `${(length / PROGRESS_ROUTE_VIEWBOX.width) * 100}%`,
+        transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+      }}
     />
   )
 }
 
 function ProgressRouteNode({ number, point }: ProgressRouteNodeProps) {
   return (
-    <g className="progress-route__node">
-      <circle
-        className="progress-route__node-circle"
-        cx={point.x}
-        cy={point.y}
-        r="29.5"
-      />
-      <circle
-        className="progress-route__node-inner-ring"
-        cx={point.x}
-        cy={point.y}
-        r="24.5"
-      />
-      <text
-        className="progress-route__node-number"
-        x={point.x}
-        y={point.y}
-        dominantBaseline="central"
-        textAnchor="middle"
-      >
-        {number}
-      </text>
-    </g>
+    <span
+      className="progress-route__node"
+      role="listitem"
+      aria-label={`Posición ${number}`}
+      style={{
+        left: `${(point.x / PROGRESS_ROUTE_VIEWBOX.width) * 100}%`,
+        top: `${(point.y / PROGRESS_ROUTE_VIEWBOX.height) * 100}%`,
+      }}
+    >
+      {number}
+    </span>
   )
 }
 
 export default function ProgressRoute({ points }: ProgressRouteProps) {
   return (
-    <svg
+    <div
       className="progress-route"
-      viewBox={`0 0 ${PROGRESS_ROUTE_VIEWBOX.width} ${PROGRESS_ROUTE_VIEWBOX.height}`}
-      preserveAspectRatio="xMidYMid slice"
+      role="list"
+      aria-label={`Recorrido de progreso con ${points.length} posiciones numeradas`}
     >
-      <g className="progress-route__connectors">
-        {points.slice(0, -1).map((start, index) => {
-          const end = points[index + 1]
+      {points.slice(0, -1).map((start, index) => {
+        const end = points[index + 1]
 
-          if (!end) {
-            return null
-          }
+        if (!end) {
+          return null
+        }
 
-          return (
-            <ProgressRouteConnector
-              key={`connector-${index + 1}-${index + 2}`}
-              start={start}
-              end={end}
-            />
-          )
-        })}
-      </g>
-      <g className="progress-route__nodes">
-        {points.map((point, index) => {
-          const number = index + 1
+        return (
+          <ProgressRouteConnector
+            key={`connector-${index + 1}-${index + 2}`}
+            start={start}
+            end={end}
+          />
+        )
+      })}
+      {points.map((point, index) => {
+        const number = index + 1
 
-          return <ProgressRouteNode key={number} number={number} point={point} />
-        })}
-      </g>
-    </svg>
+        return (
+          <ProgressRouteNode
+            key={number}
+            number={number}
+            point={point}
+          />
+        )
+      })}
+    </div>
   )
 }
