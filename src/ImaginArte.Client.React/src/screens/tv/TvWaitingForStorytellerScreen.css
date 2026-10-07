@@ -1,10 +1,14 @@
 .tv-lobby-panel--waiting {
+  box-sizing: border-box;
   display: flex;
-  flex: 1;
-  min-height: clamp(18rem, 52vh, 34rem);
+  flex: 0 1 auto;
+  width: min(44vw, 52rem);
+  min-height: clamp(14rem, 28vh, 22rem);
+  align-self: center;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  margin-block: auto;
   gap: clamp(0.75rem, 2vh, 1.5rem);
   text-align: center;
 }
@@ -30,7 +34,8 @@
 
 @media (max-width: 900px) {
   .tv-lobby-panel--waiting {
-    min-height: clamp(18rem, 52svh, 30rem);
+    width: min(72vw, 44rem);
+    min-height: clamp(14rem, 30svh, 22rem);
   }
 }
 

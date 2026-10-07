@@ -2,7 +2,7 @@
 
 ## Purpose And Scope
 
-The progress board is ImaginArte's persistent public stage after the TV confirms that the game has started. It represents a dreamlike ascent from earth toward imagination: the route begins among roots and flowers in the lower-left corner and ends before a golden portal in the upper-right corner. Its length matches the room's authoritative target score: 15, 25, or 35 positions.
+The progress board is ImaginArte's persistent public stage after the TV confirms that the game has started. It represents a dreamlike ascent from earth toward imagination: the route begins among roots and flowers in the lower-left corner and reaches the approved portal approach in the upper-right corner. Its length matches the room's authoritative target score: 15, 25, or 35 positions.
 
 The route remains visible during turns, voting, revelation, and scoring, but not in the waiting lobby. Cards, clues, votes, and results overlay its central area, which must remain quiet and free of progress elements.
 
@@ -22,16 +22,16 @@ Assets must remain separate, with transparency where appropriate. The background
 ## Progress Route
 
 - The route contains exactly as many positions as the room's `TargetScore`: 15 for Corta, 25 for Media, and 35 for Larga.
-- It begins at the lower-left roots and ends before the upper-right golden portal.
+- It begins at the lower-left roots and reaches the approved upper-right portal approach. The current final center, `(1836, 252)` in the `1920 x 1080` reference plane, is approved for all three route lengths and remains fixed.
 - Nodes use the transparent `200 x 200` medallion asset, scaled to approximately `65 x 65` reference units on a `1920 x 1080` canvas. Keep every pair of node centers at least 100 reference units apart so medallions do not overlap and retain a generous gap.
 - Each connector uses the transparent `698 x 100` gold asset. Its long axis spans the centers of two consecutive nodes; its span is centered at the midpoint, rotated to the segment angle, and sized at its native aspect ratio. A route with `N` nodes has `N - 1` connectors.
-- Each route length has an ordered list of node centers. All three arrangements of straight segments retain a continuous, organic, ascending reading and end before the portal.
+- Each route length has an ordered list of node centers. All three arrangements of straight segments retain a continuous, organic, ascending reading and use the approved final center at the portal approach.
 - Nodes are not token containers and do not imply effects, bonuses, or penalties.
 - Node numbers `1` through `N` are visible on the public board. React renders each number as centered HTML text over its corresponding medallion span; numbers are not baked into the background, guide image, or a node image asset.
 
 ### Runtime Route Composition
 
-- Each route layout remains an ordered list of node centers in the reference `1920 x 1080` coordinate system. The numbered guide establishes and reviews the 25-position medium layout; the 15- and 35-position layouts preserve its visual language and safe zones.
+- Each route layout remains an ordered list of node centers in the reference `1920 x 1080` coordinate system. The numbered guide establishes the 25-position medium layout. Route-specific reviewed centers are recorded in `specs/07-tv-dynamic-progress-route.md`; all other centers and the approved final center remain unchanged.
 - React renders one reusable absolutely positioned `<span>` for each node and connector. Connector spans use the gold connector image and render below medallion spans so their end beads meet the node edges cleanly.
 - The HTML route uses a centered responsive `16:9` coordinate plane and the same scale/crop as the background. Node centers and connector geometry continue to come from the existing coordinate lists; only their visual treatment changes.
 - The route is an accessible list of numbered positions; decorative connector spans are hidden from assistive technology.

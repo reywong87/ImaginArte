@@ -10,8 +10,8 @@ export const PROGRESS_ROUTE_VIEWBOX = {
   height: 1080,
 } as const
 
-// The 25-position route follows the measured node centers in the numbered
-// reference. The 15- and 35-position routes retain its overall path silhouette.
+// Route-specific centers follow the annotated 2026-10-07 review. Each route
+// keeps its existing final center at { x: 1836, y: 252 }.
 export const progressRouteLayouts = {
   15: [
     { x: 90, y: 1018 },
@@ -21,12 +21,12 @@ export const progressRouteLayouts = {
     { x: 212, y: 719 },
     { x: 333, y: 546 },
     { x: 378, y: 358 },
-    { x: 578, y: 231 },
+    { x: 508, y: 178 },
     { x: 806, y: 166 },
     { x: 1042, y: 171 },
     { x: 1278, y: 149 },
     { x: 1513, y: 142 },
-    { x: 1700, y: 247 },
+    { x: 1678, y: 289 },
     { x: 1783, y: 438 },
     { x: 1836, y: 252 },
   ],
@@ -41,10 +41,10 @@ export const progressRouteLayouts = {
     { x: 257, y: 647 },
     { x: 352, y: 571 },
     { x: 283, y: 480 },
-    { x: 347, y: 384 },
-    { x: 451, y: 296 },
-    { x: 587, y: 226 },
-    { x: 729, y: 176 },
+    { x: 330, y: 336 },
+    { x: 300, y: 195 },
+    { x: 493, y: 130 },
+    { x: 688, y: 120 },
     { x: 911, y: 152 },
     { x: 1077, y: 176 },
     { x: 1247, y: 154 },
@@ -73,9 +73,9 @@ export const progressRouteLayouts = {
     { x: 355, y: 544 },
     { x: 271, y: 484 },
     { x: 332, y: 403 },
-    { x: 402, y: 329 },
-    { x: 491, y: 279 },
-    { x: 573, y: 218 },
+    { x: 290, y: 255 },
+    { x: 440, y: 165 },
+    { x: 580, y: 163 },
     { x: 674, y: 207 },
     { x: 762, y: 155 },
     { x: 863, y: 166 },

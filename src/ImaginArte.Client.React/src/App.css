@@ -26,6 +26,10 @@
   pointer-events: none;
 }
 
+.app-shell:has(.progress-route) .app-shell__backdrop {
+  background-size: cover, contain;
+}
+
 .app-shell__screen {
   position: relative;
   z-index: 1;
