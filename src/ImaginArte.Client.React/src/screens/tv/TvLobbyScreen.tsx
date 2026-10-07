@@ -4,6 +4,10 @@ import {
   RoomPhase,
   type RoomStateResponse,
 } from '../../models/roomState'
+import {
+  progressRouteLayouts,
+  type ProgressRoutePoint,
+} from '../../models/progressRouteLayouts'
 import { getPlayerAvatar } from '../../models/playerAvatars'
 import {
   getRoomState,
@@ -18,6 +22,7 @@ import {
   type RoomRealtimeStatus,
 } from '../../services/roomRealtime'
 import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
+import ProgressRoute from '../../components/progress-board/ProgressRoute'
 import TvWaitingForStorytellerScreen from './TvWaitingForStorytellerScreen'
 import './TvLobbyScreen.css'
 
@@ -260,6 +265,9 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
   }
 
   const room = visibleState.room
+  const progressRoutePoints = room
+    ? getProgressRoutePoints(room.targetScore)
+    : null
   const mobileJoinBaseUrl = import.meta.env.VITE_MOBILE_JOIN_BASE_URL?.trim() ?? ''
   const mobileJoinUrl = room
     ? buildMobileJoinUrl(mobileJoinBaseUrl, room.roomCode)
@@ -371,6 +379,14 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
       aria-busy={visibleState.isLoading}
       aria-labelledby="tv-lobby-title"
     >
+      {room && room.phase !== RoomPhase.WaitingForPlayers && progressRoutePoints && (
+        <div
+          className="tv-lobby-screen__progress-route"
+          aria-hidden="true"
+        >
+          <ProgressRoute points={progressRoutePoints} />
+        </div>
+      )}
       <div className="tv-lobby-screen__content">
         <header className="tv-lobby-screen__header">
           <p className="tv-lobby-screen__eyebrow">ImaginArte · Sala familiar</p>
@@ -679,6 +695,21 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
       </div>
     </main>
   )
+}
+
+function getProgressRoutePoints(
+  targetScore: number,
+): readonly ProgressRoutePoint[] | null {
+  switch (targetScore) {
+    case 15:
+      return progressRouteLayouts[15]
+    case 25:
+      return progressRouteLayouts[25]
+    case 35:
+      return progressRouteLayouts[35]
+    default:
+      return null
+  }
 }
 
 function buildMobileJoinUrl(baseUrl: string, roomCode: string): string | null {

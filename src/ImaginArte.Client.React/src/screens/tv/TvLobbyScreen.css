@@ -1,4 +1,6 @@
 .tv-lobby-screen {
+  position: relative;
+  isolation: isolate;
   display: flex;
   height: 100vh;
   height: 100svh;
@@ -9,12 +11,21 @@
 }
 
 .tv-lobby-screen__content {
+  position: relative;
+  z-index: 1;
   display: flex;
   width: min(100%, 80rem);
   min-height: 0;
   flex: 1;
   flex-direction: column;
   margin-inline: auto;
+}
+
+.tv-lobby-screen__progress-route {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  inset: 0;
 }
 
 .tv-lobby-screen__header {
