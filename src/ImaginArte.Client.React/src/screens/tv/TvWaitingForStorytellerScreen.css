@@ -2,44 +2,181 @@
   box-sizing: border-box;
   display: flex;
   flex: 0 1 auto;
-  width: min(44vw, 52rem);
-  min-height: clamp(14rem, 28vh, 22rem);
+  width: min(40vw, 60rem);
+  min-height: clamp(15rem, 30vh, 23rem);
   align-self: center;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   margin-block: auto;
-  gap: clamp(0.75rem, 2vh, 1.5rem);
+  padding: clamp(1rem, 1.8vw, 1.75rem);
   text-align: center;
+}
+
+.tv-lobby-screen .tv-lobby-panel--waiting {
+  background-color: #08263e;
+  background-image: url('../../assets/ventana-textura-botanica.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-blend-mode: screen;
+}
+
+.tv-lobby-screen .tv-lobby-panel--waiting .ceremonial-window-decorations__texture {
+  background-image: none;
+}
+
+.tv-waiting-storyteller__content {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'title title'
+    'avatar identity'
+    'avatar messages';
+  align-content: center;
+  align-items: center;
+  row-gap: clamp(0.4rem, 1vh, 0.85rem);
+  padding: 1rem;
+}
+
+.tv-waiting-storyteller__title {
+  grid-area: title;
+  margin: 0;
+  color: #fbf4e2;
+  font-size: clamp(1.0rem, 1.4vw, 2rem);
+  font-weight: 600;
+  line-height: 1.2;
+  text-shadow: 0 2px 12px rgb(8 38 62 / 78%);
+  text-wrap: balance;
+}
+
+.tv-waiting-storyteller__identity {
+  display: contents;
+}
+
+.tv-lobby-panel--waiting .tv-waiting-storyteller__avatar {
+  box-sizing: border-box;
+  width: clamp(7.5rem, 12vw, 13rem);
+  height: auto;
+  aspect-ratio: 1;
+  grid-area: avatar;
+  justify-self: center;
+  align-self: center;
+  border-radius: 50%;
+}
+
+.tv-waiting-storyteller__identity-copy {
+  display: flex;
+  min-width: 0;
+  grid-area: identity;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.25rem, 0.7vh, 0.5rem);
 }
 
 .tv-lobby-screen__waiting-name {
   max-width: 100%;
   margin: 0;
   color: #fbf4e2;
-  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-size: clamp(2rem, 4.5vw, 4rem);
   font-weight: 600;
   line-height: 1.1;
   overflow-wrap: anywhere;
   text-shadow: 0 3px 18px rgb(8 38 62 / 78%);
 }
 
+.tv-waiting-storyteller__role {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.4rem, 0.8vw, 0.75rem);
+  margin: 0;
+  color: #f2b632;
+  font-size: clamp(0.8rem, 1.3vw, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.3;
+}
+
+.tv-waiting-storyteller__role::before,
+.tv-waiting-storyteller__role::after {
+  width: clamp(0.65rem, 0.9vw, 0.9rem);
+  height: clamp(1rem, 1.6vw, 1.4rem);
+  flex: 0 0 auto;
+  background-image: url('../../assets/hoja-lateral.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  content: '';
+}
+
+.tv-waiting-storyteller__role::after {
+  transform: scaleX(-1);
+}
+
+.tv-waiting-storyteller__messages {
+  display: flex;
+  min-width: 0;
+  grid-area: messages;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.35rem, 0.8vh, 0.6rem);
+  padding-inline: clamp(1rem, 2.5vw, 2rem);
+  text-align: center;
+}
+
 .tv-lobby-screen__waiting-message {
   max-width: 42rem;
   margin: 0;
   color: #fbf4e2;
-  font-size: clamp(1.2rem, 2.2vw, 1.75rem);
-  line-height: 1.5;
+  font-size: clamp(1rem, 1.25vw, 1.45rem);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.tv-waiting-storyteller__secondary-message {
+  max-width: 100%;
+  margin: 0;
+  color: #fbf4e2;
+  font-size: clamp(0.9rem, 1.25vw, 1.1rem);
+  line-height: 1.35;
+  text-wrap: balance;
 }
 
 @media (max-width: 900px) {
   .tv-lobby-panel--waiting {
-    width: min(72vw, 44rem);
-    min-height: clamp(14rem, 30svh, 22rem);
+    width: min(88vw, 48rem);
+    min-height: clamp(15rem, 32svh, 23rem);
+  }
+
+  .tv-waiting-storyteller__content {
+    column-gap: clamp(0.75rem, 4vw, 2rem);
+  }
+
+  .tv-lobby-panel--waiting .tv-waiting-storyteller__avatar {
+    width: clamp(6.5rem, 18vw, 10rem);
   }
 }
 
 @media (max-width: 600px) {
+  .tv-waiting-storyteller__content {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      'title'
+      'avatar'
+      'identity'
+      'messages';
+    row-gap: clamp(0.3rem, 1.5vh, 0.75rem);
+  }
+
+  .tv-lobby-panel--waiting .tv-waiting-storyteller__avatar {
+    width: clamp(4.5rem, 20vw, 7.5rem);
+  }
+
   .tv-lobby-screen__waiting-name {
     font-size: clamp(2rem, 10vw, 3.25rem);
   }
