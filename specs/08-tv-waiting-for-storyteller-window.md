@@ -1,6 +1,6 @@
 # SPEC 08 — Ventana de espera del narrador en TV
 
-> **Estado:** Approved  
+> **Estado:** Implemented  
 > **Depende de:** SPEC 03 — Lobby TV con presencia en vivo; SPEC 05 — Avatares compartidos y persistentes; SPEC 07 — Recorrido dinámico del tablero en TV  
 > **Fecha:** 2026-10-08  
 > **Objetivo:** Completar la ventana central de espera en TV con la identidad pública del narrador, su retrato y mensajes de espera o reconexión, sin alterar el fondo ni el recorrido existente.
@@ -67,20 +67,37 @@ La pantalla padre ya decide cuándo montar la ventana a partir de la fase recibi
 
 ## Criterios de aceptación
 
-- [ ] En la fase `StorytellerChoosing`, el título «Esperando al narrador» aparece dentro de la ventana central; no se añade un encabezado exterior a la pantalla iniciada.
-- [ ] La ventana muestra el nombre y la etiqueta textual «NARRADOR» del narrador actual.
-- [ ] El retrato coincide con el `avatarId` del narrador en el snapshot público y usa el atlas compartido existente.
-- [ ] Con el narrador conectado, se muestran «Está eligiendo una carta y una pista.» y «En unos instantes, comienza la magia».
-- [ ] Con `currentStoryteller.isConnected === false`, la ventana conserva la identidad y el retrato y anuncia «El narrador se está reconectando…».
-- [ ] El estado de reconexión se representa solo como presentación del estado público; no cambia la fase ni activa una acción de TV.
-- [ ] La ventana no muestra manos, cartas seleccionadas, pistas sin enviar ni progreso privado de selección.
-- [ ] La ventana reutiliza las decoraciones ceremoniales existentes y no usa el mockup completo como imagen de pantalla.
-- [ ] El fondo, la ruta y el indicador global de conexión permanecen sin cambios; el indicador inferior derecho no queda cubierto por la ventana.
-- [ ] El retrato es decorativo para tecnología asistiva porque el nombre ya se presenta como texto. El título, nombre e instrucción conservan una jerarquía semántica y contraste legible.
-- [ ] A 1920 × 1080 y 1280 × 720, la ventana permanece centrada, legible y sin recortes ni desbordamiento de su contenido.
-- [ ] `npm run typecheck`, `npm run lint` y `npm run build` terminan correctamente sin añadir dependencias.
+- [x] En la fase `StorytellerChoosing`, el título «Esperando al narrador» aparece dentro de la ventana central; no se añade un encabezado exterior a la pantalla iniciada.
+- [x] La ventana muestra el nombre y la etiqueta textual «NARRADOR» del narrador actual.
+- [x] El retrato coincide con el `avatarId` del narrador en el snapshot público y usa el atlas compartido existente.
+- [x] Con el narrador conectado, se muestran «Está eligiendo una carta y una pista.» y «En unos instantes, comienza la magia».
+- [x] Con `currentStoryteller.isConnected === false`, la ventana conserva la identidad y el retrato y anuncia «El narrador se está reconectando…».
+- [x] El estado de reconexión se representa solo como presentación del estado público; no cambia la fase ni activa una acción de TV.
+- [x] La ventana no muestra manos, cartas seleccionadas, pistas sin enviar ni progreso privado de selección.
+- [x] La ventana reutiliza las decoraciones ceremoniales existentes y no usa el mockup completo como imagen de pantalla.
+- [x] El fondo, la ruta y el indicador global de conexión permanecen sin cambios; el indicador inferior derecho no queda cubierto por la ventana.
+- [x] El retrato es decorativo para tecnología asistiva porque el nombre ya se presenta como texto. El título, nombre e instrucción conservan una jerarquía semántica y contraste legible.
+- [x] A 1920 × 1080 y 1280 × 720, la ventana permanece centrada, legible y sin recortes ni desbordamiento de su contenido.
+- [x] `npm run typecheck`, `npm run lint` y `npm run build` terminan correctamente sin añadir dependencias.
 
 La verificación visual y de estados se realizará con las herramientas de navegador disponibles. No se añadirá Playwright al repositorio ni se creará configuración E2E como parte de esta spec.
+
+### Resultados de verificación (2026-10-09)
+
+1. **Verificado.** `TvWaitingForStorytellerScreen.tsx:21-32` coloca el título dentro del panel; `TvLobbyScreen.tsx:391-434` omite el encabezado exterior tras iniciar la partida. Capturas de navegador de ambos tamaños muestran el título dentro de la ventana.
+2. **Verificado.** `TvWaitingForStorytellerScreen.tsx:34-47` presenta el nombre y «NARRADOR»; ambos aparecen en los snapshots de accesibilidad de los estados observados.
+3. **Verificado.** El componente resuelve `storyteller.avatarId` con `getPlayerAvatar`; `models/playerAvatars.ts:1-28` contiene el atlas compartido. En la sesión visual se comprobó el retrato `fox` contra un snapshot público con `avatarId: fox`.
+4. **Verificado.** `TvWaitingForStorytellerScreen.tsx:55-64` deriva los dos textos del estado conectado. Ambos se encontraron en el snapshot de accesibilidad y en las capturas conectadas.
+5. **Verificado.** `TvWaitingForStorytellerScreen.tsx:18,55-64` cambia el mensaje a partir de `isConnected` y conserva avatar e identidad; los snapshots y capturas desconectados muestran el mensaje esperado junto al nombre y retrato.
+6. **Verificado.** El componente solo deriva contenido de `room.currentStoryteller` y no tiene acciones; `TvLobbyScreen.tsx:432-434` decide el montaje según la fase. La reconexión se probó como estado de presentación.
+7. **Verificado.** La ventana representa nombre, avatar y conectividad, sin renderizado de mano, carta, pista o progreso privado. La inspección de la pantalla y del snapshot público usado en la prueba no mostró esos datos.
+8. **Verificado.** `TvWaitingForStorytellerScreen.tsx:25` reutiliza `CeremonialWindowDecorations`; el CSS aplica la textura botánica. La implementación compone texto y atlas, no el PNG completo del mockup. El commit `239e097` solo modificó el TSX y su CSS.
+9. **Verificado.** `239e097` no modificó la pantalla padre, el fondo ni la ruta. Las capturas de 1280 × 720 y 1920 × 1080 conservan ruta e indicador inferior derecho sin solapamiento visible; en la captura 1920 × 1080, el indicador aparece en `[1621, 1014, 275, 42]`, separado de la ventana.
+10. **Verificado en navegador.** El avatar usa `aria-hidden="true"`; el título y nombre son encabezados y el mensaje tiene `role="status"`/`aria-live="polite"`. La revisión visual encontró texto claro sobre la superficie Night Wash. No se hizo una medición formal de contraste ni una prueba en televisor físico.
+11. **Verificado con Playwright.** En la sala temporal `LNG2R7`, el snapshot público confirmó `currentStoryteller.isConnected: true` para `NarradorConUnNombreExtremadamenteLargo`. En 1280 × 720, la ventana mide `[384, 95, 512, 531]`; el encabezado del nombre mide `[565, 153, 301, 317]`. En 1920 × 1080, la ventana mide `[576, 286, 768, 507]`; el encabezado del nombre mide `[845, 369, 460, 282]`. El panel, el nombre y los mensajes no tienen desbordamiento (`scrollWidth`/`scrollHeight` coinciden con las dimensiones de cliente). El nombre se ajusta en más líneas a 1280 × 720, pero queda completo, separado del rol y los mensajes y sin recorte. El indicador global también queda fuera del panel en ambos tamaños. Capturas: `.playwright-mcp/spec08-tv-connected-long-1280x720.png` y `.playwright-mcp/spec08-tv-connected-long-1920x1080.png`. Es verificación de navegador, no una prueba a distancia en un televisor físico.
+12. **Verificado.** Ejecutados desde `src/ImaginArte.Client.React`: `npm run typecheck`, `npm run lint` y `npm run build`; los tres terminaron correctamente. El commit `239e097` no cambió manifiestos de dependencias.
+
+Capturas de navegador disponibles localmente en `.playwright-mcp/`: `spec08-tv-connected-{1280x720,1920x1080}.png`, `spec08-tv-disconnected-{1280x720,1920x1080}.png` y `spec08-tv-connected-long-{1280x720,1920x1080}.png`. No se añadió Playwright ni configuración de pruebas al repositorio.
 
 ## Tutoría React
 
