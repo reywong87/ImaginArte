@@ -87,7 +87,7 @@ Announce the active narrator and hold the room while they privately choose a car
 All players view TV; the narrator acts only on their mobile; host has no phase-advance action.
 
 ### Visible Information
-Narrator name, role label, concise waiting instruction in the central floating window, and the numbered route as a persistent background layer after the start is confirmed. Live connection status appears in the lower-right corner. Player tokens and their state effects are separate from the route-only implementation slice in SPEC 07.
+The authoritative narrator name, their portrait resolved from the public `avatarId` through the shared player-avatar atlas, the textual role label **NARRADOR**, and the waiting message appear in the central floating window. While connected, show **“Está eligiendo una carta y una pista.”** with the secondary line **“En unos instantes, comienza la magia”**. When the narrator is disconnected, preserve their portrait and identity and show **“El narrador se está reconectando…”** instead of the connected-state copy. The numbered route remains a persistent background layer after the start is confirmed. Live connection status appears independently in the lower-right corner. Player tokens and their state effects are separate from the route-only implementation slice in SPEC 07.
 
 ### Prohibited Information
 Narrator hand, selected card, clue before submission, selection progress, and any other player's private state.
@@ -96,19 +96,19 @@ Narrator hand, selected card, clue before submission, selection progress, and an
 No TV action; the narrator completes the private mobile action.
 
 ### States And Transitions
-Waiting and narrator-reconnecting states; after valid narrator submission, transition to **Clue and submission progress**.
+Waiting and narrator-reconnecting presentations are derived from the public narrator connection state; reconnection does not change the phase or enable a TV action. After valid narrator submission, transition to **Clue and submission progress**.
 
 ### Visual Composition
-Remove the top eyebrow **ImaginArte · Sala familiar** and the screen heading **El narrador prepara la historia** after the start is confirmed. Present phase, narrator identity, and waiting instruction in the central floating window. The upper band is available to the peripheral route; keep nodes and connectors outside the central safe zones. Place the live connection status at the lower-right corner without covering a route node.
+Remove the top eyebrow **ImaginArte · Sala familiar** and the screen heading **El narrador prepara la historia** after the start is confirmed. Keep the phase title **“Esperando al narrador”** inside the central floating window. Use a horizontal composition: the avatar is the visual focus on the left half; the narrator name, **NARRADOR** role, and waiting or reconnecting message sit on the right half. Render the role in gold with the existing lateral-leaf ornament. Reuse the ceremonial double frame and botanical corner decorations, and use `src/ImaginArte.Client.React/src/assets/ventana-textura-botanica.png` as the visible Night Wash window surface; layer live text above it. Do not use the complete mockup PNG as the interface. Keep the centered content uncropped at 1920 × 1080 and 1280 × 720. The upper band is available to the peripheral route; keep nodes and connectors outside the central safe zones. Place the live connection status at the lower-right corner without covering a route node or being covered by the window.
 
 ### Accessibility
-Use a literal message such as “Ana is choosing a card and clue” in the central floating window; role is conveyed by text, label, halo, and token identity. The lower-right connection status remains textual and accessible.
+The phase title, narrator name, role, and status message retain a clear semantic hierarchy and readable contrast. The avatar is decorative to assistive technology because the narrator name is already present as text. The **NARRADOR** role and connection state must be communicated by text, not color alone; the lower-right global connection status remains textual and accessible.
 
 ### Visual Reference
 `docs/assets/visual-references/mockups/03-esperando-al-narrador-recorrido-v4-avatares-tv.png`.
 
 ### Acceptance Criteria
-The room understands who is acting and what it is waiting for, while no visual element reveals the narrator's card or clue.
+The central window shows **“Esperando al narrador”**, the authoritative narrator name, the matching shared-atlas portrait, and the textual **NARRADOR** role. When connected, it shows **“Está eligiendo una carta y una pista.”** and **“En unos instantes, comienza la magia”**; when disconnected, it preserves the identity and shows **“El narrador se está reconectando…”**. The horizontal window uses the botanical texture and ceremonial decorations without covering the global connection status or revealing the narrator's card, clue, or private selection progress. Its content remains readable and uncropped at 1920 × 1080 and 1280 × 720.
 
 ## 3. Clue And Submission Progress
 
