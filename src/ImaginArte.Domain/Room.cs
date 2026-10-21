@@ -6,7 +6,7 @@ public sealed class Room
     public const int MaximumPlayers = 8;
     public const int InitialHandSize = 6;
     public const int DefaultTargetScore = 25;
-    private const int TemporaryDeckSize = 120;
+    private const int TemporaryDeckSize = 98;
 
     private readonly List<Player> _players = [];
     private readonly List<Card> _availableDeck = [];

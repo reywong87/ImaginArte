@@ -379,6 +379,30 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void StartGame_CreatesExactlyTheIllustratedTemporaryDeck()
+    {
+        var room = Room.Create(new RoomCode("ABC123"));
+        room.Join(PlayerId.New(), "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
+
+        room.StartGame();
+
+        var cardIds = room.Players
+            .SelectMany(player => room.GetHandFor(player.Id))
+            .Concat(room.ToSnapshot().AvailableDeck)
+            .Select(card => card.Id.Value)
+            .OrderBy(cardId => cardId)
+            .ToArray();
+        var expectedCardIds = Enumerable
+            .Range(1, 98)
+            .Select(cardNumber => $"TEMP-{cardNumber:000}")
+            .ToArray();
+
+        Assert.Equal(expectedCardIds, cardIds);
+    }
+
+    [Fact]
     public void Players_BeforeStartGame_DoNotHaveInitialPlayableHands()
     {
         var room = Room.Create(new RoomCode("ABC123"));
