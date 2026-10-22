@@ -112,7 +112,7 @@ The recommended production arrangement is:
 
 For the first React slice, static card assets may be bundled under the React application's `public/cards/` directory. Moving those files to R2 later must not require changing domain rules or room persistence.
 
-The current domain still creates a temporary `TEMP-001` to `TEMP-120` deck. Replacing it with the real card catalog is intentionally out of scope for this documentation phase and must be handled by a future spec. The repository currently contains visual card assets under `docs/assets/cartas/`; those files are design/source assets, not yet a runtime card catalog.
+The current domain creates a temporary deck of 98 illustrated cards, `TEMP-001` to `TEMP-098`. When the available deck cannot complete a draw, played cards in the discard pile are shuffled back into the deck; cards still in player hands are not recycled. Replacing these temporary IDs with a permanent production catalog remains future work. The repository contains visual source assets under `docs/assets/cartas/`.
 
 ## Requirements
 
@@ -304,6 +304,8 @@ Default scoring:
 - Each vote received by a player's submitted card gives that player 1 point.
 
 The default target score is 25 points.
+
+The temporary deck has 98 illustrated cards (`TEMP-001`–`TEMP-098`). If the available deck cannot complete a refill draw, discarded cards are shuffled back into the deck; cards remaining in player hands are not recycled.
 
 ## Tests
 

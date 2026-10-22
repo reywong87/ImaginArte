@@ -23,6 +23,12 @@
 10. Used cards are discarded and hands are refilled.
 11. The next storyteller starts a new round.
 
+## Card Deck
+- The temporary deck contains exactly 98 illustrated cards, identified as `TEMP-001` through `TEMP-098`.
+- Each player starts with six cards.
+- If the available deck cannot complete a draw during a refill, the discarded cards are shuffled back into the deck and drawing continues.
+- Cards that remain in players' hands are never recycled.
+
 ## Voting Rules
 - The storyteller does not vote.
 - A guesser cannot vote for their own submitted card.

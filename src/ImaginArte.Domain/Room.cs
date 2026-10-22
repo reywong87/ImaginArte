@@ -710,9 +710,17 @@ public sealed class Room
             throw new InvalidOperationException("A player hand cannot exceed the initial hand size.");
         }
 
-        if (_availableDeck.Count < count)
+        if (_availableDeck.Count < count && _availableDeck.Count + _discardPile.Count < count)
         {
             throw new InvalidOperationException("The available deck does not contain enough cards.");
+        }
+
+        if (_availableDeck.Count < count)
+        {
+            var recycledCards = _discardPile.ToArray();
+            Shuffle(recycledCards);
+            _availableDeck.AddRange(recycledCards);
+            _discardPile.Clear();
         }
 
         var cards = _availableDeck.Take(count).ToArray();

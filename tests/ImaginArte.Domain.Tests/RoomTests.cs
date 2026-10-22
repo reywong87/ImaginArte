@@ -1513,6 +1513,61 @@ public sealed class RoomTests
         Assert.Equal(activeCardIds.Length, activeCardIds.Distinct().Count());
     }
 
+    [Theory]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void AdvanceRound_RecyclesDiscardForLongGamesWithoutDuplicatingCards(int playerCount)
+    {
+        var room = Room.Create(new RoomCode("ABC123"), targetScore: 1000);
+        var avatars = AvatarId.All.ToArray();
+
+        for (var playerIndex = 0; playerIndex < playerCount; playerIndex++)
+        {
+            room.Join(PlayerId.New(), $"Player {playerIndex + 1}", avatars[playerIndex]);
+        }
+
+        room.StartGame();
+        var initialAvailableDeckCount = room.ToSnapshot().AvailableDeck.Count;
+        var recycledDiscard = false;
+
+        for (var round = 0; round < 35; round++)
+        {
+            CompleteCurrentRound(room);
+            room.AdvanceRound();
+
+            var snapshot = room.ToSnapshot();
+            var activeCardIds = room.Players
+                .SelectMany(player => room.GetHandFor(player.Id))
+                .Select(card => card.Id)
+                .ToArray();
+            var allCardIds = snapshot.Players
+                .SelectMany(player => player.Hand)
+                .Concat(snapshot.AvailableDeck)
+                .Concat(snapshot.DiscardPile)
+                .Select(card => card.Id)
+                .ToArray();
+
+            Assert.Equal(playerCount * Room.InitialHandSize, activeCardIds.Length);
+            Assert.Equal(activeCardIds.Length, activeCardIds.Distinct().Count());
+            Assert.Equal(98, allCardIds.Length);
+            Assert.Equal(allCardIds.Length, allCardIds.Distinct().Count());
+
+            if (round == 0)
+            {
+                Assert.Equal(initialAvailableDeckCount - playerCount, snapshot.AvailableDeck.Count);
+                Assert.Equal(playerCount, snapshot.DiscardPile.Count);
+            }
+
+            recycledDiscard |= snapshot.DiscardPile.Count == 0;
+        }
+
+        Assert.True(recycledDiscard, "The game should recycle discarded cards after the available deck runs low.");
+    }
+
     [Fact]
     public void AdvanceRound_WhenRoomIsNotRoundComplete_Throws()
     {
