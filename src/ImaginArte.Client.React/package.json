@@ -11,6 +11,7 @@
     "build": "npm run typecheck && vite build",
     "lint": "eslint .",
     "typecheck": "tsc -b",
+    "test:cards": "node --test scripts/card-manifest.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
