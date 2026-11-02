@@ -93,19 +93,47 @@ El archivo real contiene las 98 entradas. No existen entradas para IDs superiore
 
 ## Criterios de aceptación
 
-- [ ] El dominio genera exactamente 98 IDs temporales, desde `TEMP-001` hasta `TEMP-098`, y no genera IDs superiores.
-- [ ] Con hasta ocho jugadores, el dominio puede reponer manos durante más de seis rondas al reciclar y barajar el descarte cuando el mazo disponible es insuficiente.
-- [ ] El reciclaje solo mueve cartas del descarte al mazo y no crea IDs duplicados en las manos activas.
-- [ ] El manifiesto tiene `schemaVersion: 1` y exactamente 98 entradas únicas.
-- [ ] Para cada entrada, el número de `TEMP-NNN` coincide con el prefijo numérico del archivo asociado.
-- [ ] Cada entrada incluye un `alt` legible derivado del nombre descriptivo del archivo, sin prefijo numérico ni extensión.
-- [ ] El desarrollo local puede servir las imágenes existentes desde `docs/assets/cartas/` sin copiar ni versionar los JPG.
-- [ ] El servidor local solo sirve archivos nombrados en el manifiesto y rechaza rutas que salgan de `docs/assets/cartas/`.
+- [x] El dominio genera exactamente 98 IDs temporales, desde `TEMP-001` hasta `TEMP-098`, y no genera IDs superiores.
+- [x] Con hasta ocho jugadores, el dominio puede reponer manos durante más de seis rondas al reciclar y barajar el descarte cuando el mazo disponible es insuficiente.
+- [x] El reciclaje solo mueve cartas del descarte al mazo y no crea IDs duplicados en las manos activas.
+- [x] El manifiesto tiene `schemaVersion: 1` y exactamente 98 entradas únicas.
+- [x] Para cada entrada, el número de `TEMP-NNN` coincide con el prefijo numérico del archivo asociado.
+- [x] Cada entrada incluye un `alt` legible derivado del nombre descriptivo del archivo, sin prefijo numérico ni extensión.
+- [x] El desarrollo local puede servir las imágenes existentes desde `docs/assets/cartas/` sin copiar ni versionar los JPG.
+- [x] El servidor local solo sirve archivos nombrados en el manifiesto y rechaza rutas que salgan de `docs/assets/cartas/`.
 - [ ] Si falta un JPG asociado, la interfaz puede identificar la carta como no disponible y no permite seleccionarla.
-- [ ] `npm run test:cards`, `npm run typecheck`, `npm run lint` y `npm run build` terminan correctamente sin nuevas dependencias.
-- [ ] `dotnet build ImaginArte.sln` y `dotnet test ImaginArte.sln --no-restore -m:1` terminan correctamente.
-- [ ] `vite build` no copia los JPG ignorados al resultado de producción ni incluye el middleware local de desarrollo.
-- [ ] No se modifica `.gitignore` y ningún JPG de `docs/assets/cartas/` aparece como archivo nuevo o modificado de Git.
+- [x] `npm run test:cards`, `npm run typecheck`, `npm run lint` y `npm run build` terminan correctamente sin nuevas dependencias.
+- [x] `dotnet build ImaginArte.sln` y `dotnet test ImaginArte.sln --no-restore -m:1` terminan correctamente.
+- [x] `vite build` no copia los JPG ignorados al resultado de producción ni incluye el middleware local de desarrollo.
+- [x] No se modifica `.gitignore` y ningún JPG de `docs/assets/cartas/` aparece como archivo nuevo o modificado de Git.
+
+## Verificación de criterios de aceptación — 2026-11-02
+
+| # | Estado | Evidencia |
+| ---: | --- | --- |
+| 1 | VERIFICADO | `Room.cs:9,679-691,732-737` fija y genera el mazo de 98 cartas; `RoomTests.cs:382-403` contrasta los IDs esperados `TEMP-001`–`TEMP-098`. |
+| 2 | VERIFICADO | `RoomTests.cs:1516-1569` ejecuta 35 rondas con 3–8 jugadores y comprueba reciclaje; el test enfocado pasó sus 6 casos. |
+| 3 | VERIFICADO | `Room.cs:565-577,693-729` descarta cartas jugadas y recicla solo `_discardPile`; `RoomTests.cs:1483-1514,1523-1569` comprueba manos y zonas del mazo sin duplicados. |
+| 4 | VERIFICADO | `public/cards/manifest.v1.json:1-3`; `scripts/card-manifest.test.mjs:13-26` valida versión, cantidad e IDs/archivos únicos; 4 tests pasaron. |
+| 5 | VERIFICADO | `scripts/card-manifest.test.mjs:28-37` compara ordinales de ID y archivo; el test pasó. |
+| 6 | VERIFICADO | Auditoría local de las 98 entradas: `alt` coincide con el nombre descriptivo sin ordinal ni extensión (98 coincidencias, 0 discrepancias); el test de `scripts/card-manifest.test.mjs:40-45` valida que no esté vacío. |
+| 7 | VERIFICADO | `vite.config.ts:8-15,33-40,101-119` sirve desde `docs/assets/cartas/`; se encontraron 98 JPG ignorados y un GET local devolvió `200`, `image/jpeg`, 877001 bytes. |
+| 8 | VERIFICADO | `vite.config.ts:14-16,43-76,82-99` aplica lista permitida y verifica ruta real; Vite devolvió `404` para nombre no listado, traversal codificado/literal y ruta raíz. |
+| 9 | BLOQUEADO | `cardAssets.ts:70-82,96-132` devolvió `Ilustración no disponible` e `isSelectable: false` ante un 404 simulado en Playwright. No hay pantalla que consuma el resolver: `App.tsx:13-16,95-100` solo enruta home, lobby y unirse; `README.md:7,19` reserva las pantallas de juego para futuros slices. |
+| 10 | VERIFICADO | `package.json:9-15`; `test:cards` usa `node:test`. Los cuatro comandos de cliente indicados abajo terminaron correctamente; no se requiere dependencia nueva para esa prueba. |
+| 11 | VERIFICADO | `dotnet build` terminó con 0 advertencias/errores; la suite completa pasó 336 tests en seis proyectos. |
+| 12 | VERIFICADO | `npm run build` completó `vite build`; `dist` contiene el manifiesto, no contiene JPG y no incluye `__local-cards`. `vite.config.ts:33-40` limita el middleware a `apply: 'serve'`. |
+| 13 | VERIFICADO | `.gitignore:21` ignora `assets/`; `git check-ignore` lo confirmó. Sin diff de `.gitignore`, sin estado Git para `docs/assets/cartas/` y cero JPG rastreados. |
+
+### Comprobaciones ejecutadas
+
+- Desde `src/ImaginArte.Client.React`: `npm run test:cards && npm run typecheck && npm run lint && npm run build` — correcto; 4 tests de manifiesto pasaron, typecheck/lint/build terminaron.
+- Desde la raíz: `dotnet restore ImaginArte.sln` — correcto; `dotnet test tests/ImaginArte.Domain.Tests/ImaginArte.Domain.Tests.csproj --no-restore --filter FullyQualifiedName~AdvanceRound_RecyclesDiscardForLongGamesWithoutDuplicatingCards` — 6 pasaron; `dotnet build ImaginArte.sln` — correcto; `dotnet test ImaginArte.sln --no-restore -m:1` — 336 pasaron.
+- `npm run dev` inició Vite en `http://localhost:5173/`. `curl -I http://localhost:5173/__local-cards/01-relicario-botella-navegante.jpg` y GET devolvieron `200`; GET no listado y traversal literal/codificado devolvieron `404`.
+- Auditoría de `alt` con Node: 98 entradas, 98 coincidencias. Inspección del build con `find dist -type f -iname '*.jpg' -print` y `grep -R -n -- '__local-cards' dist`: sin resultados.
+- Playwright: capturas y snapshots de `/` a 1280×720 y `/join` a 390×844 confirmaron que no hay selector de cartas. Se simuló un HEAD 404 al resolver `TEMP-001`; el resolver reportó no disponible y no seleccionable. Las capturas temporales se eliminaron al finalizar.
+
+**Brecha:** el criterio 9 exige bloqueo de selección en una interfaz, pero el alcance excluye la pantalla móvil y cualquier otra pantalla consumidora (líneas 16 y 23). Se conserva sin marcar hasta que exista una pantalla integradora y pueda comprobarse su interacción; el resultado del resolver por sí solo no demuestra ese comportamiento visual.
 
 ## Decisiones
 
