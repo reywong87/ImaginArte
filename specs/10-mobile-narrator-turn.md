@@ -1,6 +1,6 @@
 # SPEC 10 — Turno del narrador en móvil
 
-> **Estado:** Draft  
+> **Estado:** Approved  
 > **Depende de:** SPEC 04 — Unión móvil a sala por código; SPEC 06 — Selector de avatar en la unión móvil; SPEC 09 — Catálogo local de cartas  
 > **Fecha:** 2026-10-17  
 > **Objetivo:** Permitir que el narrador seleccione una carta privada y envíe una pista desde el móvil, usando el estado autoritativo de la sala y el mockup aprobado.
