@@ -112,7 +112,7 @@ The recommended production arrangement is:
 
 For the first React slice, static card assets may be bundled under the React application's `public/cards/` directory. Moving those files to R2 later must not require changing domain rules or room persistence.
 
-The current domain creates a temporary deck of 98 illustrated cards, `TEMP-001` to `TEMP-098`. When the available deck cannot complete a draw, played cards in the discard pile are shuffled back into the deck; cards still in player hands are not recycled. Replacing these temporary IDs with a permanent production catalog remains future work. The repository contains visual source assets under `docs/assets/cartas/`.
+The current domain creates a temporary deck of 98 illustrated cards, `TEMP-001` to `TEMP-098`. When the available deck cannot complete a draw, played cards in the discard pile are shuffled back into the deck; cards still in player hands are not recycled. The versioned manifest at `src/ImaginArte.Client.React/public/cards/manifest.v1.json` maps these IDs to filenames and accessible descriptions. During local development, Vite serves only manifest-listed JPGs from `docs/assets/cartas/`; the ignored source images are not copied into the production build. Replacing these temporary IDs with a permanent catalog and publishing images to R2/CDN remain future work.
 
 ## Requirements
 
@@ -174,6 +174,16 @@ npm run dev
 
 Vite serves the client at `http://localhost:5173`. Its port is fixed: startup fails if that port is occupied instead of selecting a different port. Open `http://localhost:5173/tv` for the TV home screen or `/join` to enter a room code manually. The example `.env.local` targets the local API at `http://localhost:5080` and the React client at `http://localhost:5173`. The TV lobby loads its room snapshot over HTTP, uses SignalR for live updates, and builds the QR destination as `/join/{roomCode}` from `VITE_MOBILE_JOIN_BASE_URL`. If this setting is missing or invalid, the lobby omits the QR and keeps the manual room code available.
 
+### Check local card illustrations
+
+The JPGs in `docs/assets/cartas/` are optional local development assets and remain ignored by Git. Do not copy them into the React project. With Vite running via `npm run dev`, a manifest-listed image can be checked with:
+
+```bash
+curl -I http://localhost:5173/__local-cards/01-relicario-botella-navegante.jpg
+```
+
+If that local JPG exists, the response is `200` with `Content-Type: image/jpeg`. The endpoint returns `404` for names absent from the manifest, paths outside the asset directory, and manifest-listed images missing from the local checkout. `resolveCardAsset` reports missing images as `Ilustración no disponible`, with `isSelectable: false`. The production build includes the manifest metadata but not these JPGs or the development-only endpoint; a future R2/CDN adapter can replace this local resolver.
+
 ### Test the QR with a phone on the local network
 
 The React Vite server already listens on the computer's network interfaces. To let a phone open the QR, both devices must be on the same Wi-Fi, and `.env.local` must use the computer's LAN IP for both the API and React URL instead of `localhost`:
@@ -196,6 +206,7 @@ Run the client checks and create a production build with:
 ```bash
 npm run lint
 npm run typecheck
+npm run test:cards
 npm run build
 ```
 
