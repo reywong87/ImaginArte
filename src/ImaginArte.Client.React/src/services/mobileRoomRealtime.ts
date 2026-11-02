@@ -2,8 +2,9 @@ import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
 import {
   isPlayerStateUpdatedEvent,
   isRoomUpdatedEvent,
+  type GetPlayerPrivateStateResponse,
 } from '../models/roomState'
-import { getRoomsApiBaseUrl } from './roomsApi'
+import { getPlayerPrivateState, getRoomsApiBaseUrl } from './roomsApi'
 
 const ROOM_UPDATED_EVENT = 'RoomUpdated'
 const PLAYER_STATE_UPDATED_EVENT = 'PlayerStateUpdated'
@@ -16,6 +17,7 @@ export type MobileRoomRealtimeStatus =
 
 export interface MobileRoomRealtimeCallbacks {
   onStatusChanged: (status: MobileRoomRealtimeStatus) => void
+  onPlayerStateUpdated: (state: GetPlayerPrivateStateResponse) => void
   onError: (error: unknown) => void
 }
 
@@ -31,6 +33,9 @@ export function createMobileRoomRealtimeClient(
 ): MobileRoomRealtimeClient {
   const normalizedRoomCode = roomCode.trim().toUpperCase()
   const normalizedPlayerId = playerId.toLowerCase()
+  const abortController = new AbortController()
+  let privateStateVersion = 0
+  let isStopped = false
   const connection = new HubConnectionBuilder()
     .withUrl(`${getRoomsApiBaseUrl()}/hubs/rooms`)
     .withAutomaticReconnect()
@@ -55,9 +60,11 @@ export function createMobileRoomRealtimeClient(
       || event.state.player.playerId.toLowerCase() !== normalizedPlayerId
     ) {
       callbacks.onError(new Error('SignalR devolvió un estado privado no válido.'))
+      return
     }
 
-    // El estado privado se valida, pero nunca se guarda ni se entrega a la interfaz.
+    privateStateVersion += 1
+    callbacks.onPlayerStateUpdated(event.state)
   })
 
   connection.onreconnecting(() => {
@@ -79,6 +86,16 @@ export function createMobileRoomRealtimeClient(
 
   async function subscribeAsPlayer(): Promise<void> {
     await connection.invoke('SubscribeAsPlayer', normalizedRoomCode, playerId)
+    const versionBeforeSnapshot = privateStateVersion
+    const snapshot = await getPlayerPrivateState(
+      normalizedRoomCode,
+      playerId,
+      abortController.signal,
+    )
+
+    if (!isStopped && versionBeforeSnapshot === privateStateVersion) {
+      callbacks.onPlayerStateUpdated(snapshot)
+    }
   }
 
   async function resubscribeAfterReconnect(): Promise<void> {
@@ -87,8 +104,10 @@ export function createMobileRoomRealtimeClient(
       await subscribeAsPlayer()
       callbacks.onStatusChanged('connected')
     } catch (error) {
-      callbacks.onStatusChanged('disconnected')
-      callbacks.onError(error)
+      if (!isStopped) {
+        callbacks.onStatusChanged('disconnected')
+        callbacks.onError(error)
+      }
     }
   }
 
@@ -106,6 +125,8 @@ export function createMobileRoomRealtimeClient(
       }
     },
     stop() {
+      isStopped = true
+      abortController.abort()
       return connection.stop()
     },
   }

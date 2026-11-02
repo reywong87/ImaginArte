@@ -21,7 +21,11 @@ import {
   RoomApiError,
   RoomsApiConfigurationError,
 } from '../../services/roomsApi'
-import type { RoomStateResponse } from '../../models/roomState'
+import {
+  RoomPhase,
+  type GetPlayerPrivateStateResponse,
+  type RoomStateResponse,
+} from '../../models/roomState'
 import {
   createMobileRoomRealtimeClient,
   type MobileRoomRealtimeStatus,
@@ -233,6 +237,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const [status, setStatus] = useState<MobileJoinStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [joinedPlayer, setJoinedPlayer] = useState<JoinedPlayerSummary | null>(null)
+  const [privateState, setPrivateState] = useState<GetPlayerPrivateStateResponse | null>(null)
   const [realtimeStatus, setRealtimeStatus] =
     useState<MobileRoomRealtimeStatus | null>(null)
   const [hasRealtimeError, setHasRealtimeError] = useState(false)
@@ -349,6 +354,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
             session,
             getJoinedPlayerSummary(privateState.room, session.playerId),
           )
+          setPrivateState(privateState)
           setJoinedPlayer(savedSession.player)
           setErrorMessage(savedSession.warning)
           setStatus('joined')
@@ -444,6 +450,11 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
           setRealtimeStatus(nextStatus)
           if (nextStatus === 'connected') {
             setHasRealtimeError(false)
+          }
+        },
+        onPlayerStateUpdated(nextState) {
+          if (isCurrent) {
+            setPrivateState(nextState)
           }
         },
         onError() {
@@ -568,6 +579,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
             session,
             getJoinedPlayerSummary(privateState.room, session.playerId),
           )
+          setPrivateState(privateState)
           setJoinedPlayer(savedSession.player)
           setErrorMessage(savedSession.warning)
           setStatus('joined')
@@ -692,7 +704,9 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                 role="status"
                 aria-live="polite"
               >
-                Esperando a que la TV inicie la partida
+                {privateState && privateState.room.phase !== RoomPhase.WaitingForPlayers
+                  ? 'Esperando a que continúe la partida'
+                  : 'Esperando a que la TV inicie la partida'}
               </p>
               {realtimeStatusMessage && (
                 <p
