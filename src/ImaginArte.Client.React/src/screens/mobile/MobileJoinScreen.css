@@ -73,6 +73,17 @@
   outline-offset: -3px;
 }
 
+.mobile-join__scroll-region--narrator {
+  overflow: hidden;
+}
+
+.mobile-join__panel.mobile-join__panel--narrator {
+  min-height: 0;
+  height: 100%;
+  justify-content: stretch;
+  padding-block: 0;
+}
+
 .mobile-join__panel {
   position: relative;
   isolation: isolate;

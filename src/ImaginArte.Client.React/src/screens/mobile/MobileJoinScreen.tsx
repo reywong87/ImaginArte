@@ -31,6 +31,7 @@ import {
   type MobileRoomRealtimeStatus,
 } from '../../services/mobileRoomRealtime'
 import './MobileJoinScreen.css'
+import MobileNarratorTurnScreen from './MobileNarratorTurnScreen'
 
 const ROOM_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/
 const MOBILE_AVATAR_IDS = Object.keys(PLAYER_AVATARS) as AvatarId[]
@@ -663,6 +664,9 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
     realtimeStatus,
     hasRealtimeError,
   )
+  const showNarratorTurn = joinedPlayer !== null
+    && privateState?.player.isCurrentStoryteller === true
+    && privateState.room.phase === RoomPhase.StorytellerChoosing
 
   return (
     <main className="mobile-join" aria-labelledby="mobile-join-title">
@@ -673,13 +677,15 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
       </div>
 
       <div
-        className="mobile-join__scroll-region"
+        className={`mobile-join__scroll-region${showNarratorTurn ? ' mobile-join__scroll-region--narrator' : ''}`}
         role="region"
         aria-label="Contenido para unirse a la sala"
         tabIndex={0}
       >
-        <section className="mobile-join__panel">
-          {joinedPlayer ? (
+        <section className={`mobile-join__panel${showNarratorTurn ? ' mobile-join__panel--narrator' : ''}`}>
+          {showNarratorTurn ? (
+            <MobileNarratorTurnScreen hand={privateState.player.hand} />
+          ) : joinedPlayer ? (
             <div className="mobile-join__confirmation">
               <header className="mobile-join__header">
                 <p className="mobile-join__eyebrow">
@@ -1013,10 +1019,10 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
             </>
           )}
 
-          <p className="mobile-join__privacy">
+          {!showNarratorTurn && <p className="mobile-join__privacy">
             <span aria-hidden="true">✦</span>
             Esta pantalla es privada; tus cartas no se mostrarán aquí en la TV.
-          </p>
+          </p>}
         </section>
       </div>
     </main>
