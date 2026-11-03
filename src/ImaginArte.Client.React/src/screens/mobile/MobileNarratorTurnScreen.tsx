@@ -1,17 +1,91 @@
-import { useEffect, useState } from 'react'
-import type { PrivateCardStateResponse } from '../../models/roomState'
+import { useEffect, useRef, useState } from 'react'
+import { RoomPhase, type GetPlayerPrivateStateResponse, type PrivateCardStateResponse, type RoomStateResponse } from '../../models/roomState'
 import { resolveCardAsset, type CardAssetResolution } from '../../services/cardAssets'
+import { chooseStorytellerCard, RoomApiError } from '../../services/roomsApi'
 import './MobileNarratorTurnScreen.css'
 
 interface MobileNarratorTurnScreenProps {
   hand: PrivateCardStateResponse[]
+  roomCode: string
+  playerId: string
+  connected: boolean
+  onRetryConnection: (() => void) | null
+  onConfirmed: (room: RoomStateResponse) => void
+  onRecover: () => Promise<GetPlayerPrivateStateResponse>
 }
 
-function MobileNarratorTurnScreen({ hand }: MobileNarratorTurnScreenProps) {
+function MobileNarratorTurnScreen({ hand, roomCode, playerId, connected, onRetryConnection, onConfirmed, onRecover }: MobileNarratorTurnScreenProps) {
   const [assets, setAssets] = useState<Record<string, CardAssetResolution>>({})
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [clue, setClue] = useState('')
+  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'checking' | 'uncertain'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const inFlight = useRef(false)
+  const mounted = useRef(true)
   const handIds = JSON.stringify(hand.map((card) => card.cardId))
+  const canSubmit = connected && submissionStatus === 'idle'
+    && selectedCardId !== null
+    && hand.some((card) => card.cardId === selectedCardId)
+    && assets[selectedCardId]?.isSelectable === true
+    && clue.trim().length > 0
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+
+  async function checkSubmission() {
+    setSubmissionStatus('checking')
+    try {
+      const state = await onRecover()
+      if (!mounted.current) return
+      if (state.player.isCurrentStoryteller && state.room.phase === RoomPhase.StorytellerChoosing) {
+        setErrorMessage('No se confirmó el envío. Puedes revisar tu borrador y volver a intentarlo.')
+        setSubmissionStatus('idle')
+      }
+    } catch {
+      if (mounted.current) {
+        setErrorMessage('No se pudo comprobar el envío. Comprueba el estado antes de volver a enviar.')
+        setSubmissionStatus('uncertain')
+      }
+    }
+  }
+
+  async function handleSubmit() {
+    if (!canSubmit || selectedCardId === null || inFlight.current) return
+    inFlight.current = true
+    setSubmissionStatus('submitting')
+    setErrorMessage(null)
+    try {
+      const room = await chooseStorytellerCard(roomCode, playerId, selectedCardId, clue.trim())
+      if (!mounted.current) return
+      if (room.phase === RoomPhase.StorytellerChoosing) {
+        await checkSubmission()
+      } else {
+        onConfirmed(room)
+      }
+    } catch (error) {
+      if (!mounted.current) return
+      if (error instanceof RoomApiError && error.status >= 400 && error.status < 500) {
+        setErrorMessage(`No se pudo enviar la carta (HTTP ${error.status}). Conservamos tu borrador.`)
+        setSubmissionStatus('idle')
+      } else {
+        await checkSubmission()
+      }
+    } finally {
+      inFlight.current = false
+    }
+  }
+
+  async function handleCheckAgain() {
+    if (inFlight.current) return
+    inFlight.current = true
+    try {
+      await checkSubmission()
+    } finally {
+      inFlight.current = false
+    }
+  }
 
   useEffect(() => {
     let isCurrent = true
@@ -51,7 +125,7 @@ function MobileNarratorTurnScreen({ hand }: MobileNarratorTurnScreenProps) {
                   name="narrator-card"
                   value={card.cardId}
                   checked={selected}
-                  disabled={!available}
+                  disabled={!available || submissionStatus !== 'idle'}
                   onChange={() => setSelectedCardId(card.cardId)}
                   aria-label={`Carta ${index + 1}: ${asset?.alt ?? 'Cargando ilustración'}`}
                 />
@@ -91,11 +165,22 @@ function MobileNarratorTurnScreen({ hand }: MobileNarratorTurnScreenProps) {
           className="mobile-join__input"
           type="text"
           value={clue}
+          disabled={submissionStatus !== 'idle'}
           onChange={(event) => setClue(event.currentTarget.value)}
         />
         <p>No se mostrará qué carta elegiste.</p>
-        <button className="mobile-join__submit" type="button" disabled>
-          Enviar carta y pista
+        {submissionStatus === 'submitting' && <p role="status">Enviando carta y pista…</p>}
+        {submissionStatus === 'checking' && <p role="status">Comprobando el estado de la sala…</p>}
+        {!connected && <p role="status">Esperando la conexión con la sala…</p>}
+        {onRetryConnection && <button className="mobile-join__snapshot-retry" type="button" onClick={onRetryConnection}>Reintentar conexión</button>}
+        {errorMessage && <p className="mobile-join__form-error" role="alert">{errorMessage}</p>}
+        {submissionStatus === 'uncertain' && (
+          <button className="mobile-join__snapshot-retry" type="button" onClick={() => void handleCheckAgain()}>
+            Comprobar estado
+          </button>
+        )}
+        <button className="mobile-join__submit" type="button" disabled={!canSubmit} onClick={() => void handleSubmit()}>
+          {submissionStatus === 'submitting' ? 'Enviando…' : 'Enviar carta y pista'}
         </button>
       </div>
     </section>

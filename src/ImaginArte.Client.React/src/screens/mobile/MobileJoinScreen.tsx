@@ -239,6 +239,8 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [joinedPlayer, setJoinedPlayer] = useState<JoinedPlayerSummary | null>(null)
   const [privateState, setPrivateState] = useState<GetPlayerPrivateStateResponse | null>(null)
+  const privateStateRef = useRef<GetPlayerPrivateStateResponse | null>(null)
+  const privateStateVersionRef = useRef(0)
   const [realtimeStatus, setRealtimeStatus] =
     useState<MobileRoomRealtimeStatus | null>(null)
   const [hasRealtimeError, setHasRealtimeError] = useState(false)
@@ -249,6 +251,11 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const joinRequestInFlightRef = useRef(false)
   const joinAbortControllerRef = useRef<AbortController | null>(null)
   const isBusy = status === 'recovering' || status === 'joining'
+  function updatePrivateState(nextState: GetPlayerPrivateStateResponse) {
+    privateStateVersionRef.current += 1
+    privateStateRef.current = nextState
+    setPrivateState(nextState)
+  }
   const normalizedEnteredRoomCode = enteredRoomCode.trim().toUpperCase()
   const hasValidEnteredRoomCode = ROOM_CODE_PATTERN.test(normalizedEnteredRoomCode)
   const visibleRoomSnapshotState = hasValidEnteredRoomCode
@@ -355,7 +362,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
             session,
             getJoinedPlayerSummary(privateState.room, session.playerId),
           )
-          setPrivateState(privateState)
+          updatePrivateState(privateState)
           setJoinedPlayer(savedSession.player)
           setErrorMessage(savedSession.warning)
           setStatus('joined')
@@ -455,7 +462,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
         },
         onPlayerStateUpdated(nextState) {
           if (isCurrent) {
-            setPrivateState(nextState)
+            updatePrivateState(nextState)
           }
         },
         onError() {
@@ -580,7 +587,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
             session,
             getJoinedPlayerSummary(privateState.room, session.playerId),
           )
-          setPrivateState(privateState)
+          updatePrivateState(privateState)
           setJoinedPlayer(savedSession.player)
           setErrorMessage(savedSession.warning)
           setStatus('joined')
@@ -667,6 +674,21 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const showNarratorTurn = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === true
     && privateState.room.phase === RoomPhase.StorytellerChoosing
+  const showNarratorWaiting = joinedPlayer !== null
+    && privateState?.player.isCurrentStoryteller === true
+    && privateState.room.phase !== RoomPhase.WaitingForPlayers
+    && privateState.room.phase !== RoomPhase.StorytellerChoosing
+
+  async function recoverNarratorState(): Promise<GetPlayerPrivateStateResponse> {
+    if (!joinedPlayer) throw new Error('No hay una sesión de jugador activa.')
+    const version = privateStateVersionRef.current
+    const snapshot = await getPlayerPrivateState(joinedPlayer.roomCode, joinedPlayer.playerId)
+    if (version === privateStateVersionRef.current) {
+      updatePrivateState(snapshot)
+      return snapshot
+    }
+    return privateStateRef.current ?? snapshot
+  }
 
   return (
     <main className="mobile-join" aria-labelledby="mobile-join-title">
@@ -684,9 +706,34 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
       >
         <section className={`mobile-join__panel${showNarratorTurn ? ' mobile-join__panel--narrator' : ''}`}>
           {showNarratorTurn ? (
-            <MobileNarratorTurnScreen hand={privateState.player.hand} />
+              <MobileNarratorTurnScreen
+                hand={privateState.player.hand}
+                roomCode={joinedPlayer.roomCode}
+                playerId={joinedPlayer.playerId}
+                connected={realtimeStatus === 'connected' && !hasRealtimeError}
+                onRetryConnection={hasRealtimeError || realtimeStatus === 'disconnected' ? () => {
+                  setRealtimeStatus('connecting')
+                  setHasRealtimeError(false)
+                  setRealtimeRetryVersion((version) => version + 1)
+                } : null}
+                onRecover={recoverNarratorState}
+                onConfirmed={(room) => {
+                  const current = privateStateRef.current
+                  if (current && current.room.phase === RoomPhase.StorytellerChoosing) {
+                    updatePrivateState({ ...current, room })
+                  }
+                }}
+              />
           ) : joinedPlayer ? (
             <div className="mobile-join__confirmation">
+              {showNarratorWaiting ? (
+                <header className="mobile-join__header" role="status">
+                  <p className="mobile-join__eyebrow">Enviado</p>
+                  <h1 className="mobile-join__title" id="mobile-join-title">Tu carta está en camino</h1>
+                  <p className="mobile-join__introduction">Esperamos las demás historias. No necesitas hacer nada más por ahora.</p>
+                </header>
+              ) : (
+                <>
               <header className="mobile-join__header">
                 <p className="mobile-join__eyebrow">
                   Sala {joinedPlayer.roomCode}
@@ -714,6 +761,8 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                   ? 'Esperando a que continúe la partida'
                   : 'Esperando a que la TV inicie la partida'}
               </p>
+                </>
+              )}
               {realtimeStatusMessage && (
                 <p
                   className="mobile-join__realtime-status"
