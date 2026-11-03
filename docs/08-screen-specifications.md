@@ -344,21 +344,22 @@ Allow the narrator to privately choose one hand card and compose the round clue.
 Narrator on mobile.
 
 ### Visible Information
-Private hand, selected-card state, clue field, concise instruction, and one submit action enabled only when both inputs are valid.
+Show this screen only when the private snapshot identifies the player as the current storyteller and the room phase is `StorytellerChoosing`; other players remain in the existing waiting screen. Display the server-provided private hand, resolved using the local card catalog, plus **Tu turno**, **Elige una carta y crea una pista**, and **La pista debe ayudar a algunos jugadores, pero no a todos**. Cards with unavailable illustrations are identified and cannot be selected. Show the selected-card state, a visibly labelled clue field, and one submit action enabled only for an available hand card and a nonblank trimmed clue; do not impose a new character limit.
 
 ### Prohibited Information
+Other players' hands and private choices. Never persist the unsent selection or clue, or expose either to the TV.
 
 ### Primary Action
-Select a card, write the clue, then explicitly select **Send clue**.
+Select a card, write the clue, then explicitly select **Enviar carta y pista**. Selection alone never sends a command.
 
 ### States And Transitions
-Browsing, selected, editing, validation, submitting, and sent states. Before submission, card and clue are reversible. Successful submission transitions to **Waiting after sending a card**.
+Browsing, selected, editing, validation, submitting, error, recovery, and sent states. Before submission, card and clue are reversible and kept only in memory. Preserve the draft on a confirmed error. If the outcome is uncertain, fetch the private snapshot before permitting another attempt; never repeat the command automatically. A confirmed phase change transitions to **Waiting after sending a card**. Fetch a fresh snapshot after connection or reconnection; if the role or phase has changed, discard the draft. Reload restores the player session, not an unsent draft.
 
 ### Visual Composition
 Use the Night Wash framed mobile stage. The hand uses a scrollable card area with `2:3` cards; selection treatment sits outside the illustration. Place the clue field on Paper Warm and keep clue and action in a stable lower control region above the viewport edge.
 
 ### Accessibility
-Cards have accessible position labels; selection uses outline and text; clue field has label and error feedback; submit target is at least 44 px.
+Cards have accessible position and name labels; selection uses outline and text; the clue field has a visible label; submission and errors use accessible announcements; the submit target is at least 44 × 44 px. Keyboard focus is visible and reduced-motion preferences are respected.
 
 ### Visual Reference
 `docs/assets/visual-references/mockups/11-turno-narrador-movil.png`. Do not reproduce selection labels that overlap a card or its illustration.
@@ -406,15 +407,16 @@ Confirm that the private submission was received and prevent duplicate action.
 Narrator or guesser on mobile.
 
 ### Visible Information
-Neutral success confirmation, current waiting message, clue when useful for phase context, and reconnecting state.
+For the narrator in SPEC 10, show a compact neutral success confirmation, waiting message, and reconnecting state without the clue. Guesser behavior belongs to a later spec.
 
 ### Prohibited Information
+The private hand, submitted card, selection, and unsent or submitted private draft. Do not offer a game action in the narrator's SPEC 10 waiting view.
 
 ### Primary Action
 No game action.
 
 ### States And Transitions
-Submission confirmed, waiting for others, voting-ready, and reconnecting. Transition to **Vote for a card** for guessers; narrator stays waiting through voting and then transitions to **Personal state after revelation**.
+For SPEC 10, show submission confirmed and waiting, including connection recovery, without implementing voting, revelation, personal results, or further mobile actions. Those transitions belong to later specs.
 
 ### Visual Composition
 Use a compact Paper Warm confirmation panel on the Night Wash framed stage; do not show the submitted card again. Keep the screen calm rather than celebratory.
