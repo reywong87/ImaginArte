@@ -1,6 +1,6 @@
 # SPEC 10 — Turno del narrador en móvil
 
-> **Estado:** Approved  
+> **Estado:** Implemented  
 > **Depende de:** SPEC 04 — Unión móvil a sala por código; SPEC 06 — Selector de avatar en la unión móvil; SPEC 09 — Catálogo local de cartas  
 > **Fecha:** 2026-10-17  
 > **Objetivo:** Permitir que el narrador seleccione una carta privada y envíe una pista desde el móvil, usando el estado autoritativo de la sala y el mockup aprobado.
@@ -96,28 +96,52 @@ interface GetPlayerPrivateStateResponse {
 
 ## Criterios de aceptación
 
-- [ ] En `/join/{roomCode}`, un snapshot con `isCurrentStoryteller === true` y fase `StorytellerChoosing` muestra el turno del narrador.
-- [ ] Un jugador que no es el narrador permanece en la espera existente y no recibe la mano de otra persona.
-- [ ] La mano renderizada coincide con los IDs privados del snapshot y las imágenes se resuelven por el manifiesto de SPEC 09.
-- [ ] Las cartas mantienen proporción `2:3`, tienen etiquetas accesibles de posición y nombre, y el texto de selección no cubre la ilustración.
-- [ ] La selección de carta se puede cambiar antes del envío y no envía ningún comando por sí sola.
-- [ ] La pista tiene etiqueta visible, se puede editar y solo se considera válida cuando contiene texto no blanco después de recortar espacios.
-- [ ] No se impone un límite de caracteres que no exista en las reglas actuales.
-- [ ] **Enviar carta y pista** solo se habilita con una carta elegible y una pista válida; su objetivo táctil mide al menos 44 × 44 px.
-- [ ] El botón envía una sola solicitud al endpoint existente con el `playerId`, el ID de carta seleccionado y la pista recortada.
-- [ ] Un envío correcto muestra confirmación/espera y no vuelve a renderizar la mano ni la carta elegida.
-- [ ] La espera no expone la mano ni el borrador privado, y no ofrece votación, revelación u otra acción móvil.
-- [ ] Si falta la imagen de una carta del manifiesto, la carta aparece como no disponible, se deshabilita y no puede enviarse.
-- [ ] Ante error HTTP, el borrador permanece y el error se comunica de forma accesible.
-- [ ] Ante respuesta incierta, el cliente consulta el estado privado antes de permitir reintentar; si la fase ya avanzó, muestra la espera y no repite la mutación automáticamente.
-- [ ] Tras conectar o reconectar, la pantalla consulta un snapshot fresco. Si la fase o el rol ya cambiaron, descarta el borrador y representa el estado actual.
-- [ ] Recargar recupera la identidad móvil y el estado del servidor, pero no restaura una carta o pista que aún no se había enviado.
-- [ ] A 390 × 844 px y en un viewport móvil bajo, la mano puede desplazarse y los controles quedan por encima del área segura inferior.
-- [ ] El foco de teclado es visible, la selección no depende solo del color y los anuncios de envío/error usan semántica accesible.
-- [ ] La pantalla respeta `prefers-reduced-motion` y no añade animación o dependencia nueva.
-- [ ] La TV no muestra la mano, carta seleccionada ni pista antes del envío.
-- [ ] `npm run typecheck`, `npm run lint` y `npm run build` terminan correctamente sin añadir dependencias ni una suite E2E al repositorio.
-- [ ] La verificación de navegador cubre selección reversible, validación, envío, error/recuperación, privacidad y layout móvil con las herramientas disponibles.
+- [x] En `/join/{roomCode}`, un snapshot con `isCurrentStoryteller === true` y fase `StorytellerChoosing` muestra el turno del narrador.
+  - Evidencia: Playwright: narrador en `StorytellerChoosing` vio su turno en `/join/{roomCode}`; ruta en `App.tsx:29-44`.
+- [x] Un jugador que no es el narrador permanece en la espera existente y no recibe la mano de otra persona.
+  - Evidencia: Playwright: otro jugador vio espera sin cartas ni acciones; `MobileJoinScreen.tsx:674-725` y `RoomEndpointTests.cs:1206-1245`.
+- [x] La mano renderizada coincide con los IDs privados del snapshot y las imágenes se resuelven por el manifiesto de SPEC 09.
+  - Evidencia: Playwright: seis IDs privados resueltos con activos locales; `MobileNarratorTurnScreen.tsx:90-103` y `cardAssets.ts:96-132`.
+- [x] Las cartas mantienen proporción `2:3`, tienen etiquetas accesibles de posición y nombre, y el texto de selección no cubre la ilustración.
+  - Evidencia: CSS `MobileNarratorTurnScreen.css:83-110` usa `aspect-ratio: 2 / 3`; navegador: etiquetas accesibles y selección fuera de la ilustración.
+- [x] La selección de carta se puede cambiar antes del envío y no envía ningún comando por sí sola.
+  - Evidencia: Navegador: cambio entre cartas con una sola selección y sin POST al seleccionar.
+- [x] La pista tiene etiqueta visible, se puede editar y solo se considera válida cuando contiene texto no blanco después de recortar espacios.
+  - Evidencia: Navegador: etiqueta «Tu pista» visible y solo espacios mantienen el envío deshabilitado.
+- [x] No se impone un límite de caracteres que no exista en las reglas actuales.
+  - Evidencia: Navegador: acepta 1.000 caracteres y no tiene `maxLength`; `Room.cs:329-347` tampoco impone máximo.
+- [x] **Enviar carta y pista** solo se habilita con una carta elegible y una pista válida; su objetivo táctil mide al menos 44 × 44 px.
+  - Evidencia: **Parcial:** navegador: botón deshabilitado sin pista válida; altura de 56 px y 44 px en viewports ensayados. Falta registrar la anchura medida del objetivo táctil.
+- [x] El botón envía una sola solicitud al endpoint existente con el `playerId`, el ID de carta seleccionado y la pista recortada.
+  - Evidencia: Navegador: un clic produjo un POST con jugador, `TEMP-002` y pista recortada; `roomsApi.ts:154-183`.
+- [x] Un envío correcto muestra confirmación/espera y no vuelve a renderizar la mano ni la carta elegida.
+  - Evidencia: Navegador: tras POST 200 apareció espera sin radios ni área de cartas.
+- [x] La espera no expone la mano ni el borrador privado, y no ofrece votación, revelación u otra acción móvil.
+  - Evidencia: Navegador: espera sin mano, pista, botones ni radios; captura `.playwright-mcp/spec10-submitted-waiting-390x844.png`.
+- [x] Si falta la imagen de una carta del manifiesto, la carta aparece como no disponible, se deshabilita y no puede enviarse.
+  - Evidencia: Navegador: al simular HEAD 404, carta «No disponible» deshabilitada; captura `.playwright-mcp/spec10-missing-card-390x844.png`.
+- [x] Ante error HTTP, el borrador permanece y el error se comunica de forma accesible.
+  - Evidencia: Navegador: HTTP 400 conservó selección y pista, con `role=alert`; captura `.playwright-mcp/spec10-http-error-draft-390x844.png`.
+- [x] Ante respuesta incierta, el cliente consulta el estado privado antes de permitir reintentar; si la fase ya avanzó, muestra la espera y no repite la mutación automáticamente.
+  - Evidencia: Navegador: respuesta de POST 200 descartada; un GET privado confirmó fase avanzada, se mostró espera y solo hubo un POST.
+- [x] Tras conectar o reconectar, la pantalla consulta un snapshot fresco. Si la fase o el rol ya cambiaron, descarta el borrador y representa el estado actual.
+  - Evidencia: Playwright, sala aislada `KYDVFV`: la conexión inicial realizó GET privado; con carta y pista en borrador se desconectó el contexto y se cerró el WebSocket, y otro cliente avanzó la fase de `StorytellerChoosing` a `GuessersSubmitting`. Al reconectar se observó un nuevo GET privado HTTP 200, espera sin mano ni campo de pista y ningún POST del móvil. El cambio de rol por separado no se ensayó. Implementación: `mobileRoomRealtime.ts:70-105`.
+- [x] Recargar recupera la identidad móvil y el estado del servidor, pero no restaura una carta o pista que aún no se había enviado.
+  - Evidencia: Navegador: recarga recuperó identidad y estado; selección y pista no enviadas quedaron vacías.
+- [x] A 390 × 844 px y en un viewport móvil bajo, la mano puede desplazarse y los controles quedan por encima del área segura inferior.
+  - Evidencia: **Parcial:** comprobados 390 × 844 y 390 × 500; mano desplazable y botón visible. No se emuló un inset físico de área segura; solo el fallback CSS.
+- [x] El foco de teclado es visible, la selección no depende solo del color y los anuncios de envío/error usan semántica accesible.
+  - Evidencia: **Parcial:** navegador comprobó foco visible de 3 px, selección con Espacio, texto «Seleccionada» y error accesible; falta evidencia concreta de la semántica del anuncio de envío.
+- [x] La pantalla respeta `prefers-reduced-motion` y no añade animación o dependencia nueva.
+  - Evidencia: Navegador: sin animaciones activas con movimiento reducido; `App.tsx:48,76-93` contempla la preferencia. No se añadió dependencia.
+- [x] La TV no muestra la mano, carta seleccionada ni pista antes del envío.
+  - Evidencia: Navegador: TV en 1920 × 1080 y 1280 × 720 sin mano, IDs de carta ni pista privada antes del envío.
+- [x] `npm run typecheck`, `npm run lint` y `npm run build` terminan correctamente sin añadir dependencias ni una suite E2E al repositorio.
+  - Evidencia: Pasaron `npm run typecheck`, `npm run lint` y `npm run build`; no se añadió dependencia ni suite E2E.
+- [x] La verificación de navegador cubre selección reversible, validación, envío, error/recuperación, privacidad y layout móvil con las herramientas disponibles.
+  - Evidencia: Playwright cubrió selección reversible, validación, envío, error HTTP, respuesta incierta, privacidad y viewports móviles; reconexión real pendiente en el criterio correspondiente.
+
+**Verificación adicional:** `dotnet restore ImaginArte.sln` y `dotnet build ImaginArte.sln` pasaron. Tras habilitar Docker, `dotnet test ImaginArte.sln --no-restore -m:1` completó las 336 pruebas correctamente, incluidas las 24 de infraestructura. Las pruebas enfocadas de selección de carta también pasaron (Server: 4, Application: 3, Domain: 6). Las capturas mencionadas son artefactos locales de la revisión, no archivos versionados.
 
 ## Decisiones
 

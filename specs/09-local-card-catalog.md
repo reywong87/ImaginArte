@@ -101,13 +101,13 @@ El archivo real contiene las 98 entradas. No existen entradas para IDs superiore
 - [x] Cada entrada incluye un `alt` legible derivado del nombre descriptivo del archivo, sin prefijo numérico ni extensión.
 - [x] El desarrollo local puede servir las imágenes existentes desde `docs/assets/cartas/` sin copiar ni versionar los JPG.
 - [x] El servidor local solo sirve archivos nombrados en el manifiesto y rechaza rutas que salgan de `docs/assets/cartas/`.
-- [ ] Si falta un JPG asociado, la interfaz puede identificar la carta como no disponible y no permite seleccionarla.
+- [x] Si falta un JPG asociado, la interfaz puede identificar la carta como no disponible y no permite seleccionarla.
 - [x] `npm run test:cards`, `npm run typecheck`, `npm run lint` y `npm run build` terminan correctamente sin nuevas dependencias.
 - [x] `dotnet build ImaginArte.sln` y `dotnet test ImaginArte.sln --no-restore -m:1` terminan correctamente.
 - [x] `vite build` no copia los JPG ignorados al resultado de producción ni incluye el middleware local de desarrollo.
 - [x] No se modifica `.gitignore` y ningún JPG de `docs/assets/cartas/` aparece como archivo nuevo o modificado de Git.
 
-## Verificación de criterios de aceptación — 2026-11-02
+## Verificación de criterios de aceptación — 2026-11-03
 
 | # | Estado | Evidencia |
 | ---: | --- | --- |
@@ -119,21 +119,21 @@ El archivo real contiene las 98 entradas. No existen entradas para IDs superiore
 | 6 | VERIFICADO | Auditoría local de las 98 entradas: `alt` coincide con el nombre descriptivo sin ordinal ni extensión (98 coincidencias, 0 discrepancias); el test de `scripts/card-manifest.test.mjs:40-45` valida que no esté vacío. |
 | 7 | VERIFICADO | `vite.config.ts:8-15,33-40,101-119` sirve desde `docs/assets/cartas/`; se encontraron 98 JPG ignorados y un GET local devolvió `200`, `image/jpeg`, 877001 bytes. |
 | 8 | VERIFICADO | `vite.config.ts:14-16,43-76,82-99` aplica lista permitida y verifica ruta real; Vite devolvió `404` para nombre no listado, traversal codificado/literal y ruta raíz. |
-| 9 | BLOQUEADO | `cardAssets.ts:70-82,96-132` devolvió `Ilustración no disponible` e `isSelectable: false` ante un 404 simulado en Playwright. No hay pantalla que consuma el resolver: `App.tsx:13-16,95-100` solo enruta home, lobby y unirse; `README.md:7,19` reserva las pantallas de juego para futuros slices. |
+| 9 | VERIFICADO | `cardAssets.ts:70-82,96-132` convierte un HEAD 404 en `Ilustración no disponible` e `isSelectable: false`; `MobileNarratorTurnScreen.tsx:26-30,90-103,117-155,182-184` lo refleja en una radio deshabilitada, la etiqueta `No disponible` y la validación del envío. Playwright MCP en `http://localhost:5176/join/ABC234`, viewport 390×844, con snapshot privado y SignalR simulados e interceptación HEAD 404 para `TEMP-001`: la radio accesible quedó deshabilitada, el texto de disponibilidad fue visible y `Enviar carta y pista` siguió deshabilitado con pista válida y ninguna selección. El intento de selección expiró sobre el control deshabilitado; no hubo solicitud `storyteller-card`. `TEMP-002` respondió 200 y habilitó el envío al seleccionarla. Screenshots: `.playwright-mcp/spec09-card-unavailable-unselected-390x844.png` y `.playwright-mcp/spec09-card-unavailable-390x844.png`. |
 | 10 | VERIFICADO | `package.json:9-15`; `test:cards` usa `node:test`. Los cuatro comandos de cliente indicados abajo terminaron correctamente; no se requiere dependencia nueva para esa prueba. |
-| 11 | VERIFICADO | `dotnet build` terminó con 0 advertencias/errores; la suite completa pasó 336 tests en seis proyectos. |
+| 11 | VERIFICADO | `dotnet build ImaginArte.sln` terminó con 0 advertencias/errores. El 2026-11-03, con Docker disponible, `dotnet test ImaginArte.sln --no-restore -m:1` pasó 336 tests, incluidos los 24 de infraestructura. |
 | 12 | VERIFICADO | `npm run build` completó `vite build`; `dist` contiene el manifiesto, no contiene JPG y no incluye `__local-cards`. `vite.config.ts:33-40` limita el middleware a `apply: 'serve'`. |
 | 13 | VERIFICADO | `.gitignore:21` ignora `assets/`; `git check-ignore` lo confirmó. Sin diff de `.gitignore`, sin estado Git para `docs/assets/cartas/` y cero JPG rastreados. |
 
 ### Comprobaciones ejecutadas
 
-- Desde `src/ImaginArte.Client.React`: `npm run test:cards && npm run typecheck && npm run lint && npm run build` — correcto; 4 tests de manifiesto pasaron, typecheck/lint/build terminaron.
-- Desde la raíz: `dotnet restore ImaginArte.sln` — correcto; `dotnet test tests/ImaginArte.Domain.Tests/ImaginArte.Domain.Tests.csproj --no-restore --filter FullyQualifiedName~AdvanceRound_RecyclesDiscardForLongGamesWithoutDuplicatingCards` — 6 pasaron; `dotnet build ImaginArte.sln` — correcto; `dotnet test ImaginArte.sln --no-restore -m:1` — 336 pasaron.
-- `npm run dev` inició Vite en `http://localhost:5173/`. `curl -I http://localhost:5173/__local-cards/01-relicario-botella-navegante.jpg` y GET devolvieron `200`; GET no listado y traversal literal/codificado devolvieron `404`.
-- Auditoría de `alt` con Node: 98 entradas, 98 coincidencias. Inspección del build con `find dist -type f -iname '*.jpg' -print` y `grep -R -n -- '__local-cards' dist`: sin resultados.
-- Playwright: capturas y snapshots de `/` a 1280×720 y `/join` a 390×844 confirmaron que no hay selector de cartas. Se simuló un HEAD 404 al resolver `TEMP-001`; el resolver reportó no disponible y no seleccionable. Las capturas temporales se eliminaron al finalizar.
+- Desde `src/ImaginArte.Client.React`: `npm run test:cards && npm run typecheck && npm run lint && npm run build` — correcto; pasaron los 4 tests de manifiesto, typecheck, lint y build.
+- Desde la raíz: `dotnet restore ImaginArte.sln` — correcto; `dotnet build ImaginArte.sln` — correcto, 0 advertencias/errores; `dotnet test tests/ImaginArte.Domain.Tests/ImaginArte.Domain.Tests.csproj --no-restore --filter FullyQualifiedName~AdvanceRound_RecyclesDiscardForLongGamesWithoutDuplicatingCards` — 6 pasaron; `dotnet test tests/ImaginArte.Domain.Tests/ImaginArte.Domain.Tests.csproj --no-restore -m:1` — 108 pasaron; `dotnet test ImaginArte.sln --no-restore -m:1` — 336 pasaron al repetirse con Docker disponible el 2026-11-03.
+- Vite: `curl -I http://127.0.0.1:5173/__local-cards/01-relicario-botella-navegante.jpg` devolvió `200`; `curl -I http://127.0.0.1:5173/__local-cards/not-listed.jpg` devolvió `404`.
+- Auditoría de `alt` con Node: 98 entradas, 98 coincidencias. Tras `npm run build`, `find src/ImaginArte.Client.React/dist -type f -iname '*.jpg'` y la búsqueda de `__local-cards` en `dist` no encontraron resultados; el manifiesto sí está presente.
+- Playwright MCP: en `http://localhost:5176/join/ABC234`, 390×844, se simuló un snapshot privado con `TEMP-001` y `TEMP-002`, conexión SignalR y un HEAD 404 para la imagen de `TEMP-001`. La captura de accesibilidad mostró la radio `Carta 1: Relicario botella navegante` deshabilitada, `Ilustración no disponible`, `No disponible` y el botón de envío deshabilitado sin selección. `locator.check()` expiró al intentar seleccionar la radio; la red no registró una solicitud `storyteller-card`. La radio de `TEMP-002` permaneció disponible y, al seleccionarla con una pista válida, el botón se habilitó. Capturas inspeccionadas visualmente: `.playwright-mcp/spec09-card-unavailable-unselected-390x844.png` y `.playwright-mcp/spec09-card-unavailable-390x844.png`.
 
-**Brecha:** el criterio 9 exige bloqueo de selección en una interfaz, pero el alcance excluye la pantalla móvil y cualquier otra pantalla consumidora (líneas 16 y 23). Se conserva sin marcar hasta que exista una pantalla integradora y pueda comprobarse su interacción; el resultado del resolver por sí solo no demuestra ese comportamiento visual.
+**Bloqueo de entorno resuelto:** la ejecución anterior no pudo acceder a Docker para los tests de PostgreSQL; la repetición con Docker disponible completó la suite correctamente.
 
 ## Decisiones
 
