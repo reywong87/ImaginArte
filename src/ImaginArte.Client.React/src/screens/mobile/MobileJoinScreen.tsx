@@ -32,6 +32,7 @@ import {
 } from '../../services/mobileRoomRealtime'
 import './MobileJoinScreen.css'
 import MobileNarratorTurnScreen from './MobileNarratorTurnScreen'
+import MobilePlayerTurnScreen from './MobilePlayerTurnScreen'
 
 const ROOM_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/
 const MOBILE_AVATAR_IDS = Object.keys(PLAYER_AVATARS) as AvatarId[]
@@ -674,6 +675,12 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const showNarratorTurn = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === true
     && privateState.room.phase === RoomPhase.StorytellerChoosing
+  const showPlayerTurnExample = import.meta.env.DEV
+    && joinedPlayer !== null
+    && privateState?.player.isCurrentStoryteller === false
+    && privateState.room.phase === RoomPhase.GuessersSubmitting
+    && privateState.player.hasSubmittedGuessCard === false
+  const showTurnScreen = showNarratorTurn || showPlayerTurnExample
   const showNarratorWaiting = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === true
     && privateState.room.phase !== RoomPhase.WaitingForPlayers
@@ -699,12 +706,12 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
       </div>
 
       <div
-        className={`mobile-join__scroll-region${showNarratorTurn ? ' mobile-join__scroll-region--narrator' : ''}`}
+        className={`mobile-join__scroll-region${showTurnScreen ? ' mobile-join__scroll-region--narrator' : ''}`}
         role="region"
         aria-label="Contenido para unirse a la sala"
         tabIndex={0}
       >
-        <section className={`mobile-join__panel${showNarratorTurn ? ' mobile-join__panel--narrator' : ''}`}>
+        <section className={`mobile-join__panel${showTurnScreen ? ' mobile-join__panel--narrator' : ''}`}>
           {showNarratorTurn ? (
               <MobileNarratorTurnScreen
                 hand={privateState.player.hand}
@@ -724,6 +731,8 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                   }
                 }}
               />
+          ) : showPlayerTurnExample ? (
+            <MobilePlayerTurnScreen />
           ) : joinedPlayer ? (
             <div className="mobile-join__confirmation">
               {showNarratorWaiting ? (
@@ -1068,7 +1077,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
             </>
           )}
 
-          {!showNarratorTurn && <p className="mobile-join__privacy">
+          {!showTurnScreen && <p className="mobile-join__privacy">
             <span aria-hidden="true">✦</span>
             Esta pantalla es privada; tus cartas no se mostrarán aquí en la TV.
           </p>}

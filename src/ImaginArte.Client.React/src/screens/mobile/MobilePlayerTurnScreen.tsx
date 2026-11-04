@@ -23,10 +23,10 @@ function MobilePlayerTurnScreen() {
   }, [])
 
   return (
-    <section className="player-turn" aria-labelledby="player-turn-title">
+    <section className="player-turn" aria-labelledby="mobile-join-title">
       <header className="player-turn__header">
         <p>Maqueta de desarrollo · Datos de ejemplo</p>
-        <h1 id="player-turn-title">Elige una carta para la pista</h1>
+        <h1 id="mobile-join-title">Elige una carta para la pista</h1>
       </header>
 
       <div className="player-turn__clue">
