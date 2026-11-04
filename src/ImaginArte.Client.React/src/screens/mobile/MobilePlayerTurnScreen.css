@@ -11,7 +11,7 @@
 .player-turn__header h1,
 .player-turn__clue h2,
 .player-turn__clue p,
-.player-turn__hand h2 {
+.player-turn__hand legend {
   margin: 0;
 }
 
@@ -32,16 +32,20 @@
 }
 
 .player-turn__clue h2,
-.player-turn__hand h2 {
+.player-turn__hand legend {
   font-size: 1rem;
 }
 
 .player-turn__hand {
   display: flex;
+  min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
   gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .player-turn__cards {
@@ -56,18 +60,37 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.player-turn__cards:focus-visible {
+.player-turn__cards:focus-visible,
+.player-turn__card:focus-within {
   outline: 3px solid #f2b632;
   outline-offset: 2px;
 }
 
 .player-turn__card {
+  position: relative;
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 0.25rem;
   text-align: center;
   font: 0.8rem/1.2 Arial, sans-serif;
+}
+
+.player-turn__card input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.player-turn__card:has(input:not(:disabled)) {
+  cursor: pointer;
+}
+
+.player-turn__card--selected .player-turn__art {
+  outline: 3px solid #f2b632;
+  outline-offset: 2px;
 }
 
 .player-turn__art {
@@ -86,4 +109,15 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.player-turn__controls {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.player-turn__controls p {
+  margin: 0;
 }
