@@ -390,7 +390,7 @@ public sealed class RoomEndpointTests
         Assert.Equal(RoomPhase.Voting, state.Phase);
         Assert.Equal(state.ExpectedSubmissionCount, state.SubmissionCount);
         Assert.Equal(
-            [room.StorytellerCardId, room.BobCardIds[0], room.CarlaCardIds[0]],
+            new[] { room.StorytellerCardId, room.BobCardIds[0], room.CarlaCardIds[0] }.Order().ToArray(),
             state.VotingCards.Select(card => card.CardId).Order().ToArray());
         Assert.Equal(3, state.VotingCards.Select(card => card.CardId).Distinct().Count());
         Assert.Equal([1, 2, 3], state.VotingCards.Select(card => card.DisplayNumber).Order().ToArray());
@@ -1210,7 +1210,8 @@ public sealed class RoomEndpointTests
         var bobId = Guid.NewGuid();
 
         await CreateRoomAsync(client, "ABC123");
-        await JoinPlayerAsync(client, "ABC123", Guid.NewGuid(), "Alice");
+        var aliceId = Guid.NewGuid();
+        await JoinPlayerAsync(client, "ABC123", aliceId, "Alice");
         await JoinPlayerAsync(client, "ABC123", bobId, "Bob");
         await JoinPlayerAsync(client, "ABC123", Guid.NewGuid(), "Carla");
         await client.PostAsync("/rooms/ABC123/start", content: null);
@@ -1229,14 +1230,11 @@ public sealed class RoomEndpointTests
         Assert.Equal("Bob", snapshot.Player.Name);
         Assert.False(snapshot.Player.IsCurrentStoryteller);
         Assert.False(snapshot.Player.HasSubmittedGuessCard);
-        Assert.Collection(
-            snapshot.Player.Hand,
-            card => Assert.Equal("TEMP-007", card.CardId),
-            card => Assert.Equal("TEMP-008", card.CardId),
-            card => Assert.Equal("TEMP-009", card.CardId),
-            card => Assert.Equal("TEMP-010", card.CardId),
-            card => Assert.Equal("TEMP-011", card.CardId),
-            card => Assert.Equal("TEMP-012", card.CardId));
+        var aliceSnapshot = await client.GetFromJsonAsync<GetPlayerPrivateStateResponse>($"/rooms/ABC123/players/{aliceId}");
+        Assert.NotNull(aliceSnapshot);
+        Assert.Equal(6, snapshot.Player.Hand.Count);
+        Assert.Equal(6, snapshot.Player.Hand.Select(card => card.CardId).Distinct().Count());
+        Assert.Empty(snapshot.Player.Hand.Select(card => card.CardId).Intersect(aliceSnapshot.Player.Hand.Select(card => card.CardId)));
 
         using var json = JsonDocument.Parse(responseBody);
         var roomJson = json.RootElement.GetProperty("room").GetRawText();

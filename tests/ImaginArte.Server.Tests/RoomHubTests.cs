@@ -80,14 +80,12 @@ public sealed class RoomHubTests
         Assert.Equal("ABC123", publicEvent.Room.RoomCode);
         Assert.Equal(bobId, privateEvent.State.Player.PlayerId);
         Assert.Equal("Bob", privateEvent.State.Player.Name);
-        Assert.Collection(
-            privateEvent.State.Player.Hand,
-            card => Assert.Equal("TEMP-007", card.CardId),
-            card => Assert.Equal("TEMP-008", card.CardId),
-            card => Assert.Equal("TEMP-009", card.CardId),
-            card => Assert.Equal("TEMP-010", card.CardId),
-            card => Assert.Equal("TEMP-011", card.CardId),
-            card => Assert.Equal("TEMP-012", card.CardId));
+        var httpSnapshot = await httpClient.GetFromJsonAsync<GetPlayerPrivateStateResponse>($"/rooms/ABC123/players/{bobId}");
+        Assert.NotNull(httpSnapshot);
+        Assert.Equal(6, privateEvent.State.Player.Hand.Count);
+        Assert.Equal(
+            httpSnapshot.Player.Hand.Select(card => card.CardId),
+            privateEvent.State.Player.Hand.Select(card => card.CardId));
         Assert.DoesNotContain(
             "\"hand\"",
             JsonSerializer.Serialize(privateEvent.State.Room),

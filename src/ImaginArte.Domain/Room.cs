@@ -680,6 +680,7 @@ public sealed class Room
     {
         _availableDeck.Clear();
         _availableDeck.AddRange(CreateTemporaryDeck());
+        Shuffle(_availableDeck);
         _discardPile.Clear();
 
         foreach (var player in _players)

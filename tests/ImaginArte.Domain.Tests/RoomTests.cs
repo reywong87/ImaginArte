@@ -353,6 +353,23 @@ public sealed class RoomTests
     }
 
     [Fact]
+    public void StartGame_ShufflesDeckBeforeDealingUsingRandomGenerator()
+    {
+        var room = Room.Create(new RoomCode("ABC123"), randomNumberGenerator: new ZeroRandomNumberGenerator());
+        var storytellerId = PlayerId.New();
+        room.Join(storytellerId, "Alice", AvatarId.Fox);
+        room.Join(PlayerId.New(), "Bob", AvatarId.Owl);
+        room.Join(PlayerId.New(), "Carla", AvatarId.Deer);
+
+        room.StartGame();
+
+        Assert.Equal(
+            new[] { "TEMP-002", "TEMP-003", "TEMP-004", "TEMP-005", "TEMP-006", "TEMP-007" },
+            room.GetHandFor(storytellerId).Select(card => card.Id.Value));
+        Assert.Equal("TEMP-001", room.ToSnapshot().AvailableDeck.Last().Id.Value);
+    }
+
+    [Fact]
     public void StartGame_DealsUniqueCardsAcrossPlayers()
     {
         var room = Room.Create(new RoomCode("ABC123"));
@@ -673,7 +690,7 @@ public sealed class RoomTests
 
         Assert.Equal(3, votingCards.Length);
         Assert.Equal(
-            [storytellerCardId.Value, bobCardId.Value, carlaCardId.Value],
+            new[] { storytellerCardId.Value, bobCardId.Value, carlaCardId.Value }.Order().ToArray(),
             votingCards.Select(card => card.CardId.Value).Order().ToArray());
         Assert.Equal(3, votingCards.Select(card => card.CardId).Distinct().Count());
         Assert.Equal([1, 2, 3], votingCards.Select(card => card.DisplayNumber).Order().ToArray());

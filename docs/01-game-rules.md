@@ -25,6 +25,7 @@
 
 ## Card Deck
 - The temporary deck contains exactly 98 illustrated cards, identified as `TEMP-001` through `TEMP-098`.
+- The deck is shuffled before the initial deal.
 - Each player starts with six cards.
 - If the available deck cannot complete a draw during a refill, the discarded cards are shuffled back into the deck and drawing continues.
 - Cards that remain in players' hands are never recycled.

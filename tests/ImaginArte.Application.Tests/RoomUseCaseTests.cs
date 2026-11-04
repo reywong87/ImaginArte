@@ -283,14 +283,11 @@ public sealed class RoomUseCaseTests
         Assert.Equal("Bob", result.Player.Name);
         Assert.False(result.Player.IsCurrentStoryteller);
         Assert.False(result.Player.HasSubmittedGuessCard);
-        Assert.Collection(
-            result.Player.Hand,
-            card => Assert.Equal("TEMP-007", card.CardId),
-            card => Assert.Equal("TEMP-008", card.CardId),
-            card => Assert.Equal("TEMP-009", card.CardId),
-            card => Assert.Equal("TEMP-010", card.CardId),
-            card => Assert.Equal("TEMP-011", card.CardId),
-            card => Assert.Equal("TEMP-012", card.CardId));
+        var room = await GetRequiredRoomAsync(repository);
+        Assert.Equal(Room.InitialHandSize, result.Player.Hand.Count);
+        Assert.Equal(
+            room.GetHandFor(new PlayerId(bobId)).Select(card => card.Id.Value),
+            result.Player.Hand.Select(card => card.CardId));
     }
 
     [Fact]
@@ -544,6 +541,7 @@ public sealed class RoomUseCaseTests
         var repository = new InMemoryRoomRepository();
         var submitGuessCard = new SubmitGuessCardHandler(repository);
         var (_, bobId, carlaId) = await CreateRoomWaitingForGuesserSubmissionsAsync(repository);
+        var storytellerCardId = (await GetRequiredRoomAsync(repository)).StorytellerCardId!.Value.Value;
         var getPlayerPrivateState = new GetPlayerPrivateStateHandler(repository);
         var bobState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", bobId));
         var carlaState = await getPlayerPrivateState.HandleAsync(new GetPlayerPrivateStateQuery("ABC123", carlaId));
@@ -559,7 +557,7 @@ public sealed class RoomUseCaseTests
         Assert.Equal(3, votingCards.Length);
         Assert.Empty(result.Room.RevealedCards);
         Assert.Equal(
-            ["TEMP-001", bobCardId, carlaCardId],
+            new[] { storytellerCardId, bobCardId, carlaCardId }.Order().ToArray(),
             votingCards.Select(card => card.CardId).Order().ToArray());
         Assert.Equal(3, votingCards.Select(card => card.CardId).Distinct().Count());
         Assert.Equal([1, 2, 3], votingCards.Select(card => card.DisplayNumber).Order().ToArray());
