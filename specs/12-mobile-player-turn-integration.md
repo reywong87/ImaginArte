@@ -1,6 +1,6 @@
 # SPEC 12 — Integración del turno del jugador en móvil
 
-> **Estado:** Approved  
+> **Estado:** Implemented  
 > **Depende de:** SPEC 09 — Catálogo local de cartas; SPEC 10 — Turno del narrador en móvil; SPEC 11 — Maqueta del turno del jugador en móvil  
 > **Fecha:** 2026-11-04  
 > **Objetivo:** Conectar el turno móvil del jugador al estado autoritativo y al envío existente de cartas, con una espera privada tras la confirmación.
@@ -56,16 +56,33 @@ Se revisará `src/ImaginArte.Client.React/src/services/mobileRoomRealtime.ts` y 
 
 ## Criterios de aceptación
 
-- [ ] El jugador elegible ve la pista publicada y únicamente los IDs de su propia mano privada, resueltos por el catálogo existente.
-- [ ] El narrador, los jugadores que ya enviaron y las fases distintas no reciben la pantalla de selección pendiente.
-- [ ] La selección puede cambiarse antes de enviar y no provoca una petición por sí misma.
-- [ ] El envío explícito usa el endpoint y contrato existentes y no admite solicitudes duplicadas mientras haya una operación en curso.
-- [ ] La confirmación y espera no muestran la mano ni la carta enviada y no ofrecen otra acción de envío.
-- [ ] Tras conectar o reconectar se consulta el snapshot privado actual y se representa el rol y la fase correspondientes.
-- [ ] Ante resultado incierto, no se repite automáticamente el POST; se consulta el estado autoritativo antes de permitir un nuevo intento.
-- [ ] La TV no revela manos, propietarios de cartas enviadas ni identidad de jugadores pendientes.
-- [ ] La pantalla mantiene pista visible, selección accesible, cartas `2:3`, controles sin solapamientos y área segura en móviles.
-- [ ] `npm run typecheck`, `npm run lint` y `npm run build` pasan, y la revisión en navegador cubre envío, espera, errores, recuperación y privacidad.
+- [x] El jugador elegible ve la pista publicada y únicamente los IDs de su propia mano privada, resueltos por el catálogo existente.
+- [x] El narrador, los jugadores que ya enviaron y las fases distintas no reciben la pantalla de selección pendiente.
+- [x] La selección puede cambiarse antes de enviar y no provoca una petición por sí misma.
+- [x] El envío explícito usa el endpoint y contrato existentes y no admite solicitudes duplicadas mientras haya una operación en curso.
+- [x] La confirmación y espera no muestran la mano ni la carta enviada y no ofrecen otra acción de envío.
+- [x] Tras conectar o reconectar se consulta el snapshot privado actual y se representa el rol y la fase correspondientes.
+- [x] Ante resultado incierto, no se repite automáticamente el POST; se consulta el estado autoritativo antes de permitir un nuevo intento.
+- [x] La TV no revela manos, propietarios de cartas enviadas ni identidad de jugadores pendientes.
+- [x] La pantalla mantiene pista visible, selección accesible, cartas `2:3`, controles sin solapamientos y área segura en móviles.
+- [x] `npm run typecheck`, `npm run lint` y `npm run build` pasan, y la revisión en navegador cubre envío, espera, errores, recuperación y privacidad.
+
+### Evidencia de verificación y pendientes
+
+Revisión parcial en navegador con servidor en memoria y cliente de desarrollo; los checks pendientes no implican necesariamente un defecto confirmado.
+
+1. **Verificado:** el snapshot privado de un jugador contenía seis IDs de su mano y su pantalla mostró la pista y las cartas correspondientes. La resolución de ilustraciones se observó en desarrollo; queda por aclarar si también se requiere comprobar los JPG en producción, pues SPEC 09 los excluye del build.
+2. **Verificado:** se observaron pantallas distintas para el narrador y para un jugador que ya había enviado; al completar los envíos y avanzar de fase, la pantalla pasó a «Esperando a que continúe la partida» sin selección. La condición está en `src/ImaginArte.Client.React/src/screens/mobile/MobileJoinScreen.tsx`.
+3. **Verificado:** se cambió de carta con teclado y no hubo POST antes de pulsar **Enviar carta**.
+4. **Verificado:** el envío explícito produjo un POST a `/rooms/{roomCode}/guess-cards` con `playerId` y `cardId`; `src/ImaginArte.Client.React/src/screens/mobile/MobilePlayerTurnScreen.tsx` protege la operación en curso con `inFlight`. No se realizó una prueba de estrés de pulsaciones simultáneas.
+5. **Verificado:** tras el POST correcto se mostró «Carta enviada» y la espera, sin mano, carta ni acción de envío.
+6. **Verificado en entorno local:** Playwright observó el GET privado al conectar, cerró el WebSocket de SignalR y mantuvo bloqueada la conexión de reemplazo. Mientras el móvil mostraba «Conexión interrumpida. Reconectando…», el narrador publicó una pista y el servidor pasó a `GuessersSubmitting`. Al permitir la reconexión se observó otro GET privado y el jugador vio la pista nueva y su selección pendiente. Esta prueba controlada no reproduce ni resuelve el fallo de acceso al cliente web observado manualmente al cambiar entre Wi‑Fi y datos móviles.
+7. **Verificado:** Playwright interceptó el POST en dos escenarios. Al abortarlo antes de llegar al servidor se observó un solo POST seguido del GET privado y se permitió reintentar conservando la selección. Al dejar que el servidor respondiera 200 y después abortar la respuesta al navegador, se observó un solo POST seguido del GET privado y se mostró la espera sin opción de envío. No se repitió automáticamente el POST en ninguno de los dos casos.
+8. **Verificado:** la TV durante `GuessersSubmitting` a 1280×720 no mostró manos, propietarios ni identidad de jugadores pendientes. La vista conservaba una composición tipo lobby; esta comprobación de privacidad no acredita una pantalla específica de progreso.
+9. **Pendiente:** a 390×844 y 360×568 se observaron pista, selección, proporción 2:3 y controles visibles; en el viewport bajo no hubo desbordamiento horizontal. Falta comprobar un área segura con inset inferior no nulo.
+10. **Verificado:** pasaron `npm run typecheck`, `npm run lint` y `npm run build`; también pasaron las cuatro pruebas del catálogo y 337 pruebas .NET. El navegador cubrió selección, envío, espera, privacidad, error 400, resultados inciertos y recuperación tras una interrupción controlada de SignalR. La prueba no sustituye la investigación del fallo manual de acceso a la página tras cambiar de red.
+
+Para completar la revisión: comprobar el área segura en un dispositivo o entorno con inset real no nulo. Investigar por separado el fallo manual de acceso a la página tras cambiar de red.
 
 ## Decisiones
 
