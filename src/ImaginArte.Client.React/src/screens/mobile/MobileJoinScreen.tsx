@@ -675,12 +675,11 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const showNarratorTurn = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === true
     && privateState.room.phase === RoomPhase.StorytellerChoosing
-  const showPlayerTurnExample = import.meta.env.DEV
-    && joinedPlayer !== null
+  const showPlayerTurn = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === false
     && privateState.room.phase === RoomPhase.GuessersSubmitting
     && privateState.player.hasSubmittedGuessCard === false
-  const showTurnScreen = showNarratorTurn || showPlayerTurnExample
+  const showTurnScreen = showNarratorTurn || showPlayerTurn
   const showNarratorWaiting = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === true
     && privateState.room.phase !== RoomPhase.WaitingForPlayers
@@ -735,7 +734,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                   }
                 }}
               />
-          ) : showPlayerTurnExample ? (
+          ) : showPlayerTurn ? (
             <MobilePlayerTurnScreen clue={privateState.room.clue} hand={privateState.player.hand} roomCode={joinedPlayer.roomCode} playerId={joinedPlayer.playerId} connected={realtimeStatus === 'connected' && !hasRealtimeError} onRecover={recoverNarratorState} onRetryConnection={hasRealtimeError || realtimeStatus === 'disconnected' ? () => {
               setRealtimeStatus('connecting')
               setHasRealtimeError(false)

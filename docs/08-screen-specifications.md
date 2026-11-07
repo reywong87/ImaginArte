@@ -376,7 +376,7 @@ Let a guesser privately choose one hand card that fits the published clue.
 Guesser/player on mobile; narrator waits.
 
 ### Visible Information
-Persistent clue, private hand, selected-card state, concise instruction, and explicit **Send card** action.
+For a non-narrator in `GuessersSubmitting` whose private snapshot says they have not submitted, show the published clue, only their own private hand resolved through the card catalog, selected-card state, concise instruction, and explicit **Enviar carta** action. If the clue is missing, announce that it is unavailable and disable submission until a current snapshot supplies it. Identify unavailable illustrations and prevent selecting the affected cards.
 
 ### Prohibited Information
 
@@ -384,7 +384,7 @@ Persistent clue, private hand, selected-card state, concise instruction, and exp
 Select one card and explicitly select **Send card**.
 
 ### States And Transitions
-Browsing, selected, validation, submitting, and sent. Selection remains reversible before sending; successful sending transitions to **Waiting after sending a card**.
+Browsing, selected, validation, submitting, error, recovery, and sent. Selection remains reversible before sending; selection alone does not send a command. Preserve the selection on a confirmed rejection. Prevent duplicate submissions while a request is in progress. If the outcome is uncertain, query the private snapshot before allowing another attempt; never repeat the command automatically. Fetch a fresh snapshot after connection or reconnection, and represent its current role and phase. Successful sending transitions to **Waiting after sending a card**.
 
 ### Visual Composition
 Use the Night Wash framed mobile stage. Place the clue in a persistent Paper Warm panel at the top; cards dominate the scroll area, and the full-width gold action stays above the bottom safe inset.
@@ -407,7 +407,7 @@ Confirm that the private submission was received and prevent duplicate action.
 Narrator or guesser on mobile.
 
 ### Visible Information
-For the narrator in SPEC 10, show a compact neutral success confirmation, waiting message, and reconnecting state without the clue. Guesser behavior belongs to a later spec.
+For the narrator in SPEC 10, show a compact neutral success confirmation, waiting message, and reconnecting state without the clue. For a guesser who has submitted during `GuessersSubmitting`, show **Carta enviada** and **Esperamos a los demás. No necesitas hacer nada por ahora.** When the phase advances, show **Esperando a que continúe la partida** without introducing voting or other game actions. Show connection and recovery status as appropriate.
 
 ### Prohibited Information
 The private hand, submitted card, selection, and unsent or submitted private draft. Do not offer a game action in the narrator's SPEC 10 waiting view.
@@ -416,7 +416,7 @@ The private hand, submitted card, selection, and unsent or submitted private dra
 No game action.
 
 ### States And Transitions
-For SPEC 10, show submission confirmed and waiting, including connection recovery, without implementing voting, revelation, personal results, or further mobile actions. Those transitions belong to later specs.
+Show submission confirmed and waiting, including connection recovery, without implementing voting, revelation, personal results, or further mobile actions. Those transitions belong to later specs.
 
 ### Visual Composition
 Use a compact Paper Warm confirmation panel on the Night Wash framed stage; do not show the submitted card again. Keep the screen calm rather than celebratory.
