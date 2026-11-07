@@ -1,21 +1,56 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PrivateCardStateResponse } from '../../models/roomState'
 import { resolveCardAsset, type CardAssetResolution } from '../../services/cardAssets'
+import { RoomApiError, submitGuessCard } from '../../services/roomsApi'
 import './MobilePlayerTurnScreen.css'
 
 interface MobilePlayerTurnScreenProps {
   clue: string | null
   hand: PrivateCardStateResponse[]
+  roomCode: string
+  playerId: string
+  connected: boolean
 }
 
-function MobilePlayerTurnScreen({ clue, hand }: MobilePlayerTurnScreenProps) {
+function MobilePlayerTurnScreen({ clue, hand, roomCode, playerId, connected }: MobilePlayerTurnScreenProps) {
   const [assets, setAssets] = useState<Record<string, CardAssetResolution>>({})
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
-  const [showUnavailableNotice, setShowUnavailableNotice] = useState(false)
+  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'uncertain' | 'confirmed'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const inFlight = useRef(false)
+  const mounted = useRef(true)
   const handIds = JSON.stringify(hand.map((card) => card.cardId))
-  const canSubmit = Boolean(clue?.trim()) && selectedCardId !== null
+  const canSubmit = connected && submissionStatus === 'idle' && Boolean(clue?.trim()) && selectedCardId !== null
     && hand.some((card) => card.cardId === selectedCardId)
     && assets[selectedCardId]?.isSelectable === true
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+
+  async function handleSubmit() {
+    if (!canSubmit || selectedCardId === null || inFlight.current) return
+    inFlight.current = true
+    setSubmissionStatus('submitting')
+    setErrorMessage(null)
+    try {
+      await submitGuessCard(roomCode, playerId, selectedCardId)
+      if (mounted.current) setSubmissionStatus('confirmed')
+    } catch (error) {
+      if (mounted.current) {
+        if (error instanceof RoomApiError && error.status === 400) {
+          setSubmissionStatus('idle')
+          setErrorMessage('El servidor rechazó el envío. Conservamos tu selección.')
+        } else {
+          setSubmissionStatus('uncertain')
+          setErrorMessage('No se pudo confirmar el envío. Es necesario comprobar el estado antes de volver a enviar.')
+        }
+      }
+    } finally {
+      inFlight.current = false
+    }
+  }
 
   useEffect(() => {
     let isCurrent = true
@@ -29,6 +64,10 @@ function MobilePlayerTurnScreen({ clue, hand }: MobilePlayerTurnScreenProps) {
 
     return () => { isCurrent = false }
   }, [handIds])
+
+  if (submissionStatus === 'confirmed') {
+    return <section role="status"><h1 id="mobile-join-title">Carta enviada</h1><p>Esperando la actualización de la sala…</p></section>
+  }
 
   return (
     <section className="player-turn" aria-labelledby="mobile-join-title">
@@ -58,10 +97,9 @@ function MobilePlayerTurnScreen({ clue, hand }: MobilePlayerTurnScreenProps) {
                   name="player-card"
                   value={cardId}
                   checked={selected}
-                  disabled={!available}
+                  disabled={!available || submissionStatus !== 'idle'}
                   onChange={() => {
                     setSelectedCardId(cardId)
-                    setShowUnavailableNotice(false)
                   }}
                   aria-label={`Carta ${index + 1}: ${asset?.alt ?? 'Cargando ilustración'}`}
                 />
@@ -93,9 +131,11 @@ function MobilePlayerTurnScreen({ clue, hand }: MobilePlayerTurnScreenProps) {
       </fieldset>
 
       <div className="player-turn__controls">
-        {showUnavailableNotice && <p role="status">El envío de cartas aún no está disponible en esta maqueta.</p>}
-        <button className="mobile-join__submit" type="button" disabled={!canSubmit} onClick={() => setShowUnavailableNotice(true)}>
-          Enviar carta
+        {!connected && <p role="status">Esperando la conexión con la sala…</p>}
+        {submissionStatus === 'submitting' && <p role="status">Enviando carta…</p>}
+        {errorMessage && <p role="alert">{errorMessage}</p>}
+        <button className="mobile-join__submit" type="button" disabled={!canSubmit} onClick={() => void handleSubmit()}>
+          {submissionStatus === 'submitting' ? 'Enviando…' : 'Enviar carta'}
         </button>
       </div>
     </section>

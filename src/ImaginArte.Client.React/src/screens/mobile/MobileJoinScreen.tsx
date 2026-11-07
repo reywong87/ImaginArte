@@ -732,7 +732,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                 }}
               />
           ) : showPlayerTurnExample ? (
-            <MobilePlayerTurnScreen clue={privateState.room.clue} hand={privateState.player.hand} />
+            <MobilePlayerTurnScreen clue={privateState.room.clue} hand={privateState.player.hand} roomCode={joinedPlayer.roomCode} playerId={joinedPlayer.playerId} connected={realtimeStatus === 'connected' && !hasRealtimeError} />
           ) : joinedPlayer ? (
             <div className="mobile-join__confirmation">
               {showNarratorWaiting ? (

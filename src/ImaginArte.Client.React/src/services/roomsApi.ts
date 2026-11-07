@@ -151,6 +151,29 @@ export async function getPlayerPrivateState(
   return payload
 }
 
+export async function submitGuessCard(
+  roomCode: string,
+  playerId: string,
+  cardId: string,
+): Promise<RoomStateResponse> {
+  const normalizedRoomCode = roomCode.trim().toUpperCase()
+  const response = await fetch(
+    `${getRoomsApiBaseUrl()}/rooms/${encodeURIComponent(normalizedRoomCode)}/guess-cards`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, cardId }),
+    },
+  )
+
+  if (!response.ok) throw new RoomApiError(response.status)
+  const payload: unknown = await response.json()
+  if (!isRoomStateResponse(payload) || payload.roomCode.trim().toUpperCase() !== normalizedRoomCode) {
+    throw new Error('El servidor devolvió un estado de sala no válido al enviar la carta.')
+  }
+  return payload
+}
+
 export async function chooseStorytellerCard(
   roomCode: string,
   playerId: string,
