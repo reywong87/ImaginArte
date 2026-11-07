@@ -1,44 +1,52 @@
 import { useEffect, useState } from 'react'
+import type { PrivateCardStateResponse } from '../../models/roomState'
 import { resolveCardAsset, type CardAssetResolution } from '../../services/cardAssets'
 import './MobilePlayerTurnScreen.css'
 
-const exampleCardIds = ['TEMP-001', 'TEMP-002', 'TEMP-003', 'TEMP-004', 'TEMP-005', 'TEMP-006']
+interface MobilePlayerTurnScreenProps {
+  clue: string | null
+  hand: PrivateCardStateResponse[]
+}
 
-function MobilePlayerTurnScreen() {
+function MobilePlayerTurnScreen({ clue, hand }: MobilePlayerTurnScreenProps) {
   const [assets, setAssets] = useState<Record<string, CardAssetResolution>>({})
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [showUnavailableNotice, setShowUnavailableNotice] = useState(false)
-  const canSubmit = selectedCardId !== null && assets[selectedCardId]?.isSelectable === true
+  const handIds = JSON.stringify(hand.map((card) => card.cardId))
+  const canSubmit = Boolean(clue?.trim()) && selectedCardId !== null
+    && hand.some((card) => card.cardId === selectedCardId)
+    && assets[selectedCardId]?.isSelectable === true
 
   useEffect(() => {
     let isCurrent = true
 
-    void Promise.all(exampleCardIds.map(resolveCardAsset)).then((resolvedAssets) => {
+    const cardIds: string[] = JSON.parse(handIds)
+    void Promise.all(cardIds.map(resolveCardAsset)).then((resolvedAssets) => {
       if (isCurrent) {
         setAssets(Object.fromEntries(resolvedAssets.map((asset) => [asset.cardId, asset])))
       }
     })
 
     return () => { isCurrent = false }
-  }, [])
+  }, [handIds])
 
   return (
     <section className="player-turn" aria-labelledby="mobile-join-title">
       <header className="player-turn__header">
-        <p>Maqueta de desarrollo · Datos de ejemplo</p>
+        <p>Tu turno</p>
         <h1 id="mobile-join-title">Elige una carta para la pista</h1>
       </header>
 
       <div className="player-turn__clue">
-        <h2>Pista de ejemplo</h2>
-        <p>Donde termina la noche</p>
+        <h2>Pista</h2>
+        <p role={!clue?.trim() ? 'status' : undefined}>{clue?.trim() ? clue : 'La pista no está disponible. Espera una actualización de la sala.'}</p>
       </div>
 
       <fieldset className="player-turn__hand">
-        <legend>Mano de ejemplo</legend>
-        <p className="player-turn__instruction">Elige una carta de ejemplo. Puedes cambiarla antes de continuar.</p>
-        <div className="player-turn__cards" tabIndex={0} role="region" aria-label="Cartas de ejemplo">
-          {exampleCardIds.map((cardId, index) => {
+        <legend>Tu mano privada</legend>
+        <p className="player-turn__instruction">Elige una carta. Puedes cambiarla antes de continuar.</p>
+        <div className="player-turn__cards" tabIndex={0} role="region" aria-label="Cartas de tu mano">
+          {hand.map(({ cardId }, index) => {
             const asset = assets[cardId]
             const available = asset?.isSelectable === true && asset.imageUrl !== null
             const selected = selectedCardId === cardId && available
@@ -47,7 +55,7 @@ function MobilePlayerTurnScreen() {
               <label className={`player-turn__card${selected ? ' player-turn__card--selected' : ''}`} key={cardId}>
                 <input
                   type="radio"
-                  name="player-example-card"
+                  name="player-card"
                   value={cardId}
                   checked={selected}
                   disabled={!available}
@@ -55,7 +63,7 @@ function MobilePlayerTurnScreen() {
                     setSelectedCardId(cardId)
                     setShowUnavailableNotice(false)
                   }}
-                  aria-label={`Carta de ejemplo ${index + 1}: ${asset?.alt ?? 'Cargando ilustración'}`}
+                  aria-label={`Carta ${index + 1}: ${asset?.alt ?? 'Cargando ilustración'}`}
                 />
                 <span className="player-turn__art">
                   {available ? (
@@ -77,7 +85,7 @@ function MobilePlayerTurnScreen() {
                     <span>{asset?.availabilityMessage ?? 'Cargando ilustración…'}</span>
                   )}
                 </span>
-                <span>Carta de ejemplo {index + 1} · {selected ? 'Seleccionada' : available ? 'Elegir carta' : asset ? 'No disponible' : 'Cargando'}</span>
+                <span>Carta {index + 1} · {selected ? 'Seleccionada' : available ? 'Elegir carta' : asset ? 'No disponible' : 'Cargando'}</span>
               </label>
             )
           })}

@@ -732,7 +732,7 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                 }}
               />
           ) : showPlayerTurnExample ? (
-            <MobilePlayerTurnScreen />
+            <MobilePlayerTurnScreen clue={privateState.room.clue} hand={privateState.player.hand} />
           ) : joinedPlayer ? (
             <div className="mobile-join__confirmation">
               {showNarratorWaiting ? (
