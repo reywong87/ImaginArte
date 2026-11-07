@@ -17,10 +17,12 @@
 
 .player-turn__header p {
   color: #f2b632;
+  font: 600 0.85rem/1.3 Arial, sans-serif;
 }
 
 .player-turn__header h1 {
   font-size: clamp(1.35rem, 5vw, 2rem);
+  line-height: 1.1;
 }
 
 .player-turn__clue {
@@ -34,6 +36,17 @@
 .player-turn__clue h2,
 .player-turn__hand legend {
   font-size: 1rem;
+}
+
+.player-turn__clue p {
+  font-size: clamp(1.15rem, 5vw, 1.5rem);
+  font-weight: 600;
+}
+
+.player-turn__instruction {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  line-height: 1.25;
 }
 
 .player-turn__hand {
@@ -120,4 +133,17 @@
 
 .player-turn__controls p {
   margin: 0;
+}
+
+.player-turn__controls .mobile-join__submit:disabled {
+  cursor: not-allowed;
+}
+
+@media (max-height: 620px) {
+  .player-turn { gap: 0.35rem; }
+  .player-turn__header h1 { font-size: 1.25rem; }
+  .player-turn__clue { padding: 0.4rem 0.65rem; }
+  .player-turn__clue p { font-size: 1.1rem; }
+  .player-turn__instruction { font-size: 0.8rem; }
+  .player-turn__controls .mobile-join__submit { min-height: 2.75rem; padding-block: 0.4rem; }
 }

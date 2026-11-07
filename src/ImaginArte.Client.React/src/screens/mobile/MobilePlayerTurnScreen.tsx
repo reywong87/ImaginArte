@@ -36,6 +36,7 @@ function MobilePlayerTurnScreen() {
 
       <fieldset className="player-turn__hand">
         <legend>Mano de ejemplo</legend>
+        <p className="player-turn__instruction">Elige una carta de ejemplo. Puedes cambiarla antes de continuar.</p>
         <div className="player-turn__cards" tabIndex={0} role="region" aria-label="Cartas de ejemplo">
           {exampleCardIds.map((cardId, index) => {
             const asset = assets[cardId]
