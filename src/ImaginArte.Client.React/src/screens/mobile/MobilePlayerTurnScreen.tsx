@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { PrivateCardStateResponse } from '../../models/roomState'
+import { RoomPhase, type GetPlayerPrivateStateResponse, type PrivateCardStateResponse } from '../../models/roomState'
 import { resolveCardAsset, type CardAssetResolution } from '../../services/cardAssets'
 import { RoomApiError, submitGuessCard } from '../../services/roomsApi'
 import './MobilePlayerTurnScreen.css'
@@ -10,12 +10,14 @@ interface MobilePlayerTurnScreenProps {
   roomCode: string
   playerId: string
   connected: boolean
+  onRecover: () => Promise<GetPlayerPrivateStateResponse>
+  onRetryConnection: (() => void) | null
 }
 
-function MobilePlayerTurnScreen({ clue, hand, roomCode, playerId, connected }: MobilePlayerTurnScreenProps) {
+function MobilePlayerTurnScreen({ clue, hand, roomCode, playerId, connected, onRecover, onRetryConnection }: MobilePlayerTurnScreenProps) {
   const [assets, setAssets] = useState<Record<string, CardAssetResolution>>({})
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
-  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'uncertain' | 'confirmed'>('idle')
+  const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'submitting' | 'checking' | 'uncertain' | 'confirmed'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const inFlight = useRef(false)
   const mounted = useRef(true)
@@ -28,6 +30,25 @@ function MobilePlayerTurnScreen({ clue, hand, roomCode, playerId, connected }: M
     mounted.current = true
     return () => { mounted.current = false }
   }, [])
+
+  async function checkSubmission() {
+    setSubmissionStatus('checking')
+    try {
+      const state = await onRecover()
+      if (!mounted.current) return
+      if (!state.player.isCurrentStoryteller && state.room.phase === RoomPhase.GuessersSubmitting && !state.player.hasSubmittedGuessCard) {
+        setErrorMessage('No se confirmó el envío. Puedes revisar tu selección y volver a intentarlo.')
+        setSubmissionStatus('idle')
+      } else {
+        setSubmissionStatus('confirmed')
+      }
+    } catch {
+      if (mounted.current) {
+        setSubmissionStatus('uncertain')
+        setErrorMessage('No se pudo comprobar el envío. Comprueba el estado antes de volver a enviar.')
+      }
+    }
+  }
 
   async function handleSubmit() {
     if (!canSubmit || selectedCardId === null || inFlight.current) return
@@ -43,10 +64,19 @@ function MobilePlayerTurnScreen({ clue, hand, roomCode, playerId, connected }: M
           setSubmissionStatus('idle')
           setErrorMessage('El servidor rechazó el envío. Conservamos tu selección.')
         } else {
-          setSubmissionStatus('uncertain')
-          setErrorMessage('No se pudo confirmar el envío. Es necesario comprobar el estado antes de volver a enviar.')
+          await checkSubmission()
         }
       }
+    } finally {
+      inFlight.current = false
+    }
+  }
+
+  async function handleCheckAgain() {
+    if (inFlight.current) return
+    inFlight.current = true
+    try {
+      await checkSubmission()
     } finally {
       inFlight.current = false
     }
@@ -132,8 +162,11 @@ function MobilePlayerTurnScreen({ clue, hand, roomCode, playerId, connected }: M
 
       <div className="player-turn__controls">
         {!connected && <p role="status">Esperando la conexión con la sala…</p>}
+        {onRetryConnection && <button className="mobile-join__snapshot-retry" type="button" onClick={onRetryConnection}>Reintentar conexión</button>}
         {submissionStatus === 'submitting' && <p role="status">Enviando carta…</p>}
+        {submissionStatus === 'checking' && <p role="status">Comprobando el estado de la sala…</p>}
         {errorMessage && <p role="alert">{errorMessage}</p>}
+        {submissionStatus === 'uncertain' && <button className="mobile-join__snapshot-retry" type="button" onClick={() => void handleCheckAgain()}>Comprobar estado</button>}
         <button className="mobile-join__submit" type="button" disabled={!canSubmit} onClick={() => void handleSubmit()}>
           {submissionStatus === 'submitting' ? 'Enviando…' : 'Enviar carta'}
         </button>

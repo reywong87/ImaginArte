@@ -685,6 +685,10 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
     && privateState?.player.isCurrentStoryteller === true
     && privateState.room.phase !== RoomPhase.WaitingForPlayers
     && privateState.room.phase !== RoomPhase.StorytellerChoosing
+  const showPlayerWaiting = joinedPlayer !== null
+    && privateState?.player.isCurrentStoryteller === false
+    && privateState.room.phase === RoomPhase.GuessersSubmitting
+    && privateState.player.hasSubmittedGuessCard
 
   async function recoverNarratorState(): Promise<GetPlayerPrivateStateResponse> {
     if (!joinedPlayer) throw new Error('No hay una sesión de jugador activa.')
@@ -732,10 +736,19 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
                 }}
               />
           ) : showPlayerTurnExample ? (
-            <MobilePlayerTurnScreen clue={privateState.room.clue} hand={privateState.player.hand} roomCode={joinedPlayer.roomCode} playerId={joinedPlayer.playerId} connected={realtimeStatus === 'connected' && !hasRealtimeError} />
+            <MobilePlayerTurnScreen clue={privateState.room.clue} hand={privateState.player.hand} roomCode={joinedPlayer.roomCode} playerId={joinedPlayer.playerId} connected={realtimeStatus === 'connected' && !hasRealtimeError} onRecover={recoverNarratorState} onRetryConnection={hasRealtimeError || realtimeStatus === 'disconnected' ? () => {
+              setRealtimeStatus('connecting')
+              setHasRealtimeError(false)
+              setRealtimeRetryVersion((version) => version + 1)
+            } : null} />
           ) : joinedPlayer ? (
             <div className="mobile-join__confirmation">
-              {showNarratorWaiting ? (
+              {showPlayerWaiting ? (
+                <header className="mobile-join__header" role="status">
+                  <h1 className="mobile-join__title" id="mobile-join-title">Carta enviada</h1>
+                  <p className="mobile-join__introduction">Esperamos a los demás. No necesitas hacer nada por ahora.</p>
+                </header>
+              ) : showNarratorWaiting ? (
                 <header className="mobile-join__header" role="status">
                   <p className="mobile-join__eyebrow">Enviado</p>
                   <h1 className="mobile-join__title" id="mobile-join-title">Tu carta está en camino</h1>
