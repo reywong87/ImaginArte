@@ -1,6 +1,6 @@
 # SPEC 12 — Integración del turno del jugador en móvil
 
-> **Estado:** Draft  
+> **Estado:** Approved  
 > **Depende de:** SPEC 09 — Catálogo local de cartas; SPEC 10 — Turno del narrador en móvil; SPEC 11 — Maqueta del turno del jugador en móvil  
 > **Fecha:** 2026-11-04  
 > **Objetivo:** Conectar el turno móvil del jugador al estado autoritativo y al envío existente de cartas, con una espera privada tras la confirmación.

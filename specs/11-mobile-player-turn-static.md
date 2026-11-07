@@ -1,6 +1,6 @@
 # SPEC 11 — Maqueta del turno del jugador en móvil
 
-> **Estado:** Approved  
+> **Estado:** Implemented  
 > **Depende de:** SPEC 09 — Catálogo local de cartas; SPEC 10 — Turno del narrador en móvil  
 > **Fecha:** 2026-11-04  
 > **Objetivo:** Maquetar el turno móvil del jugador con datos de ejemplo y selección local, sin enviar cartas ni alterar la partida.
