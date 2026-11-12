@@ -119,7 +119,7 @@ Present the narrator's clue and indicate collective submission progress without 
 All players view TV; guessers act on mobiles; narrator waits; host has no phase-advance action.
 
 ### Visible Information
-Clue, narrator name, aggregate submission count such as “3 of 5 cards received,” and optional board context.
+The public clue, the instruction **“Elige en tu teléfono una carta que pueda contar esta historia.”**, an aggregate submission count such as “3 of 5 cards received,” and anonymous progress circles. The persistent board remains visible around the central window.
 
 ### Prohibited Information
 Hands, submitted-card art, submitter identity, who remains pending, narrator card identity, or any voting information.
@@ -128,19 +128,21 @@ Hands, submitted-card art, submitter identity, who remains pending, narrator car
 No TV action; each guesser submits privately.
 
 ### States And Transitions
-Collecting, all-submitted, and reconnecting states. Aggregate progress updates without identifying players. When all required submissions exist, transition to **Voting**.
+During **GuessersSubmitting**, show one anonymous circle per expected submission and mark as many as have been received. Circles represent only aggregate progress and are never associated with players. Show **“Esperando las cartas…”** when several submissions remain, **“Esperando la última carta…”** when one remains, and **“Todas las cartas recibidas”** if a snapshot in this phase reports a complete count. If the clue is absent, show **“Pista no disponible”** while retaining the available progress.
+
+Keep the last available snapshot visible during disconnection and report connection status through the existing global indicator. After reconnection, fetch and display a fresh authoritative snapshot, including any phase change. The server controls transitions; the TV neither advances nor delays the phase, and removes this window when the phase changes.
 
 ### Visual Composition
-Place clue in the upper safe band using display type only if fully readable; place aggregate progress in the lower status band. Keep the central card area empty until voting.
+Use the existing central dark ceremonial window, botanical texture, frame, and decorative branches. Arrange **“PISTA PÚBLICA”**, the clue, the phone instruction, **“CARTAS RECIBIDAS”**, the count and anonymous circles, and the waiting message in a clear vertical hierarchy. Preserve the background, board route, and lower-right global connection indicator. The complete mockup is a visual reference, not a runtime UI asset.
 
 ### Accessibility
-Clue remains high-contrast on an opaque Paper Warm surface; progress states pair count, text, and icon; no countdown or time pressure.
+Keep the clue high-contrast against the dark window. Allow long clues to wrap and, when necessary, scroll within a keyboard-focusable, named region without hiding the count or connection indicator. Pair progress circles with an accessible textual count and waiting message rather than relying on color alone. Keep content legible and uncropped at 1920 × 1080 and 1280 × 720; respect reduced-motion preferences. There is no countdown or time pressure.
 
 ### Visual Reference
 `docs/assets/visual-references/mockups/04-pista-progreso-envios-ruta-tv-ventana-oscura.png`.
 
 ### Acceptance Criteria
-The clue is readable from 2-3 m, and the TV communicates only aggregate completion, never a pending player's identity or a selected card.
+The central window displays the authoritative public clue and aggregate counts, updates with new snapshots, and distinguishes multiple pending submissions, the last submission, and completion. The clue is readable from 2–3 m, and a missing or long clue does not hide progress. The TV communicates only aggregate completion, never a pending player's identity or a selected card; it retains the last state during disconnection and displays the current snapshot after recovery.
 
 ## 4. Voting
 
