@@ -23,6 +23,7 @@ import {
 } from '../../services/roomRealtime'
 import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
 import ProgressRoute from '../../components/progress-board/ProgressRoute'
+import TvSubmissionProgressScreen from './TvSubmissionProgressScreen'
 import TvWaitingForStorytellerScreen from './TvWaitingForStorytellerScreen'
 import './TvLobbyScreen.css'
 
@@ -431,6 +432,8 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
 
         {room?.phase === RoomPhase.StorytellerChoosing ? (
           <TvWaitingForStorytellerScreen room={room} />
+        ) : room?.phase === RoomPhase.GuessersSubmitting ? (
+          <TvSubmissionProgressScreen room={room} />
         ) : room && (
           <>
             <div className="tv-lobby-screen__main-grid">
