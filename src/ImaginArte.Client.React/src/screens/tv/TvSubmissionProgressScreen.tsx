@@ -25,7 +25,12 @@ function TvSubmissionProgressScreen({ room }: TvSubmissionProgressScreenProps) {
         <h2 className="tv-submission-progress__heading" id="tv-submission-progress-title">
           PISTA PÚBLICA
         </h2>
-        <div className="tv-submission-progress__clue" tabIndex={0} aria-label="Pista pública">
+        <div
+          className="tv-submission-progress__clue"
+          role="region"
+          tabIndex={0}
+          aria-label="Pista pública"
+        >
           {clue || 'Pista no disponible'}
         </div>
         <p className="tv-submission-progress__instruction">

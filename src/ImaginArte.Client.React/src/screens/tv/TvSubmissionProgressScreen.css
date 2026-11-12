@@ -2,6 +2,7 @@
   box-sizing: border-box;
   display: flex;
   width: min(40vw, 60rem);
+  max-height: 80%;
   min-height: clamp(15rem, 30vh, 23rem);
   align-self: center;
   margin-block: auto;
@@ -27,6 +28,7 @@
   z-index: 2;
   display: flex;
   min-width: 0;
+  min-height: 0;
   width: 100%;
   flex-direction: column;
   align-items: center;
@@ -44,13 +46,20 @@
 
 .tv-submission-progress__clue {
   max-width: 100%;
-  max-height: 5em;
-  overflow: auto;
+  max-height: min(5em, 19svh);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   color: #fbf4e2;
   font-family: Georgia, serif;
   font-size: clamp(1.4rem, 2.2vw, 2.5rem);
   line-height: 1.2;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tv-submission-progress__content > :not(.tv-submission-progress__clue) {
+  flex-shrink: 0;
 }
 
 .tv-submission-progress__clue:focus-visible {
