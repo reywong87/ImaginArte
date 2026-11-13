@@ -33,6 +33,7 @@ import {
 import './MobileJoinScreen.css'
 import MobileNarratorTurnScreen from './MobileNarratorTurnScreen'
 import MobilePlayerTurnScreen from './MobilePlayerTurnScreen'
+import MobileWaitingAfterSubmissionScreen from './MobileWaitingAfterSubmissionScreen'
 
 const ROOM_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/
 const MOBILE_AVATAR_IDS = Object.keys(PLAYER_AVATARS) as AvatarId[]
@@ -682,12 +683,16 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const showTurnScreen = showNarratorTurn || showPlayerTurn
   const showNarratorWaiting = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === true
-    && privateState.room.phase !== RoomPhase.WaitingForPlayers
-    && privateState.room.phase !== RoomPhase.StorytellerChoosing
+    && privateState.room.phase === RoomPhase.GuessersSubmitting
   const showPlayerWaiting = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === false
     && privateState.room.phase === RoomPhase.GuessersSubmitting
     && privateState.player.hasSubmittedGuessCard
+  const showNeutralWaiting = joinedPlayer !== null
+    && privateState !== null
+    && privateState.room.phase !== RoomPhase.WaitingForPlayers
+    && privateState.room.phase !== RoomPhase.StorytellerChoosing
+    && privateState.room.phase !== RoomPhase.GuessersSubmitting
 
   async function recoverNarratorState(): Promise<GetPlayerPrivateStateResponse> {
     if (!joinedPlayer) throw new Error('No hay una sesión de jugador activa.')
@@ -743,16 +748,11 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
           ) : joinedPlayer ? (
             <div className="mobile-join__confirmation">
               {showPlayerWaiting ? (
-                <header className="mobile-join__header" role="status">
-                  <h1 className="mobile-join__title" id="mobile-join-title">Carta enviada</h1>
-                  <p className="mobile-join__introduction">Esperamos a los demás. No necesitas hacer nada por ahora.</p>
-                </header>
+                <MobileWaitingAfterSubmissionScreen variant="player" />
               ) : showNarratorWaiting ? (
-                <header className="mobile-join__header" role="status">
-                  <p className="mobile-join__eyebrow">Enviado</p>
-                  <h1 className="mobile-join__title" id="mobile-join-title">Tu carta está en camino</h1>
-                  <p className="mobile-join__introduction">Esperamos las demás historias. No necesitas hacer nada más por ahora.</p>
-                </header>
+                <MobileWaitingAfterSubmissionScreen variant="storyteller" />
+              ) : showNeutralWaiting ? (
+                <MobileWaitingAfterSubmissionScreen variant="neutral" />
               ) : (
                 <>
               <header className="mobile-join__header">

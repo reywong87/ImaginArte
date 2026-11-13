@@ -24,10 +24,10 @@ function MobileWaitingAfterSubmissionScreen({ variant }: MobileWaitingAfterSubmi
   const message = waitingMessages[variant]
 
   return (
-    <section className="mobile-waiting" aria-labelledby="mobile-waiting-title">
+    <section className="mobile-waiting" aria-labelledby="mobile-join-title" role="status">
       <div className="mobile-waiting__heading">
         <p className="mobile-waiting__eyebrow">{variant === 'neutral' ? 'Espera' : 'Enviado'}</p>
-        <h1 id="mobile-waiting-title">{message.heading}</h1>
+        <h1 id="mobile-join-title">{message.heading}</h1>
         {message.description && <p className="mobile-waiting__description">{message.description}</p>}
       </div>
       <img className="mobile-waiting__envelope" src={envelope} alt="" />
