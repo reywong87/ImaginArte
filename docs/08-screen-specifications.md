@@ -403,34 +403,34 @@ The clue remains visible, the player can change their selected card before confi
 ## 12. Waiting After Sending A Card
 
 ### Purpose
-Confirm that the private submission was received and prevent duplicate action.
+Confirm a private submission when the current snapshot supports it, or provide neutral waiting after the submission phase, without offering duplicate action.
 
 ### User And Surface
 Narrator or guesser on mobile.
 
 ### Visible Information
-For the narrator in SPEC 10, show a compact neutral success confirmation, waiting message, and reconnecting state without the clue. For a guesser who has submitted during `GuessersSubmitting`, show **Carta enviada** and **Esperamos a los demás. No necesitas hacer nada por ahora.** When the phase advances, show **Esperando a que continúe la partida** without introducing voting or other game actions. Show connection and recovery status as appropriate.
+During `GuessersSubmitting`, show the narrator **Tu carta está en camino** and **Esperamos las demás historias. No necesitas hacer nada más por ahora.**, without the clue. For a guesser whose private snapshot confirms submission, show **Carta enviada** and **Esperamos a los demás. No necesitas hacer nada por ahora.** After the submission phase, show the neutral **Esperando a que continúe la partida** without asserting a submission that the current snapshot does not confirm or introducing voting or other game actions. Show connection and recovery status as appropriate.
 
 ### Prohibited Information
-The private hand, submitted card, selection, and unsent or submitted private draft. Do not offer a game action in the narrator's SPEC 10 waiting view.
+The private hand, submitted card, selection, narrator's clue, and unsent or submitted private draft. Do not offer a game action or another submission in any waiting view.
 
 ### Primary Action
 No game action.
 
 ### States And Transitions
-Show submission confirmed and waiting, including connection recovery, without implementing voting, revelation, personal results, or further mobile actions. Those transitions belong to later specs.
+Show submission-confirmed or neutral waiting as appropriate, including connection recovery, without implementing voting, revelation, personal results, or further mobile actions. Keep disconnection and retry states visible. After connection or reconnection, fetch and represent the current private snapshot; never automatically repeat a submission. Those later game transitions belong to later specs.
 
 ### Visual Composition
-Use a compact Paper Warm confirmation panel on the Night Wash framed stage; do not show the submitted card again. Keep the screen calm rather than celebratory.
+Use the dark Night Wash mobile stage and restrained gold frame, with a prominent envelope from `src/ImaginArte.Client.React/src/assets/sobre.png` and a clear text hierarchy. Keep the composition static and calm, and retain the envelope in neutral waiting. The complete mockup is a visual reference, not a runtime image; do not show the submitted card again.
 
 ### Accessibility
-Confirmation pairs Moss Signal with literal text and icon. The screen communicates that no further action is needed.
+Communicate confirmation or neutral waiting in literal text, not only through color or imagery. The screen communicates when no further action is needed. Keep text, connection status, and retry controls readable and reachable at 390 × 844 and 360 × 568, with scrolling and safe-area spacing when needed.
 
 ### Visual Reference
-`docs/assets/visual-references/mockups/13-esperando-tras-enviar-carta-movil.png`; use its confirmation/waiting hierarchy without exposed card art.
+`docs/assets/visual-references/mockups/13-esperando-tras-enviar-carta-movil.png`; use its dark envelope and confirmation/waiting hierarchy without exposed card art or the complete mockup as an interface asset.
 
 ### Acceptance Criteria
-The player receives immediate confirmation, cannot submit twice, and the screen does not expose the private selected card.
+The narrator or player receives the appropriate confirmation when supported by the snapshot, while later phases use neutral waiting. Neither can submit again or expose private card or draft information. The static envelope composition and recovery controls remain accessible at both specified mobile sizes.
 
 ## 13. Vote For A Card
 
