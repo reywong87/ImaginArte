@@ -1,0 +1,127 @@
+.tv-voting {
+  box-sizing: border-box;
+  display: flex;
+  width: min(52vw, 62rem);
+  max-height: 80vh;
+  min-height: 0;
+  flex-direction: column;
+  align-self: center;
+  align-items: center;
+  gap: clamp(0.35rem, 1vh, 0.75rem);
+  margin-block: auto;
+  color: #fbf4e2;
+  text-align: center;
+}
+
+.tv-voting__header {
+  display: flex;
+  min-height: 0;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tv-voting__heading {
+  margin: 0;
+  color: #f4d18a;
+  font-size: clamp(0.9rem, 1.15vw, 1.3rem);
+  letter-spacing: 0.12em;
+}
+
+.tv-voting__clue {
+  max-width: 100%;
+  max-height: 3em;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: Georgia, serif;
+  font-size: clamp(1.4rem, 2vw, 2.4rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tv-voting__clue:focus-visible {
+  outline: 2px solid #f2b632;
+  outline-offset: 4px;
+}
+
+.tv-voting__instruction {
+  margin: 0;
+  font-size: clamp(0.9rem, 1.1vw, 1.25rem);
+}
+
+.tv-voting__cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: center;
+  gap: clamp(0.35rem, 0.7vw, 0.8rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tv-voting__card {
+  display: flex;
+  width: clamp(4rem, 8vh, 6rem);
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.tv-voting__art {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  place-items: center;
+  padding: 0.3rem;
+  border: 2px solid #f4d18a;
+  background: #08263e;
+  font-size: clamp(0.7rem, 1vw, 1rem);
+}
+
+.tv-voting__number {
+  color: #fbf4e2;
+  font-size: clamp(1.1rem, 1.5vw, 1.7rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tv-voting__progress {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.tv-voting__count {
+  margin: 0;
+  font-size: clamp(1.1rem, 1.5vw, 1.7rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-voting__circles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.tv-voting__circle {
+  display: grid;
+  width: clamp(1.3rem, 1.8vw, 2rem);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 2px solid #f2b632;
+  border-radius: 50%;
+  color: #08263e;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tv-voting__circle--received {
+  background: #eeb348;
+}
