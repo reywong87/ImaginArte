@@ -990,6 +990,10 @@ public sealed class RoomEndpointTests
         var bobAfter = await GetPlayerPrivateStateAsync(client, "ABC123", room.BobId);
         var carlaAfter = await GetPlayerPrivateStateAsync(client, "ABC123", room.CarlaId);
 
+        Assert.True(room.BobBefore.Player.HasVoted);
+        Assert.True(room.CarlaBefore.Player.HasVoted);
+        Assert.False(bobAfter.Player.HasVoted);
+        Assert.False(carlaAfter.Player.HasVoted);
         AssertRefilledHand(room.AliceBefore, aliceAfter, room.StorytellerCardId);
         AssertRefilledHand(room.BobBefore, bobAfter, room.BobCardId);
         AssertRefilledHand(room.CarlaBefore, carlaAfter, room.CarlaCardId);
@@ -1272,6 +1276,35 @@ public sealed class RoomEndpointTests
             Assert.False(votingCard.TryGetProperty("ownerPlayerId", out _));
             Assert.False(votingCard.TryGetProperty("ownerName", out _));
         }
+    }
+
+    [Fact]
+    public async Task GetPlayerPrivateState_HasVoted_IsPrivateAndReflectsRecordedVotes()
+    {
+        using var application = CreateApplication();
+        using var client = application.CreateClient();
+        var room = await PrepareVotingRoomAsync(client, "ABC123");
+        var storytellerCardId = room.VotingState.VotingCards.Single(card => card.CardId == room.StorytellerCardId).VotingCardId;
+        var bobCardId = room.VotingState.VotingCards.Single(card => card.CardId == room.BobCardId).VotingCardId;
+
+        Assert.False((await GetPlayerPrivateStateAsync(client, "ABC123", room.BobId)).Player.HasVoted);
+        var firstVote = await client.PostAsJsonAsync("/rooms/ABC123/votes", new CastVoteRequest(room.BobId, storytellerCardId));
+        firstVote.EnsureSuccessStatusCode();
+        Assert.True((await GetPlayerPrivateStateAsync(client, "ABC123", room.BobId)).Player.HasVoted);
+        Assert.False((await GetPlayerPrivateStateAsync(client, "ABC123", room.CarlaId)).Player.HasVoted);
+        Assert.False((await GetPlayerPrivateStateAsync(client, "ABC123", room.AliceId)).Player.HasVoted);
+
+        var publicJson = await client.GetStringAsync("/rooms/ABC123");
+        using var json = JsonDocument.Parse(publicJson);
+        Assert.DoesNotContain("hasVoted", publicJson, StringComparison.OrdinalIgnoreCase);
+        foreach (var card in json.RootElement.GetProperty("votingCards").EnumerateArray())
+        {
+            Assert.Empty(card.GetProperty("votes").EnumerateArray());
+        }
+
+        var lastVote = await client.PostAsJsonAsync("/rooms/ABC123/votes", new CastVoteRequest(room.CarlaId, bobCardId));
+        lastVote.EnsureSuccessStatusCode();
+        Assert.True((await GetPlayerPrivateStateAsync(client, "ABC123", room.CarlaId)).Player.HasVoted);
     }
 
     [Fact]

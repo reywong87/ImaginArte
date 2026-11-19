@@ -20,7 +20,8 @@ internal static class RoomHttpMappings
                     .ToArray(),
                 result.Player.IsCurrentStoryteller,
                 result.Player.HasSubmittedGuessCard,
-                result.Player.SubmittedVotingCardId));
+                result.Player.SubmittedVotingCardId,
+                result.Player.HasVoted));
     }
 
     public static RoomStateResponse ToHttpResponse(

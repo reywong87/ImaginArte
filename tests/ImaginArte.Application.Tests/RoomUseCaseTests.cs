@@ -327,6 +327,33 @@ public sealed class RoomUseCaseTests
     }
 
     [Fact]
+    public async Task GetPlayerPrivateState_HasVoted_TracksPlayerAndCurrentRound()
+    {
+        var repository = new InMemoryRoomRepository();
+        var handler = new GetPlayerPrivateStateHandler(repository);
+        var castVote = new CastVoteHandler(repository);
+        var (aliceId, bobId, carlaId, _) = await CreateRoomWaitingForVotingAsync(repository);
+        var storytellerCardId = await GetStorytellerVotingCardIdAsync(repository);
+        var bobCardId = await GetVotingCardIdForOwnerAsync(repository, bobId);
+
+        Assert.False((await handler.HandleAsync(new("ABC123", bobId))).Player.HasVoted);
+        await castVote.HandleAsync(new("ABC123", bobId, storytellerCardId));
+        Assert.True((await handler.HandleAsync(new("ABC123", bobId))).Player.HasVoted);
+        Assert.False((await handler.HandleAsync(new("ABC123", carlaId))).Player.HasVoted);
+        Assert.False((await handler.HandleAsync(new("ABC123", aliceId))).Player.HasVoted);
+
+        await castVote.HandleAsync(new("ABC123", carlaId, bobCardId));
+        Assert.True((await handler.HandleAsync(new("ABC123", carlaId))).Player.HasVoted);
+        await new RevealStorytellerCardHandler(repository).HandleAsync(new("ABC123"));
+        await new ScoreRoundHandler(repository).HandleAsync(new("ABC123"));
+        await new CompleteRoundHandler(repository).HandleAsync(new("ABC123"));
+        Assert.True((await handler.HandleAsync(new("ABC123", bobId))).Player.HasVoted);
+        await new AdvanceRoundHandler(repository).HandleAsync(new("ABC123"));
+        Assert.False((await handler.HandleAsync(new("ABC123", bobId))).Player.HasVoted);
+        Assert.False((await handler.HandleAsync(new("ABC123", carlaId))).Player.HasVoted);
+    }
+
+    [Fact]
     public async Task GetPlayerPrivateState_WhenRoomDoesNotExist_Throws()
     {
         var repository = new InMemoryRoomRepository();

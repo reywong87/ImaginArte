@@ -31,7 +31,8 @@ public sealed record PlayerPrivateStateResponse(
     IReadOnlyCollection<CardStateResponse> Hand,
     bool IsCurrentStoryteller,
     bool HasSubmittedGuessCard,
-    string? SubmittedVotingCardId);
+    string? SubmittedVotingCardId,
+    bool HasVoted = false);
 
 public sealed record CardStateResponse(string CardId);
 
