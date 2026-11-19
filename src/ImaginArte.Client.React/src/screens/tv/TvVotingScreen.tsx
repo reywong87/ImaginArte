@@ -1,4 +1,6 @@
-import type { RoomStateResponse } from '../../models/roomState'
+import { useEffect, useState } from 'react'
+import type { RoomStateResponse, VotingCardStateResponse } from '../../models/roomState'
+import { resolveCardAsset, type CardAssetResolution } from '../../services/cardAssets'
 import './TvVotingScreen.css'
 
 interface TvVotingScreenProps {
@@ -25,10 +27,7 @@ function TvVotingScreen({ room }: TvVotingScreenProps) {
 
       <ol className="tv-voting__cards" aria-label="Cartas de votación">
         {orderedCards.map((card) => (
-          <li className="tv-voting__card" key={card.votingCardId}>
-            <div className="tv-voting__art">Imagen no disponible</div>
-            <span className="tv-voting__number">{card.displayNumber}</span>
-          </li>
+          <TvVotingCard card={card} key={card.votingCardId} />
         ))}
       </ol>
 
@@ -46,6 +45,42 @@ function TvVotingScreen({ room }: TvVotingScreenProps) {
         </div>
       </div>
     </section>
+  )
+}
+
+function TvVotingCard({ card }: { card: Pick<VotingCardStateResponse, 'cardId' | 'displayNumber'> }) {
+  const [asset, setAsset] = useState<CardAssetResolution | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    void resolveCardAsset(card.cardId).then((resolvedAsset) => {
+      if (active) {
+        setAsset(resolvedAsset)
+      }
+    })
+
+    return () => {
+      active = false
+    }
+  }, [card.cardId])
+
+  const currentAsset = asset?.cardId === card.cardId ? asset : null
+
+  return (
+    <li className="tv-voting__card">
+      <div className="tv-voting__art">
+        {currentAsset?.isAvailable && currentAsset.imageUrl ? (
+          <img
+            className="tv-voting__image"
+            src={currentAsset.imageUrl}
+            alt={currentAsset.alt}
+            onError={() => setAsset({ ...currentAsset, isAvailable: false, imageUrl: null })}
+          />
+        ) : currentAsset ? 'Imagen no disponible' : 'Cargando imagen…'}
+      </div>
+      <span className="tv-voting__number">{card.displayNumber}</span>
+    </li>
   )
 }
 
