@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
 import type { RoomStateResponse, VotingCardStateResponse } from '../../models/roomState'
 import { resolveCardAsset, type CardAssetResolution } from '../../services/cardAssets'
 import './TvVotingScreen.css'
@@ -15,33 +16,40 @@ function TvVotingScreen({ room }: TvVotingScreenProps) {
 
   return (
     <section className="tv-voting" aria-labelledby="tv-voting-title">
-      <header className="tv-voting__header">
-        <h2 className="tv-voting__heading" id="tv-voting-title">VOTACIÓN · LA PISTA</h2>
-        <div className="tv-voting__clue" role="region" tabIndex={0} aria-label="Pista pública">
-          {clue || 'Pista no disponible'}
+      <header className="tv-voting__header tv-lobby-panel">
+        <CeremonialWindowDecorations />
+        <div className="tv-voting__header-content">
+          <h2 className="tv-voting__heading" id="tv-voting-title">VOTACIÓN · LA PISTA</h2>
+          <div className="tv-voting__clue" role="region" tabIndex={0} aria-label="Pista pública">
+            {clue || 'Pista no disponible'}
+          </div>
         </div>
-        <p className="tv-voting__instruction">
-          Elige en tu teléfono la carta del narrador
-        </p>
       </header>
 
-      <ol className="tv-voting__cards" aria-label="Cartas de votación">
+      <p className="tv-voting__instruction tv-lobby-panel">
+        Elige en tu teléfono la carta del narrador
+      </p>
+
+      <ol className={`tv-voting__cards${orderedCards.length <= 4 ? ' tv-voting__cards--single-row' : ''}`} aria-label="Cartas de votación">
         {orderedCards.map((card) => (
           <TvVotingCard card={card} key={card.votingCardId} />
         ))}
       </ol>
 
-      <div className="tv-voting__progress" role="status" aria-live="polite">
-        <p className="tv-voting__count">{voteCount}/{expectedVoteCount} votos recibidos</p>
-        <div className="tv-voting__circles" aria-hidden="true">
-          {Array.from({ length: expectedVoteCount }, (_, index) => (
-            <span
-              className={`tv-voting__circle${index < voteCount ? ' tv-voting__circle--received' : ''}`}
-              key={index}
-            >
-              {index < voteCount ? '✓' : null}
-            </span>
-          ))}
+      <div className="tv-voting__progress tv-lobby-panel" role="status" aria-live="polite">
+        <CeremonialWindowDecorations />
+        <div className="tv-voting__progress-content">
+          <p className="tv-voting__count">{voteCount}/{expectedVoteCount} votos recibidos</p>
+          <div className="tv-voting__circles" aria-hidden="true">
+            {Array.from({ length: expectedVoteCount }, (_, index) => (
+              <span
+                className={`tv-voting__circle${index < voteCount ? ' tv-voting__circle--received' : ''}`}
+                key={index}
+              >
+                {index < voteCount ? '✓' : null}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </section>

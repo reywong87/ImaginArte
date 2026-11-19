@@ -24,6 +24,7 @@ import {
 import CeremonialWindowDecorations from '../../components/CeremonialWindowDecorations'
 import ProgressRoute from '../../components/progress-board/ProgressRoute'
 import TvSubmissionProgressScreen from './TvSubmissionProgressScreen'
+import TvVotingScreen from './TvVotingScreen'
 import TvWaitingForStorytellerScreen from './TvWaitingForStorytellerScreen'
 import './TvLobbyScreen.css'
 
@@ -418,7 +419,7 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
         )}
 
         {visibleState.errorMessage && (
-          <div className="tv-lobby-screen__error" role="alert">
+          <div className={`tv-lobby-screen__error${isGameStarted ? ' tv-lobby-screen__error--game' : ''}`} role="alert">
             <p>{visibleState.errorMessage}</p>
             <button
               className="tv-lobby-screen__button tv-lobby-screen__button--secondary"
@@ -434,6 +435,12 @@ function TvLobbyScreen({ roomCode }: TvLobbyScreenProps) {
           <TvWaitingForStorytellerScreen room={room} />
         ) : room?.phase === RoomPhase.GuessersSubmitting ? (
           <TvSubmissionProgressScreen room={room} />
+        ) : room?.phase === RoomPhase.Voting ? (
+          <TvVotingScreen room={room} />
+        ) : room?.phase === RoomPhase.VoteReveal ? (
+          <section className="tv-lobby-screen__voting-closed" aria-label="Votación cerrada">
+            <h2>Votación cerrada</h2>
+          </section>
         ) : room && (
           <>
             <div className="tv-lobby-screen__main-grid">

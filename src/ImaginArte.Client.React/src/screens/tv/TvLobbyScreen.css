@@ -28,6 +28,32 @@
   inset: 0;
 }
 
+.tv-lobby-screen__error--game {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 3;
+  width: min(90%, 36rem);
+  box-sizing: border-box;
+  transform: translateX(-50%);
+}
+
+.tv-lobby-screen__voting-closed {
+  align-self: center;
+  margin-block: auto;
+  padding: 1rem 2rem;
+  border: 2px solid #c18a2e;
+  border-radius: 1rem;
+  background: rgb(8 38 62 / 96%);
+  color: #fbf4e2;
+  text-align: center;
+}
+
+.tv-lobby-screen__voting-closed h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 3vw, 3rem);
+}
+
 .tv-lobby-screen__header {
   display: flex;
   flex-direction: column;
