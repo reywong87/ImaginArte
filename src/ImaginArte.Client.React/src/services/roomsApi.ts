@@ -174,6 +174,29 @@ export async function submitGuessCard(
   return payload
 }
 
+export async function castVote(
+  roomCode: string,
+  playerId: string,
+  votingCardId: string,
+): Promise<RoomStateResponse> {
+  const normalizedRoomCode = roomCode.trim().toUpperCase()
+  const response = await fetch(
+    `${getRoomsApiBaseUrl()}/rooms/${encodeURIComponent(normalizedRoomCode)}/votes`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, votingCardId }),
+    },
+  )
+
+  if (!response.ok) throw new RoomApiError(response.status)
+  const payload: unknown = await response.json()
+  if (!isRoomStateResponse(payload) || payload.roomCode.trim().toUpperCase() !== normalizedRoomCode) {
+    throw new Error('El servidor devolvió un estado de sala no válido al enviar el voto.')
+  }
+  return payload
+}
+
 export async function chooseStorytellerCard(
   roomCode: string,
   playerId: string,

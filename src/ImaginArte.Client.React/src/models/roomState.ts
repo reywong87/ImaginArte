@@ -102,6 +102,7 @@ export interface PlayerPrivateStateResponse {
   isCurrentStoryteller: boolean
   hasSubmittedGuessCard: boolean
   submittedVotingCardId: string | null
+  hasVoted: boolean
 }
 
 export interface GetPlayerPrivateStateResponse {
@@ -154,6 +155,7 @@ function isPlayerPrivateStateResponse(
     && typeof value.isCurrentStoryteller === 'boolean'
     && typeof value.hasSubmittedGuessCard === 'boolean'
     && isNullableString(value.submittedVotingCardId)
+    && typeof value.hasVoted === 'boolean'
 }
 
 function isVotingCardVoteStateResponse(
