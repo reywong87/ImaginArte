@@ -153,7 +153,7 @@ Show the randomized submitted-card set for private guesser voting.
 All players view TV; guessers vote on mobile; narrator and host do not advance the phase.
 
 ### Visible Information
-Clue, randomized submitted cards, stable high-contrast card numbers, and aggregate vote count such as “2 of 5 votes cast.”
+The public clue, the submitted cards authorized by the public snapshot, and their stable, high-contrast display numbers. Show only aggregate progress in the format **“5/7 votos recibidos”**, using the received and expected counts from the server. Show one anonymous circle per expected vote and mark as many as have been received; no circle represents a specific person.
 
 ### Prohibited Information
 Hands, votes or vote targets, voter identity, pending-voter identity, narrator-card identity, card ownership, or selection indicators.
@@ -162,19 +162,21 @@ Hands, votes or vote targets, voter identity, pending-voter identity, narrator-c
 No TV action; guessers vote privately.
 
 ### States And Transitions
-Voting, aggregate-progress, all-voted, and reconnecting states. Card order and numbers remain stable. When all eligible votes exist, the server locks voting and transitions to **Vote reveal and round points**. Individual votes are not sent in public snapshots before this transition.
+Render cards in ascending display-number order and keep their positions and numbers stable as votes arrive. A complete count alone does not change the screen. During disconnection, keep the last public snapshot visible with the existing connection indicator; on reconnection, fetch and display a fresh public snapshot.
+
+When the server reports `VoteReveal`, SPEC 15 replaces the grid with the temporary neutral message **“Votación cerrada”** over the board. This temporary view shows no votes, results, or game controls and does not change the rules of the dedicated **Vote Reveal And Round Points** screen described below.
 
 ### Visual Composition
-Cards occupy the central wide safe area; labels sit beside or below art. Clue uses the upper band and progress the lower band. Board nodes and constellations remain peripheral.
+In the central safe area, place **“VOTACIÓN · LA PISTA”** and the clue in the upper ceremonial panel. Place **“Elige en tu teléfono la carta del narrador”** in a separate strip below it. The clue panel fits its content up to the available width, with lateral padding that keeps the text clear of the ornaments. In the center, show portrait `2:3` cards in two rows of four when there are eight; center smaller sets without changing their order. Keep the numbers outside the art. In the lower ceremonial panel, put the count above the anonymous circles. Preserve the background, peripheral board route, and global connection indicator.
 
 ### Accessibility
-Card numbers use the Card Number token, remain visible throughout, and do not rely on art recognition. Do not animate or reorder cards while voting. Reduced motion keeps the set static.
+Show **“Pista no disponible”** if the clue is absent. Let the panel grow to show two lines without scrolling; for longer clues, retain a named, keyboard-focusable scroll region that does not hide the cards or progress. If an illustration is missing or fails to load, keep its slot and number and show **“Imagen no disponible”**, without displaying the technical ID. Pair the circles with the textual count. Keep the grid static even with reduced motion, and check legibility and spacing at 1920 × 1080 and 1280 × 720.
 
 ### Visual Reference
 `docs/assets/visual-references/mockups/05-votacion-cartas-pista-recorrido-tv.png`.
 
 ### Acceptance Criteria
-Every card is identifiable by a readable stable number; no prohibited private information is visible; a couch viewer can understand that voting is still in progress.
+At TV viewing distance, the clue, stable card numbers, and aggregate count are readable without revealing private information. The last view stays visible during disconnection; after recovery, the public snapshot determines whether the TV shows voting or the neutral closed message.
 
 ## 5. Vote Reveal And Round Points
 
