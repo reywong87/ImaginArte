@@ -117,11 +117,11 @@ interface GetPlayerPrivateStateResponse {
 - [x] Un envío correcto muestra confirmación/espera y no vuelve a renderizar la mano ni la carta elegida.
   - Evidencia: Navegador: tras POST 200 apareció espera sin radios ni área de cartas.
 - [x] La espera no expone la mano ni el borrador privado, y no ofrece votación, revelación u otra acción móvil.
-  - Evidencia: Navegador: espera sin mano, pista, botones ni radios; captura `.playwright-mcp/spec10-submitted-waiting-390x844.png`.
+  - Evidencia: Navegador: espera sin mano, pista, botones ni radios; captura `.playwright-mcp/10-mobile-narrator-turn/spec10-submitted-waiting-390x844.png`.
 - [x] Si falta la imagen de una carta del manifiesto, la carta aparece como no disponible, se deshabilita y no puede enviarse.
-  - Evidencia: Navegador: al simular HEAD 404, carta «No disponible» deshabilitada; captura `.playwright-mcp/spec10-missing-card-390x844.png`.
+  - Evidencia: Navegador: al simular HEAD 404, carta «No disponible» deshabilitada; captura `.playwright-mcp/10-mobile-narrator-turn/spec10-missing-card-390x844.png`.
 - [x] Ante error HTTP, el borrador permanece y el error se comunica de forma accesible.
-  - Evidencia: Navegador: HTTP 400 conservó selección y pista, con `role=alert`; captura `.playwright-mcp/spec10-http-error-draft-390x844.png`.
+  - Evidencia: Navegador: HTTP 400 conservó selección y pista, con `role=alert`; captura `.playwright-mcp/10-mobile-narrator-turn/spec10-http-error-draft-390x844.png`.
 - [x] Ante respuesta incierta, el cliente consulta el estado privado antes de permitir reintentar; si la fase ya avanzó, muestra la espera y no repite la mutación automáticamente.
   - Evidencia: Navegador: respuesta de POST 200 descartada; un GET privado confirmó fase avanzada, se mostró espera y solo hubo un POST.
 - [x] Tras conectar o reconectar, la pantalla consulta un snapshot fresco. Si la fase o el rol ya cambiaron, descarta el borrador y representa el estado actual.
