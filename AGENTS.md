@@ -61,6 +61,13 @@ The current documentation update only establishes these boundaries. React projec
 - When a task needs these assets, do not rely on the `@` file selector or `glob`, as they may omit Git-ignored files. Find files with the read-only command `find docs/assets -type f`, then read only the relevant files by their exact paths.
 - Do not modify `.gitignore` to expose these assets, force-add or stage them, or include them in a commit.
 
+## Local Playwright MCP Artifacts
+
+- Save screenshots in `.playwright-mcp/<spec-stem>/`, where `<spec-stem>` is the filename under `specs/` without `.md`. For example, screenshots for `specs/16-mobile-card-voting.md` go in `.playwright-mcp/16-mobile-card-voting/`.
+- Save page snapshots (`.yml`) in `.playwright-mcp/page-yml/` and browser console logs (`.log`) in `.playwright-mcp/console-log/`.
+- Use the appropriate destination when capturing evidence. If Playwright MCP writes an artifact to the root of `.playwright-mcp/` automatically, move it into the appropriate folder before citing it. When citing local evidence in a spec, use its repository-relative path and verify that the file exists.
+- Keep `.playwright-mcp/` artifacts local and ignored by Git; do not force-add or commit them.
+
 ## Runtime gotchas
 
 - Local server development uses SQLite from `src/ImaginArte.Server/appsettings.Development.json`; supported `Persistence:Provider` values are `InMemory`, `SQLite`, and `PostgreSQL`.
