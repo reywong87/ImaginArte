@@ -446,6 +446,7 @@ Guesser/player on mobile; narrator does not vote.
 Persistent clue, randomized card set with stable numbers matching TV, own submitted card visible but disabled with explanation, chosen-vote state, and explicit **Confirm vote** action.
 
 ### Prohibited Information
+Do not identify the narrator card or show other players' individual votes.
 
 ### Primary Action
 Select an eligible card and explicitly select **Confirm vote**.
@@ -453,8 +454,12 @@ Select an eligible card and explicitly select **Confirm vote**.
 ### States And Transitions
 Browsing, selected vote, confirmation, submitted, and reconnecting. Vote selection remains reversible until confirmation; successful confirmation transitions to **Confirmation and waiting after voting**.
 
+SPEC 16 sends the existing HTTP vote command only on explicit confirmation. If its response is uncertain, obtain a fresh private snapshot without resending: show confirmation when `hasVoted` is true, allow an explicit retry only when it is false and voting remains open, and otherwise show neutral waiting. After connecting or reconnecting, recover the current private snapshot rather than replaying missed events.
+
 ### Visual Composition
 Use the Night Wash framed mobile stage. Cards occupy the main scroll area at `2:3`; numbers are adjacent and persistent. Own card retains recognizable art but has a muted veil and blocked interaction; place its unavailable explanation outside the illustration. Keep the selected state and action clear of the art and above the bottom inset.
+
+Use a scrollable two-column grid, leaving an unpaired final card in the left column. Center **Tu turno** above the title. Let the clue panel grow with its wrapped text: do not clip the clue or give it its own scrollbar. Keep scrolling in the card grid and the confirmation in a separate bottom strip that respects the safe area without covering the grid. Numbers and all labels remain outside the illustrations.
 
 ### Accessibility
 Explain disabled own card in text, not color only. Card numbers are large and stable; selected vote uses focus/outline/text; confirmation is required and touch targets are at least 44 px.
@@ -483,6 +488,8 @@ No game action.
 
 ### States And Transitions
 Vote confirmed, waiting for reveal, reconnecting, and reveal-ready states; transition to **Personal state after revelation**.
+
+SPEC 16 uses a provisional plain “Voto enviado” waiting message after a successful response or a private snapshot confirming `hasVoted`. It never includes the chosen card, its number, or a thumbnail. If voting has closed without confirmation, use neutral waiting instead; the complete confirmation and reveal designs belong to later increments.
 
 ### Visual Composition
 Use a single calm Paper Warm confirmation panel on the Night Wash framed stage; no card thumbnail, number, or visual cue that could reveal the user's vote to nearby players.

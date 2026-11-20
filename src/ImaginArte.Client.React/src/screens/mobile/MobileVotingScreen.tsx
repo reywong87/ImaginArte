@@ -9,6 +9,10 @@ interface MobileVotingScreenProps {
   submittedVotingCardId: string | null
   selectedVotingCardId: string | null
   disabled: boolean
+  statusMessage: string | null
+  errorMessage: string | null
+  onCheckStatus: (() => void) | null
+  onRetryConnection: (() => void) | null
   onSelect: (votingCardId: string) => void
   onConfirm: () => void
 }
@@ -19,6 +23,10 @@ function MobileVotingScreen({
   submittedVotingCardId,
   selectedVotingCardId,
   disabled,
+  statusMessage,
+  errorMessage,
+  onCheckStatus,
+  onRetryConnection,
   onSelect,
   onConfirm,
 }: MobileVotingScreenProps) {
@@ -47,7 +55,7 @@ function MobileVotingScreen({
     <section className="mobile-voting" aria-labelledby="mobile-join-title">
       <header className="mobile-voting__header">
         <p>Tu turno</p>
-        <h1 id="mobile-join-title">Vota la carta del narrador</h1>
+        <h1 id="mobile-join-title" className="visually-hidden">Vota la carta del narrador</h1>
       </header>
 
       <div className="mobile-voting__clue">
@@ -105,7 +113,10 @@ function MobileVotingScreen({
       </fieldset>
 
       <div className="mobile-voting__controls">
-        <p>Tu voto será privado.</p>
+        {statusMessage ? <p role="status">{statusMessage}</p> : <p>Tu voto será privado.</p>}
+        {errorMessage && <p role="alert">{errorMessage}</p>}
+        {onCheckStatus && <button className="mobile-join__snapshot-retry" type="button" onClick={onCheckStatus}>Comprobar estado</button>}
+        {onRetryConnection && <button className="mobile-join__snapshot-retry" type="button" onClick={onRetryConnection}>Reintentar conexión</button>}
         <button className="mobile-join__submit" type="button" disabled={!canConfirm} onClick={onConfirm}>
           {disabled ? 'Espera…' : 'Confirmar voto'}
         </button>

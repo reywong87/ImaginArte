@@ -15,6 +15,7 @@ import {
   type StoredMobilePlayerSession,
 } from '../../services/mobilePlayerSession'
 import {
+  castVote,
   getRoomState,
   getPlayerPrivateState,
   joinRoomAsPlayer,
@@ -34,6 +35,7 @@ import './MobileJoinScreen.css'
 import MobileNarratorTurnScreen from './MobileNarratorTurnScreen'
 import MobilePlayerTurnScreen from './MobilePlayerTurnScreen'
 import MobileWaitingAfterSubmissionScreen from './MobileWaitingAfterSubmissionScreen'
+import MobileVotingScreen from './MobileVotingScreen'
 
 const ROOM_CODE_PATTERN = /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/
 const MOBILE_AVATAR_IDS = Object.keys(PLAYER_AVATARS) as AvatarId[]
@@ -52,6 +54,7 @@ interface MobileJoinFieldErrors {
 
 type MobileJoinStatus = 'idle' | 'recovering' | 'joining' | 'joined'
 type JoinOperation = 'recovery' | 'join'
+type VoteStatus = 'idle' | 'sending' | 'checking' | 'uncertain' | 'confirmed'
 
 const AVATAR_CONFLICT_MESSAGE =
   'Ese avatar acaba de ocuparse. Elige otro disponible; conservamos el código y tu nombre.'
@@ -241,6 +244,12 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [joinedPlayer, setJoinedPlayer] = useState<JoinedPlayerSummary | null>(null)
   const [privateState, setPrivateState] = useState<GetPlayerPrivateStateResponse | null>(null)
+  const [selectedVotingCardId, setSelectedVotingCardId] = useState<string | null>(null)
+  const [voteStatus, setVoteStatus] = useState<VoteStatus>('idle')
+  const [voteMessage, setVoteMessage] = useState<string | null>(null)
+  const voteInFlightRef = useRef(false)
+  const voteGenerationRef = useRef(0)
+  const mountedRef = useRef(true)
   const privateStateRef = useRef<GetPlayerPrivateStateResponse | null>(null)
   const privateStateVersionRef = useRef(0)
   const [realtimeStatus, setRealtimeStatus] =
@@ -254,6 +263,19 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
   const joinAbortControllerRef = useRef<AbortController | null>(null)
   const isBusy = status === 'recovering' || status === 'joining'
   function updatePrivateState(nextState: GetPlayerPrivateStateResponse) {
+    const previousPhase = privateStateRef.current?.room.phase
+    const enteredEarlyPhase = (nextState.room.phase === RoomPhase.StorytellerChoosing
+      || nextState.room.phase === RoomPhase.GuessersSubmitting) && previousPhase !== nextState.room.phase
+    const enteredNewVoting = nextState.room.phase === RoomPhase.Voting
+      && previousPhase !== undefined && previousPhase !== RoomPhase.Voting
+      && previousPhase !== RoomPhase.GuessersSubmitting && previousPhase !== RoomPhase.StorytellerChoosing
+      && previousPhase !== RoomPhase.WaitingForPlayers
+    if (enteredEarlyPhase || enteredNewVoting) {
+      voteGenerationRef.current += 1
+      setSelectedVotingCardId(null)
+      setVoteStatus('idle')
+      setVoteMessage(null)
+    }
     privateStateVersionRef.current += 1
     privateStateRef.current = nextState
     setPrivateState(nextState)
@@ -439,6 +461,11 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
 
   useEffect(() => () => {
     joinAbortControllerRef.current?.abort()
+  }, [])
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
   }, [])
 
   useEffect(() => {
@@ -680,7 +707,16 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
     && privateState?.player.isCurrentStoryteller === false
     && privateState.room.phase === RoomPhase.GuessersSubmitting
     && privateState.player.hasSubmittedGuessCard === false
-  const showTurnScreen = showNarratorTurn || showPlayerTurn
+  const votePending = voteStatus === 'sending' || voteStatus === 'checking' || voteStatus === 'uncertain'
+  const showVoteConfirmed = joinedPlayer !== null && privateState !== null
+    && !privateState.player.isCurrentStoryteller
+    && (privateState.player.hasVoted || (voteStatus === 'confirmed'
+      && privateState.room.phase !== RoomPhase.StorytellerChoosing
+      && privateState.room.phase !== RoomPhase.GuessersSubmitting))
+  const showVoting = joinedPlayer !== null && privateState !== null
+    && !privateState.player.isCurrentStoryteller && !showVoteConfirmed
+    && (privateState.room.phase === RoomPhase.Voting || votePending)
+  const showTurnScreen = showNarratorTurn || showPlayerTurn || showVoting
   const showNarratorWaiting = joinedPlayer !== null
     && privateState?.player.isCurrentStoryteller === true
     && privateState.room.phase === RoomPhase.GuessersSubmitting
@@ -703,6 +739,60 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
       return snapshot
     }
     return privateStateRef.current ?? snapshot
+  }
+
+  async function checkVoteState(generation: number) {
+    setVoteStatus('checking')
+    setVoteMessage(null)
+    try {
+      const snapshot = await recoverNarratorState()
+      if (!mountedRef.current || generation !== voteGenerationRef.current) return
+      if (snapshot.player.hasVoted) {
+        setVoteStatus('confirmed')
+      } else {
+        setVoteStatus('idle')
+        if (snapshot.room.phase === RoomPhase.Voting) {
+          setVoteMessage('El servidor no registró el voto. Puedes confirmar de nuevo.')
+        }
+      }
+    } catch {
+      if (mountedRef.current && generation === voteGenerationRef.current) {
+        setVoteStatus('uncertain')
+        setVoteMessage('No se pudo comprobar el voto. Consulta el estado antes de intentar enviarlo de nuevo.')
+      }
+    }
+  }
+
+  async function handleConfirmVote() {
+    const current = privateStateRef.current
+    if (voteInFlightRef.current || voteStatus !== 'idle' || !joinedPlayer || !current
+      || realtimeStatus !== 'connected' || hasRealtimeError || current.room.phase !== RoomPhase.Voting
+      || current.player.isCurrentStoryteller || current.player.hasVoted || selectedVotingCardId === null
+      || current.player.submittedVotingCardId === null
+      || current.player.submittedVotingCardId === selectedVotingCardId
+      || !current.room.votingCards.some((card) => card.votingCardId === selectedVotingCardId)) return
+    voteInFlightRef.current = true
+    const generation = voteGenerationRef.current
+    setVoteStatus('sending')
+    setVoteMessage(null)
+    try {
+      await castVote(joinedPlayer.roomCode, joinedPlayer.playerId, selectedVotingCardId)
+      if (mountedRef.current && generation === voteGenerationRef.current) setVoteStatus('confirmed')
+    } catch {
+      if (mountedRef.current && generation === voteGenerationRef.current) await checkVoteState(generation)
+    } finally {
+      voteInFlightRef.current = false
+    }
+  }
+
+  async function handleCheckVote() {
+    if (voteInFlightRef.current) return
+    voteInFlightRef.current = true
+    try {
+      await checkVoteState(voteGenerationRef.current)
+    } finally {
+      voteInFlightRef.current = false
+    }
   }
 
   return (
@@ -745,9 +835,29 @@ function MobileJoinScreen({ roomCode }: MobileJoinScreenProps) {
               setHasRealtimeError(false)
               setRealtimeRetryVersion((version) => version + 1)
             } : null} />
+          ) : showVoting ? (
+            <MobileVotingScreen
+              clue={privateState.room.clue}
+              votingCards={privateState.room.votingCards}
+              submittedVotingCardId={privateState.player.submittedVotingCardId}
+              selectedVotingCardId={selectedVotingCardId}
+              disabled={voteStatus !== 'idle' || realtimeStatus !== 'connected' || hasRealtimeError || privateState.player.submittedVotingCardId === null}
+              statusMessage={voteStatus === 'sending' ? 'Enviando voto…' : voteStatus === 'checking' ? 'Comprobando el voto…' : realtimeStatusMessage}
+              errorMessage={voteMessage ?? (privateState.player.submittedVotingCardId === null && privateState.room.phase === RoomPhase.Voting ? 'No se pudo identificar tu carta. Espera una actualización de la sala.' : null)}
+              onSelect={setSelectedVotingCardId}
+              onConfirm={() => void handleConfirmVote()}
+              onCheckStatus={voteStatus === 'uncertain' ? () => void handleCheckVote() : null}
+              onRetryConnection={hasRealtimeError || realtimeStatus === 'disconnected' ? () => {
+                setRealtimeStatus('connecting')
+                setHasRealtimeError(false)
+                setRealtimeRetryVersion((version) => version + 1)
+              } : null}
+            />
           ) : joinedPlayer ? (
             <div className="mobile-join__confirmation">
-              {showPlayerWaiting ? (
+              {showVoteConfirmed ? (
+                <section role="status"><h1 id="mobile-join-title">Voto enviado</h1><p>Esperando a que continúe la partida…</p></section>
+              ) : showPlayerWaiting ? (
                 <MobileWaitingAfterSubmissionScreen variant="player" />
               ) : showNarratorWaiting ? (
                 <MobileWaitingAfterSubmissionScreen variant="storyteller" />

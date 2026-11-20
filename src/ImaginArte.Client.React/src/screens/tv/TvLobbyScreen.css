@@ -672,16 +672,6 @@
   outline-offset: 3px;
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  clip-path: inset(50%);
-}
-
 @media (min-width: 901px) and (max-height: 820px) {
   .tv-lobby-screen {
     padding: 0.65rem 1rem;
