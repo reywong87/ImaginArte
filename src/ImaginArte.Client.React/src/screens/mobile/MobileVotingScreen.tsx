@@ -101,10 +101,11 @@ function MobileVotingScreen({
                       }))}
                     />
                   ) : <span>{asset?.availabilityMessage ?? 'Cargando ilustración…'}</span>}
+                  {ownCard && <span className="mobile-voting__own-badge" aria-hidden="true">Tu carta</span>}
                 </span>
                 <span className="mobile-voting__number">Carta {card.displayNumber}</span>
                 <span className="mobile-voting__label">
-                  {ownCard ? 'Tu carta · No puedes votarla' : selected ? 'Seleccionada' : available ? 'Elegir carta' : asset ? 'No disponible' : 'Cargando'}
+                  {ownCard ? 'No puedes votarla' : selected ? 'Seleccionada' : available ? 'Elegir carta' : asset ? 'No disponible' : 'Cargando'}
                 </span>
               </label>
             )

@@ -459,7 +459,7 @@ SPEC 16 sends the existing HTTP vote command only on explicit confirmation. If i
 ### Visual Composition
 Use the Night Wash framed mobile stage. Cards occupy the main scroll area at `2:3`; numbers are adjacent and persistent. Own card retains recognizable art but has a muted veil and blocked interaction; place its unavailable explanation outside the illustration. Keep the selected state and action clear of the art and above the bottom inset.
 
-Use a scrollable two-column grid, leaving an unpaired final card in the left column. Center **Tu turno** above the title. Let the clue panel grow with its wrapped text: do not clip the clue or give it its own scrollbar. Keep scrolling in the card grid and the confirmation in a separate bottom strip that respects the safe area without covering the grid. Numbers and all labels remain outside the illustrations.
+Use a scrollable two-column grid, leaving an unpaired final card in the left column. Center **Tu turno** in the header. Let the clue panel grow with its wrapped text: do not clip the clue or give it its own scrollbar. Keep scrolling in the card grid and the confirmation in a separate bottom strip that respects the safe area without covering the grid. Keep numbers and labels outside the illustrations, except for the **Tu carta** badge centered over the player's own card. Keep **No puedes votarla** below that card.
 
 ### Accessibility
 Explain disabled own card in text, not color only. Card numbers are large and stable; selected vote uses focus/outline/text; confirmation is required and touch targets are at least 44 px.
